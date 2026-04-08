@@ -1,0 +1,19 @@
+[
+    {
+      "id": "1",
+      "name": "Cement",
+      "price": 50,
+      "sellerId": "seller123",
+      "description": "High-quality Portland cement",
+      "image": "https://via.placeholder.com/300"
+    },
+    {
+      "id": "2",
+      "name": "Bricks",
+      "price": 0.5,
+      "sellerId": "seller456",
+      "description": "Durable clay bricks",
+      "image": "https://via.placeholder.com/300"
+    }
+  ]
+  

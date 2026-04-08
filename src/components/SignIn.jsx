@@ -1,22 +1,23 @@
-import React from 'react';
-import { Auth } from '@aws-amplify/auth';
+// src/pages/SignIn.jsx
+import React from "react"; // only once at the top
+import { useNavigate } from "react-router-dom";
 
-const SignIn = () => {
-  const signIn = async () => {
-    try {
-      const user = await Auth.signIn('yourusername', 'yourpassword');
-      console.log('Signed in:', user);
-    } catch (error) {
-      console.log('Error signing in', error);
-    }
+export default function SignIn() {
+  const navigate = useNavigate();
+
+  const handleLogin = () => {
+    // Example: log in as buyer
+    localStorage.setItem(
+      "user",
+      JSON.stringify({ name: "Jane", role: "buyer" })
+    );
+    navigate("/buyer-dashboard");
   };
 
   return (
-    <div>
-      <h2>Sign In</h2>
-      <button onClick={signIn}>Sign In</button>
+    <div style={{ padding: "50px", textAlign: "center" }}>
+      <h1>Sign In</h1>
+      <button onClick={handleLogin}>Sign in as Buyer</button>
     </div>
   );
-};
-
-export default SignIn;
+}

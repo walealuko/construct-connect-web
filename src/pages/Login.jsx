@@ -1,51 +1,49 @@
-// src/pages/Login.jsx
-
-import { useState } from "react";
+import React, { useState, useContext } from "react";
+import { UserContext } from "../context/UserContext";
 import { useNavigate } from "react-router-dom";
-import { signIn } from "@aws-amplify/auth";
-import { Amplify } from "aws-amplify";
-import awsExports from "../aws-exports";
 
-Amplify.configure(awsExports);
-
-export default function Login() {
+const Login = () => {
+  const { login } = useContext(UserContext);
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      await signIn(email, password);
+    if (!email || !password) return alert("Fill all fields!");
+
+    const success = await login(email, password);
+    if (success) {
       navigate("/");
-    } catch (err) {
-      console.error("Login error:", err);
-      setError(err.message || "Failed to login");
+    } else {
+      alert("Invalid credentials");
     }
   };
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>Login</h1>
-      <form onSubmit={handleLogin}>
+    <div style={{ padding: "20px" }}>
+      <h2>Login</h2>
+      <form onSubmit={handleSubmit}>
         <input
           type="email"
           placeholder="Email"
+          required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          required
         />
+        <br /><br />
         <input
           type="password"
           placeholder="Password"
+          required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          required
         />
+        <br /><br />
         <button type="submit">Login</button>
       </form>
-      {error && <p style={{ color: "red" }}>{error}</p>}
     </div>
   );
-}
+};
+
+export default Login;

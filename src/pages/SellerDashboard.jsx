@@ -1,31 +1,76 @@
-import React, { useEffect, useState } from "react";
-import Profile from "../components/Profile";
-import { fetchUsers } from "../api/users";
+// src/pages/SellerDashboard.jsx
+import React, { useState } from "react";
 
 export default function SellerDashboard() {
-  const [users, setUsers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    price: "",
+  });
 
-  useEffect(() => {
-    async function loadUsers() {
-      // For seller dashboard, you may only want to show the seller's own profile
-      const allUsers = await fetchUsers();
-      const sellerUsers = allUsers.filter(user => user.role === "Seller");
-      setUsers(sellerUsers);
-    }
-    loadUsers();
-  }, []);
+  function handleSubmit(e) {
+    e.preventDefault();
+
+    const newProduct = {
+      id: Date.now(),
+      name: formData.name,
+      description: formData.description,
+      price: parseFloat(formData.price),
+    };
+
+    setProducts([...products, newProduct]);
+    setFormData({ name: "", description: "", price: "" });
+  }
 
   return (
-    <div>
+    <div style={{ padding: "2rem" }}>
       <h2>Seller Dashboard</h2>
-      <div
-        className="profile-grid"
-        style={{ display: "flex", flexWrap: "wrap", justifyContent: "center" }}
-      >
-        {users.map(user => (
-          <Profile key={user.id} user={user} />
-        ))}
-      </div>
+
+      <form onSubmit={handleSubmit}>
+        <input
+          placeholder="Product Name"
+          value={formData.name}
+          onChange={(e) =>
+            setFormData({ ...formData, name: e.target.value })
+          }
+        />
+        <br />
+
+        <input
+          placeholder="Description"
+          value={formData.description}
+          onChange={(e) =>
+            setFormData({ ...formData, description: e.target.value })
+          }
+        />
+        <br />
+
+        <input
+          type="number"
+          placeholder="Price"
+          value={formData.price}
+          onChange={(e) =>
+            setFormData({ ...formData, price: e.target.value })
+          }
+        />
+        <br />
+
+        <button type="submit">Add Product</button>
+      </form>
+
+      <hr />
+
+      <h3>Your Products</h3>
+      {products.length === 0 && <p>No products yet.</p>}
+
+      {products.map((product) => (
+        <div key={product.id}>
+          <strong>{product.name}</strong>
+          <p>{product.description}</p>
+          <p>${product.price}</p>
+        </div>
+      ))}
     </div>
   );
 }

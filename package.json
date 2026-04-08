@@ -1,28 +1,24 @@
 {
-  "name": "constructhub",
-  "version": "0.1.0",
+  "name": "constructhub-frontend",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "@apollo/client": "^4.1.4",
-    "@aws-amplify/api": "^6.3.24",
-    "@aws-amplify/api-graphql": "^4.8.5",
-    "@aws-amplify/api-rest": "^4.6.3",
-    "@aws-amplify/auth": "^6.19.1",
-    "@aws-amplify/core": "^6.16.1",
-    "@aws-amplify/storage": "^6.13.1",
-    "@aws-amplify/ui-react": "^6.15.0",
-    "aws-amplify": "^6.16.2",
-    "firebase": "^12.9.0",
-    "graphql": "^16.12.0",
+    "axios": "^1.14.0",
+    "cors": "^2.8.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.4.3",
-    "react-scripts": "5.0.1"
+    "react-icons": "^5.5.0",
+    "react-router-dom": "^6.30.3",
+    "react-scripts": "^5.0.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test"
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
   },
   "browserslist": {
     "production": [
@@ -35,10 +31,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  },
-  "devDependencies": {
-    "@aws-amplify/cli": "^14.2.5",
-    "@graphql-codegen/cli": "^6.1.1",
-    "prettier": "^3.8.1"
   }
 }

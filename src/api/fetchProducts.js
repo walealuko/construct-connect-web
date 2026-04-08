@@ -1,16 +1,11 @@
-// src/api/products.js
-import { Amplify, API, graphqlOperation } from "aws-amplify";
-import awsExports from "../aws-exports"; // Your Amplify config
-import { listProducts } from "../graphql/queries"; // Generated GraphQL query
+import API from "./index";
 
-Amplify.configure(awsExports);
-
-export async function fetchProducts() {
+export const fetchProducts = async () => {
   try {
-    const response = await API.graphql(graphqlOperation(listProducts));
-    return response.data.listProducts.items;
+    const res = await API.get("/products");
+    return res.data;
   } catch (error) {
-    console.error("Error fetching products: - fetchProducts.js:13", error);
+    console.error("Error fetching products: - fetchProducts.js:8", error);
     return [];
   }
-}
+};

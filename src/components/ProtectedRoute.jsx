@@ -1,16 +1,18 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuthenticator } from "@aws-amplify/ui-react";
 
-export default function ProtectedRoute({ children, allowedRoles }) {
-  const { user } = useAuth();
+export default function PrivateRoute({ children, allowedRole }) {
+  const { user } = useAuthenticator();
 
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/signin" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/unauthorized" />;
+  const role = user?.attributes?.["custom:role"];
+
+  if (allowedRole && role !== allowedRole) {
+    return <Navigate to="/" replace />;
   }
 
   return children;

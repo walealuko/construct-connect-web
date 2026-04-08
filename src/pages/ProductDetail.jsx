@@ -1,28 +1,41 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useCart } from "../context/CartContext";
+import API from "../api";
 
-function ProductDetail() {
+export default function ProductDetail() {
   const { id } = useParams();
+  const { addToCart } = useCart();
+  const [product, setProduct] = useState(null);
 
-  // Mock data for demo
-  const product = {
-    id,
-    name: "Sample Product",
-    price: 999,
-    image: "https://via.placeholder.com/400",
-    description: "Detailed description of this product."
-  };
+  useEffect(() => {
+    API.get(`/products/${id}`)
+      .then(res => setProduct(res.data))
+      .catch(err => console.error(err));
+  }, [id]);
+
+  if (!product) return <h2 style={{ padding: "40px" }}>Loading...</h2>;
 
   return (
-    <div className="container">
-      <h2>{product.name}</h2>
-      <img src={product.image} alt={product.name} style={{ maxWidth: "400px", marginBottom: "15px" }} />
+    <div style={{ padding: "40px", maxWidth: "800px", margin: "auto" }}>
+      <img src={product.image} alt={product.name} width="100%" />
+      <h1>{product.name}</h1>
+      <h3>${product.price}</h3>
       <p>{product.description}</p>
-      <p><strong>Price: </strong>${product.price}</p>
-      <button>Add to Cart</button>
-      <button style={{ marginLeft: "10px" }}>Add to Wishlist</button>
+
+      <button
+        onClick={() => addToCart(product)}
+        style={{
+          padding: "12px 30px",
+          background: "#2563eb",
+          color: "#fff",
+          border: "none",
+          borderRadius: "6px",
+          cursor: "pointer"
+        }}
+      >
+        Add to Cart
+      </button>
     </div>
   );
 }
-
-export default ProductDetail;

@@ -1,6 +1,6 @@
-// src/pages/Products.jsx
 import React, { useEffect, useState } from "react";
 import ProductCard from "../components/ProductCard";
+import { fetchProducts } from "../api/fetchProducts";
 
 export default function Products() {
   const [products, setProducts] = useState([]);
@@ -11,7 +11,7 @@ export default function Products() {
   useEffect(() => {
     async function loadProducts() {
       try {
-        const data = await fetchProducts(); // API call to get all products
+        const data = await fetchProducts();
         setProducts(data);
       } catch (err) {
         console.error(err);
@@ -22,9 +22,8 @@ export default function Products() {
     loadProducts();
   }, []);
 
-  // Filtered products based on search and category
   const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });

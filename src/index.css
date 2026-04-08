@@ -3,84 +3,90 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  font-family: Arial, sans-serif;
 }
 
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f8f9fa;
-  color: #333;
-}
-
-a {
-  text-decoration: none;
-  color: inherit;
-}
-
-nav {
+/* Navbar */
+.navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 30px;
-  background-color: #111;
-  color: #fff;
+  padding: 16px 40px;
+  background-color: #1e3a8a;
+  color: white;
 }
 
-nav a {
-  margin-left: 15px;
-  color: #fff;
+.nav-logo a {
+  font-size: 22px;
+  font-weight: bold;
+  color: white;
+  text-decoration: none;
 }
 
-nav a:hover {
-  text-decoration: underline;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+.nav-links {
+  display: flex;
+  align-items: center;
   gap: 20px;
 }
 
-.card {
-  background-color: #fff;
-  border-radius: 10px;
-  border: 1px solid #ddd;
-  padding: 15px;
+.nav-links a {
+  text-decoration: none;
+  color: white;
+  font-size: 15px;
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: #facc15;
+  color: #1e3a8a;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: bold;
+}
+
+.btn-secondary {
+  background-color: #e5e7eb;
+  color: #1e3a8a;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: bold;
+}
+
+.btn-outline {
+  border: 2px solid #facc15;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: bold;
+}
+
+.large {
+  padding: 12px 24px;
+  font-size: 16px;
+}
+
+/* Home */
+.home {
+  height: 90vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   text-align: center;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-.card img {
-  width: 100%;
-  border-radius: 8px;
-  margin-bottom: 10px;
+.home-content h1 {
+  font-size: 48px;
+  margin-bottom: 20px;
+  color: #1e3a8a;
 }
 
-button {
-  font-family: inherit;
-  cursor: pointer;
-  padding: 8px 15px;
-  margin-top: 10px;
-  border: none;
-  border-radius: 5px;
-  background-color: #111;
-  color: #fff;
-  transition: 0.2s;
+.home-content p {
+  font-size: 18px;
+  margin-bottom: 30px;
+  color: #4b5563;
 }
 
-button:hover {
-  opacity: 0.85;
-}
-
-input {
-  padding: 8px;
-  width: 100%;
-  max-width: 300px;
-  border-radius: 5px;
-  border: 1px solid #ccc;
+.home-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
 }

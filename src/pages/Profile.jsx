@@ -1,15 +1,31 @@
-// src/pages/Profile.jsx
+import React, { useEffect, useState } from "react";
+import API from "../api";
 
-import React from "react";
-import { useParams } from "react-router-dom";
+const Profile = () => {
+  const [user, setUser] = useState(null);
 
-export default function Profile() {
-  const { id } = useParams();
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await API.get("/users/profile");
+        setUser(res.data);
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  if (!user) return <div>Loading...</div>;
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>User Profile</h1>
-      <p>Viewing profile for user ID: {id}</p>
+    <div>
+      <h1>Profile</h1>
+      <p><strong>Name:</strong> {user.name}</p>
+      <p><strong>Email:</strong> {user.email}</p>
     </div>
   );
-}
+};
+
+export default Profile;

@@ -1,28 +1,14 @@
 // src/components/ProfileCard.jsx
-
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { Card, CardContent, Heading, Text } from "@aws-amplify/ui-react";
 
-export default function ProfileCard({ userId, product }) {
-  const navigate = useNavigate();
-
-  const handleClick = () => {
-    navigate(`/profile/${userId}`);
-  };
-
+export default function ProfileCard({ user }) {
   return (
-    <div
-      onClick={handleClick}
-      style={{
-        border: "1px solid #ccc",
-        padding: "1rem",
-        borderRadius: "8px",
-        cursor: "pointer",
-      }}
-    >
-      <h3>{product.name}</h3>
-      <p>Category: {product.category}</p>
-      <small>Seller ID: {userId}</small>
-    </div>
+    <Card variation="outlined">
+      <CardContent>
+        <Heading level={4}>{user?.name}</Heading>
+        <Text>{user?.email}</Text>
+      </CardContent>
+    </Card>
   );
 }
