@@ -1,15 +1,15 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-import { UserProvider } from "./context/UserContext";
-import { CartProvider } from "./context/CartContext";
+import { UserProvider } from "./src/context/UserContext";
+import { CartProvider } from "./src/context/CartContext";
 
-import Navbar from "./components/Navbar";
-import Home from "./pages/Home";
-import Marketplace from "./pages/Marketplace";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
+import Navbar from "./src/components/Navbar";
+import Home from "./src/pages/Home";
+import Marketplace from "./src/pages/Marketplace";
+import Login from "./src/pages/Login";
+import Register from "./src/pages/Register";
+import Dashboard from "./src/pages/Dashboard";
 
 function App() {
   return (
