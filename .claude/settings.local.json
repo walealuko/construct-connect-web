@@ -7,7 +7,16 @@
       "Bash(git push:*)",
       "Bash(npm run:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "WebFetch(domain:construct-connect-web.vercel.app)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npm ls:*)",
+      "Bash(pkill -f \"react-scripts start\")",
+      "Bash(lsof -ti:3000)",
+      "Bash(xargs kill:*)",
+      "Bash(netstat -)",
+      "Bash(cmd:*)",
+      "Bash(powershell:*)"
     ]
   }
 }
