@@ -1,0 +1,26 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-constructconnectweb-dev-5a3fd-authRole",
+      "UnauthRoleArn": "arn:aws:iam::152797590331:role/amplify-constructconnectweb-dev-5a3fd-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::152797590331:role/amplify-constructconnectweb-dev-5a3fd-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-constructconnectweb-dev-5a3fd-deployment",
+      "UnauthRoleName": "amplify-constructconnectweb-dev-5a3fd-unauthRole",
+      "StackName": "amplify-constructconnectweb-dev-5a3fd",
+      "StackId": "arn:aws:cloudformation:us-east-1:152797590331:stack/amplify-constructconnectweb-dev-5a3fd/7233b3b0-fb03-11f0-872d-1226ac8f552f",
+      "AmplifyAppId": "d2ni1w8v8l99b5"
+    },
+    "categories": {
+      "auth": {
+        "constructconnectweb8f41ef86": {}
+      },
+      "api": {
+        "constructconnectweb": {}
+      },
+      "hosting": {
+        "S3AndCloudFront": {}
+      }
+    }
+  }
+}
