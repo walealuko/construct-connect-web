@@ -5,6 +5,8 @@ import Home from "./pages/Home";
 import Marketplace from "./pages/Marketplace";
 import Cart from "./pages/Cart";
 import Navbar from "./components/Navbar";
+import SignIn from "./pages/SignIn";
+import SignUp from "./pages/SignUp";
 import { CartProvider } from "./context/CartContext";
 
 function App() {
@@ -17,6 +19,8 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/cart" element={<Cart />} />
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/signup" element={<SignUp />} />
         </Routes>
       </Router>
     </CartProvider>
