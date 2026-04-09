@@ -23,7 +23,10 @@
       "Bash(render --version)",
       "Bash(render --help)",
       "Bash(render login:*)",
-      "Bash(curl -s https://raw.githubusercontent.com/walealuko/construct-connect-web/main/App.js)"
+      "Bash(curl -s https://raw.githubusercontent.com/walealuko/construct-connect-web/main/App.js)",
+      "Bash(git pull:*)",
+      "Bash(curl -s \"https://walealuko-construct-connect-backend.onrender.com/api/products\")",
+      "Bash(curl:*)"
     ]
   }
 }

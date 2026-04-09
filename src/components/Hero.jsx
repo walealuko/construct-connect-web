@@ -8,9 +8,9 @@ const Hero = () => {
       <img 
         src={HeroImg} 
         alt="Hero Illustration" 
-        style={{ width: "300px", maxWidth: "100%" }} 
+        style={{ inlineSize: "300px", maxInlineSize: "100%" }} 
       />
-      <h1>Welcome to Construct Connect</h1>
+      <h1>Welcome to construct-hub</h1>
       <p>Your dashboard starts here!</p>
     </div>
   );

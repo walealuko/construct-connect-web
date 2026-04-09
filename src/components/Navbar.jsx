@@ -12,19 +12,22 @@ const Navbar = () => {
       style={{
         display: "flex",
         justifyContent: "space-between",
+        alignItems: "center",
         padding: "15px 30px",
-        background: "#111",
+        background: "#1e3a5f",
         color: "#fff",
       }}
     >
-      <div>
-        <Link to="/" style={link}>Home</Link>
-        <Link to="/marketplace" style={link}>Marketplace</Link>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <img src="/logo.png" alt="Construct Hub" style={{ height: "40px" }} />
+        <span style={{ fontSize: "1.5rem", fontWeight: "bold" }}>Construct Hub</span>
       </div>
 
       <div>
-        <Link to="/cart" style={link}>
-          🛒 Cart ({totalItems})
+        <Link to="/" style={link}>Home</Link>
+        <Link to="/marketplace" style={link}>Marketplace</Link>
+        <Link to="/cart" style={{ ...link, background: "#2563eb", padding: "8px 16px", borderRadius: "6px" }}>
+          Cart ({totalItems})
         </Link>
       </div>
     </nav>
