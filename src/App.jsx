@@ -1,5 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Analytics } from "@vercel/analytics/react";
 
 import Home from "./pages/Home";
 import Marketplace from "./pages/Marketplace";
@@ -19,6 +20,7 @@ function App() {
           <Route path="/cart" element={<Cart />} />
         </Routes>
       </Router>
+      <Analytics />
     </CartProvider>
   );
 }
