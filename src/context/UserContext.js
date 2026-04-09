@@ -1,11 +1,16 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useState, useEffect } from "react";
 import API from "../api";
 
 export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
-  const storedUser = JSON.parse(localStorage.getItem("user"));
-  const [user, setUser] = useState(storedUser || null);
+  const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+  const [user, setUser] = useState(storedUser);
+
+  useEffect(() => {
+    const stored = JSON.parse(localStorage.getItem("user") || "null");
+    setUser(stored);
+  }, []);
 
   const login = async (email, password) => {
     try {
@@ -18,7 +23,7 @@ export const UserProvider = ({ children }) => {
       localStorage.setItem("token", token);
       return true;
     } catch (err) {
-      console.error(err);
+      console.error("Login error:", err);
       return false;
     }
   };
@@ -34,7 +39,7 @@ export const UserProvider = ({ children }) => {
       localStorage.setItem("token", token);
       return true;
     } catch (err) {
-      console.error(err);
+      console.error("Registration error:", err);
       return false;
     }
   };

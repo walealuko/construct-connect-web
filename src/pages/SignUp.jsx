@@ -1,79 +1,153 @@
 import React, { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { UserContext } from "../context/UserContext";
 
-function SignUp() {
+const SignUp = () => {
   const { register } = useContext(UserContext);
   const navigate = useNavigate();
-
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
+    setLoading(true);
     try {
       const success = await register(name, email, password);
+      setLoading(false);
       if (success) {
-        alert("Sign-up successful!");
         navigate("/");
       } else {
-        setError("Sign-up failed");
+        setError("Registration failed. Email may already be in use.");
       }
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Sign-up failed");
+      setLoading(false);
+      setError("An error occurred. Please try again.");
     }
   };
 
   return (
-    <div style={{ maxWidth: "400px", margin: "2rem auto", padding: "2rem", border: "1px solid #ccc", borderRadius: "10px" }}>
-      <h2>Sign Up</h2>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-        <label>
-          Name:
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            style={{ width: "100%", padding: "0.5rem", borderRadius: "5px" }}
-          />
-        </label>
+    <div style={{
+      minHeight: "calc(100vh - 70px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+      padding: "40px 20px",
+    }}>
+      <div style={{
+        background: "#fff",
+        padding: "48px",
+        borderRadius: "16px",
+        boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
+        width: "100%",
+        maxWidth: "420px",
+      }}>
+        <div style={{ textAlign: "center", marginBottom: "32px" }}>
+          <img src="/logo.png" alt="Construct Hub" style={{ height: "50px", marginBottom: "16px" }} />
+          <h2 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#1e3a5f", marginBottom: "8px" }}>Create Account</h2>
+          <p style={{ color: "#6b7280" }}>Join Construct Hub today</p>
+        </div>
 
-        <label>
-          Email:
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ width: "100%", padding: "0.5rem", borderRadius: "5px" }}
-          />
-        </label>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div>
+            <label style={{ display: "block", marginBottom: "8px", fontWeight: "500", color: "#374151" }}>Full Name</label>
+            <input
+              type="text"
+              placeholder="John Doe"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                borderRadius: "8px",
+                border: "1px solid #d1d5db",
+                fontSize: "1rem",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
 
-        <label>
-          Password:
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ width: "100%", padding: "0.5rem", borderRadius: "5px" }}
-          />
-        </label>
+          <div>
+            <label style={{ display: "block", marginBottom: "8px", fontWeight: "500", color: "#374151" }}>Email</label>
+            <input
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                borderRadius: "8px",
+                border: "1px solid #d1d5db",
+                fontSize: "1rem",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
 
-        {error && <p style={{ color: "red" }}>{error}</p>}
+          <div>
+            <label style={{ display: "block", marginBottom: "8px", fontWeight: "500", color: "#374151" }}>Password</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                borderRadius: "8px",
+                border: "1px solid #d1d5db",
+                fontSize: "1rem",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
 
-        <button type="submit" style={{ padding: "0.75rem", borderRadius: "5px", backgroundColor: "#1E1E2F", color: "white", cursor: "pointer" }}>
-          Sign Up
-        </button>
-      </form>
+          {error && (
+            <p style={{ color: "#dc2626", fontSize: "0.9rem", margin: 0 }}>{error}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              padding: "14px",
+              backgroundColor: loading ? "#93c5fd" : "#2563eb",
+              color: "#fff",
+              border: "none",
+              borderRadius: "8px",
+              fontSize: "1rem",
+              fontWeight: "600",
+              cursor: loading ? "not-allowed" : "pointer",
+              marginTop: "8px",
+            }}
+          >
+            {loading ? "Creating account..." : "Create Account"}
+          </button>
+        </form>
+
+        <p style={{ textAlign: "center", marginTop: "24px", color: "#6b7280" }}>
+          Already have an account?{" "}
+          <Link to="/signin" style={{ color: "#2563eb", fontWeight: "600", textDecoration: "none" }}>
+            Sign in
+          </Link>
+        </p>
+      </div>
     </div>
   );
-}
+};
 
 export default SignUp;

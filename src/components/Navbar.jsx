@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import { UserContext } from "../context/UserContext";
 
 const Navbar = () => {
   const { cart } = useCart();
+  const { user, logout } = useContext(UserContext);
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -30,11 +32,23 @@ const Navbar = () => {
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <Link to="/" style={navLink}>Home</Link>
         <Link to="/marketplace" style={navLink}>Marketplace</Link>
-        <Link to="/cart" style={{ ...navLink, background: "#1e3a5f" }}>
+        <Link to="/cart" style={{ ...navLink, background: "#1e3a5f", color: "#fff" }}>
           Cart ({totalItems})
         </Link>
-        <Link to="/signin" style={{ ...navLink, color: "#2563eb", fontWeight: "600" }}>Sign In</Link>
-        <Link to="/signup" style={{ ...navBtn }}>Register</Link>
+
+        {user ? (
+          <>
+            <span style={{ color: "#6b7280", fontSize: "0.9rem", marginLeft: "8px" }}>
+              Hi, {user.name || user.email}
+            </span>
+            <button onClick={logout} style={navBtnOutline}>Logout</button>
+          </>
+        ) : (
+          <>
+            <Link to="/signin" style={{ ...navLink, color: "#2563eb", fontWeight: "600" }}>Sign In</Link>
+            <Link to="/signup" style={navBtn}>Register</Link>
+          </>
+        )}
       </div>
     </nav>
   );
@@ -47,7 +61,6 @@ const navLink = {
   fontSize: "0.95rem",
   padding: "8px 16px",
   borderRadius: "6px",
-  transition: "all 0.2s",
 };
 
 const navBtn = {
@@ -58,6 +71,19 @@ const navBtn = {
   padding: "10px 20px",
   borderRadius: "6px",
   background: "linear-gradient(135deg, #2563eb 0%, #1e40af 100%)",
+  marginLeft: "8px",
+};
+
+const navBtnOutline = {
+  color: "#374151",
+  textDecoration: "none",
+  fontWeight: "500",
+  fontSize: "0.9rem",
+  padding: "8px 16px",
+  borderRadius: "6px",
+  border: "1px solid #d1d5db",
+  background: "transparent",
+  cursor: "pointer",
   marginLeft: "8px",
 };
 
