@@ -17,7 +17,13 @@
       "Bash(netstat -)",
       "Bash(cmd:*)",
       "Bash(powershell:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npm list:*)",
+      "Bash(npm install:*)",
+      "Bash(render --version)",
+      "Bash(render --help)",
+      "Bash(render login:*)",
+      "Bash(curl -s https://raw.githubusercontent.com/walealuko/construct-connect-web/main/App.js)"
     ]
   }
 }

@@ -1,62 +1,41 @@
-import React, { useContext } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
-import { UserContext } from "../context/UserContext";
 
 const Navbar = () => {
   const { cart } = useCart();
-  const { user, logout } = useContext(UserContext);
+
+  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <nav style={nav}>
-      <h2>ConstructHub</h2>
+    <nav
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        padding: "15px 30px",
+        background: "#111",
+        color: "#fff",
+      }}
+    >
+      <div>
+        <Link to="/" style={link}>Home</Link>
+        <Link to="/marketplace" style={link}>Marketplace</Link>
+      </div>
 
-      <div style={links}>
-        <Link to="/">Home</Link>
-        <Link to="/marketplace">Marketplace</Link>
-        <Link to="/cart">Cart ({cart.length})</Link>
-
-        {user ? (
-          <>
-            <Link to="/dashboard">Dashboard</Link>
-            <button onClick={logout} style={button}>
-              Logout
-            </button>
-          </>
-        ) : (
-          <>
-            <Link to="/signin">Login</Link>
-            <Link to="/register">Register</Link>
-          </>
-        )}
+      <div>
+        <Link to="/cart" style={link}>
+          🛒 Cart ({totalItems})
+        </Link>
       </div>
     </nav>
   );
 };
 
-export default Navbar;
-
-/* ===== Styles ===== */
-const nav = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  padding: "15px 30px",
-  backgroundColor: "#2563eb",
+const link = {
   color: "#fff",
+  marginRight: "15px",
+  textDecoration: "none",
+  fontWeight: "bold",
 };
 
-const links = {
-  display: "flex",
-  gap: "20px",
-  alignItems: "center",
-};
-
-const button = {
-  padding: "6px 12px",
-  backgroundColor: "#fff",
-  color: "#2563eb",
-  border: "none",
-  borderRadius: "5px",
-  cursor: "pointer",
-};
+export default Navbar;

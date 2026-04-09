@@ -1,24 +1,25 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-// Pages
-import Profile from "./pages/Profile";
+import Home from "./pages/Home";
 import Marketplace from "./pages/Marketplace";
-import Dashboard from "./pages/Dashboard";
-import ProductDetail from "./pages/ProductDetail";
-import AddProduct from "./pages/AddProduct";
+import Cart from "./pages/Cart";
+import Navbar from "./components/Navbar";
+import { CartProvider } from "./context/CartContext";
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Marketplace />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/product/:id" element={<ProductDetail />} />
-        <Route path="/add-product" element={<AddProduct />} />
-      </Routes>
-    </BrowserRouter>
+    <CartProvider>
+      <Router>
+        <Navbar />
+
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/cart" element={<Cart />} />
+        </Routes>
+      </Router>
+    </CartProvider>
   );
 }
 
