@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import API from "../api";
+import ReviewButton from "../components/ReviewButton";
+import SellerRating from "../components/SellerRating";
 
 export default function BuyerDashboard() {
   const [products, setProducts] = useState([]);
@@ -43,6 +45,13 @@ export default function BuyerDashboard() {
               <p style={{ margin: "0 0 6px", color: "#6b7280", fontSize: "0.85rem" }}>{product.description || "No description"}</p>
               <p style={{ margin: "0 0 6px", fontWeight: "700", color: "#2563eb", fontSize: "1.1rem" }}>${product.price?.toFixed(2)}</p>
               <p style={{ margin: "0", fontSize: "0.8rem", color: "#9ca3af" }}>By {product.sellerName || "Unknown"} | {product.category}</p>
+
+              <div style={{ borderTop: "1px solid #f3f4f6", marginTop: "12px", paddingTop: "12px" }}>
+                <SellerRating sellerId={product.sellerId} sellerName={product.sellerName} />
+                <div style={{ marginTop: "8px" }}>
+                  <ReviewButton sellerId={product.sellerId} sellerName={product.sellerName} />
+                </div>
+              </div>
             </div>
           ))}
         </div>
