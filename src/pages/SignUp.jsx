@@ -8,6 +8,7 @@ const SignUp = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("buyer");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -22,7 +23,7 @@ const SignUp = () => {
 
     setLoading(true);
     try {
-      const success = await register(name, email, password);
+      const success = await register(name, email, password, role);
       setLoading(false);
       if (success) {
         navigate("/");
@@ -95,6 +96,26 @@ const SignUp = () => {
                 boxSizing: "border-box",
               }}
             />
+          </div>
+
+          <div>
+            <label style={{ display: "block", marginBottom: "8px", fontWeight: "500", color: "#374151" }}>I am a</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                borderRadius: "8px",
+                border: "1px solid #d1d5db",
+                fontSize: "1rem",
+                boxSizing: "border-box",
+                background: "#fff",
+              }}
+            >
+              <option value="buyer">Buyer / Client</option>
+              <option value="seller">Seller / Artisan</option>
+            </select>
           </div>
 
           <div>

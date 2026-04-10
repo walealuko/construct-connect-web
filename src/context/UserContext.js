@@ -28,9 +28,9 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  const register = async (name, email, password) => {
+  const register = async (name, email, password, role = "buyer") => {
     try {
-      const res = await API.post("/auth/register", { name, email, password });
+      const res = await API.post("/auth/register", { name, email, password, role });
       const userData = res.data.user;
       const token = res.data.token;
 
