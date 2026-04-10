@@ -1,11 +1,11 @@
 {
   "files": {
-    "main.js": "/static/js/main.a93021ec.js",
+    "main.js": "/static/js/main.a5818a63.js",
     "static/media/hero-illustration.png": "/static/media/hero-illustration.2acad4012c8dff2dd58f.png",
     "index.html": "/index.html",
-    "main.a93021ec.js.map": "/static/js/main.a93021ec.js.map"
+    "main.a5818a63.js.map": "/static/js/main.a5818a63.js.map"
   },
   "entrypoints": [
-    "static/js/main.a93021ec.js"
+    "static/js/main.a5818a63.js"
   ]
 }
