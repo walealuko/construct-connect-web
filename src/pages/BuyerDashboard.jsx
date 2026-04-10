@@ -3,17 +3,45 @@ import API from "../api";
 import ReviewButton from "../components/ReviewButton";
 import SellerRating from "../components/SellerRating";
 
+const CATEGORIES = [
+  { value: "all", label: "All Categories" },
+  { value: "cement", label: "Cement" },
+  { value: "bricks", label: "Bricks" },
+  { value: "timber", label: "Timber" },
+  { value: "tools", label: "Tools" },
+  { value: "electrical", label: "Electrical" },
+  { value: "plumbing", label: "Plumbing" },
+  { value: "paint", label: "Paint" },
+  { value: "roofing", label: "Roofing" },
+  { value: "flooring", label: "Flooring" },
+  { value: "general", label: "General" },
+];
+
 export default function BuyerDashboard() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("all");
+  const [searchInput, setSearchInput] = useState("");
 
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, [category]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const loadProducts = async () => {
+    setLoading(true);
     try {
-      const res = await API.get("/products");
+      const params = new URLSearchParams();
+      if (category && category !== "all") params.append("category", category);
+      if (search) params.append("search", search);
+      const res = await API.get(`/products?${params.toString()}`);
       setProducts(res.data);
     } catch (err) {
       console.error("Failed to load products:", err);
@@ -22,16 +50,79 @@ export default function BuyerDashboard() {
     }
   };
 
+  useEffect(() => {
+    loadProducts();
+  }, [search, category]);
+
   return (
-    <div style={{ padding: "2rem", maxWidth: "900px", margin: "0 auto" }}>
+    <div style={{ padding: "2rem", maxWidth: "1100px", margin: "0 auto" }}>
       <h2 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#1e3a5f", marginBottom: "1.5rem" }}>
-        Marketplace — Browse Products
+        Marketplace
       </h2>
 
+      {/* Search and Filter Bar */}
+      <div style={{
+        display: "flex",
+        gap: "12px",
+        marginBottom: "24px",
+        flexWrap: "wrap",
+      }}>
+        {/* Search Input */}
+        <div style={{ flex: "2", minWidth: "200px", position: "relative" }}>
+          <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: "1.1rem" }}>🔍</span>
+          <input
+            type="text"
+            placeholder="Search by product name, type, or location..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "12px 14px 12px 40px",
+              borderRadius: "8px",
+              border: "1px solid #d1d5db",
+              fontSize: "0.95rem",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
+
+        {/* Category Filter */}
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          style={{
+            flex: "1",
+            minWidth: "160px",
+            padding: "12px 14px",
+            borderRadius: "8px",
+            border: "1px solid #d1d5db",
+            fontSize: "0.95rem",
+            background: "#fff",
+            cursor: "pointer",
+          }}
+        >
+          {CATEGORIES.map((cat) => (
+            <option key={cat.value} value={cat.value}>{cat.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Results count */}
+      {!loading && (
+        <p style={{ color: "#6b7280", marginBottom: "16px", fontSize: "0.9rem" }}>
+          {products.length} {products.length === 1 ? "product" : "products"} found
+          {search && ` for "${search}"`}
+          {category !== "all" && ` in ${CATEGORIES.find(c => c.value === category)?.label}`}
+        </p>
+      )}
+
       {loading ? (
-        <p style={{ color: "#6b7280" }}>Loading products...</p>
+        <p style={{ color: "#6b7280" }}>Searching...</p>
       ) : products.length === 0 ? (
-        <p style={{ color: "#6b7280" }}>No products available yet. Check back soon!</p>
+        <div style={{ textAlign: "center", padding: "3rem", background: "#f9fafb", borderRadius: "12px" }}>
+          <p style={{ fontSize: "2rem", margin: "0 0 8px" }}>🔍</p>
+          <p style={{ color: "#6b7280", margin: 0 }}>No products found. Try adjusting your search or category.</p>
+        </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "16px" }}>
           {products.map((product) => (
@@ -43,8 +134,14 @@ export default function BuyerDashboard() {
               )}
               <h4 style={{ margin: "0 0 6px", color: "#1e3a5f" }}>{product.name}</h4>
               <p style={{ margin: "0 0 6px", color: "#6b7280", fontSize: "0.85rem" }}>{product.description || "No description"}</p>
-              <p style={{ margin: "0 0 6px", fontWeight: "700", color: "#2563eb", fontSize: "1.1rem" }}>${product.price?.toFixed(2)}</p>
-              <p style={{ margin: "0", fontSize: "0.8rem", color: "#9ca3af" }}>By {product.sellerName || "Unknown"} | {product.category}</p>
+              <p style={{ margin: "0 0 4px", fontWeight: "700", color: "#2563eb", fontSize: "1.1rem" }}>${product.price?.toFixed(2)}</p>
+              <p style={{ margin: "0", fontSize: "0.8rem", color: "#9ca3af" }}>
+                {product.sellerName || "Unknown"}
+                {product.sellerLocation && ` • ${product.sellerLocation}`}
+              </p>
+              <span style={{ display: "inline-block", background: "#eff6ff", color: "#2563eb", fontSize: "0.75rem", padding: "2px 8px", borderRadius: "12px", marginTop: "6px" }}>
+                {product.category}
+              </span>
 
               <div style={{ borderTop: "1px solid #f3f4f6", marginTop: "12px", paddingTop: "12px" }}>
                 <SellerRating sellerId={product.sellerId} sellerName={product.sellerName} />
