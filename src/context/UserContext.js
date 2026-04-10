@@ -28,9 +28,9 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  const register = async (name, email, password, role = "buyer") => {
+  const register = async (name, email, password, role = "buyer", extras = {}) => {
     try {
-      const res = await API.post("/auth/register", { name, email, password, role });
+      const res = await API.post("/auth/register", { name, email, password, role, ...extras });
       const userData = res.data.user;
       const token = res.data.token;
 
@@ -44,6 +44,18 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  const updateProfile = async (data) => {
+    try {
+      const res = await API.put("/auth/profile", data);
+      setUser(res.data);
+      localStorage.setItem("user", JSON.stringify(res.data));
+      return true;
+    } catch (err) {
+      console.error("Update profile error:", err);
+      return false;
+    }
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem("user");
@@ -51,7 +63,7 @@ export const UserProvider = ({ children }) => {
   };
 
   return (
-    <UserContext.Provider value={{ user, login, register, logout }}>
+    <UserContext.Provider value={{ user, login, register, logout, updateProfile }}>
       {children}
     </UserContext.Provider>
   );
