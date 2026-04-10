@@ -21,7 +21,12 @@ const SignIn = () => {
     const success = await login(email, password);
     setLoading(false);
     if (success) {
-      navigate("/");
+      const role = JSON.parse(localStorage.getItem("user") || "{}").role;
+      if (role === "seller") {
+        navigate("/seller-dashboard");
+      } else {
+        navigate("/marketplace");
+      }
     } else {
       alert("Invalid credentials. Please try again.");
     }

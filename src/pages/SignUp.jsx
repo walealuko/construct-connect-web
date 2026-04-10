@@ -30,7 +30,11 @@ const SignUp = () => {
       const success = await register(name, email, password, role);
       setLoading(false);
       if (success) {
-        navigate("/");
+        if (role === "seller") {
+          navigate("/seller-dashboard");
+        } else {
+          navigate("/marketplace");
+        }
       } else {
         setError("Registration failed. Email may already be in use.");
       }
