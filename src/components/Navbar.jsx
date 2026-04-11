@@ -41,8 +41,7 @@ const Navbar = () => {
     }}>
       {/* Logo */}
       <Link to="/" style={{ display: "flex", alignItems: "center", gap: "12px", textDecoration: "none" }}>
-        <img src="/logo.png" alt="Construct Hub" style={{ height: "45px" }} />
-        <span style={{ fontSize: "1.4rem", fontWeight: "700", color: "#1e3a5f" }}>Construct Hub</span>
+        <img src="/logo.png" alt="Construct Hub" style={{ height: "52px" }} />
       </Link>
 
       {/* Navigation Links */}
