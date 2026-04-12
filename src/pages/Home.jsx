@@ -121,15 +121,17 @@ const Home = () => {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "16px" }}>
               {products.map((product) => (
                 <div key={product._id} style={{ background: "#fff", padding: "14px", borderRadius: "10px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-                  {product.imageUrl ? (
-                    <img src={product.imageUrl} alt={product.name} style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "6px", marginBottom: "10px" }} />
-                  ) : (
-                    <div style={{ width: "100%", height: "120px", background: "#e5e7eb", borderRadius: "6px", marginBottom: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem" }}>🏗️</div>
-                  )}
-                  <h4 style={{ margin: "0 0 4px", color: "#1e3a5f", fontSize: "0.95rem", fontWeight: "600" }}>{product.name}</h4>
-                  <p style={{ margin: "0 0 4px", fontSize: "0.8rem", color: "#9ca3af" }}>{product.sellerName}</p>
-                  <p style={{ margin: "0", fontWeight: "700", color: "#2563eb", fontSize: "1rem" }}>${product.price?.toFixed(2)}</p>
-                  <Link to="/marketplace">
+                  <Link to={`/product/${product._id}`} style={{ textDecoration: "none" }}>
+                    {product.imageUrl ? (
+                      <img src={product.imageUrl} alt={product.name} style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "6px", marginBottom: "10px" }} />
+                    ) : (
+                      <div style={{ width: "100%", height: "120px", background: "#e5e7eb", borderRadius: "6px", marginBottom: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem" }}>🏗️</div>
+                    )}
+                    <h4 style={{ margin: "0 0 4px", color: "#1e3a5f", fontSize: "0.95rem", fontWeight: "600" }}>{product.name}</h4>
+                    <p style={{ margin: "0 0 4px", fontSize: "0.8rem", color: "#9ca3af" }}>{product.sellerName}</p>
+                    <p style={{ margin: "0", fontWeight: "700", color: "#2563eb", fontSize: "1rem" }}>${product.price?.toFixed(2)}</p>
+                  </Link>
+                  <Link to={`/product/${product._id}`}>
                     <button style={{ width: "100%", marginTop: "10px", padding: "8px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "6px", fontSize: "0.85rem", fontWeight: "600", cursor: "pointer" }}>
                       View Product
                     </button>

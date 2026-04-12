@@ -10,6 +10,7 @@ import SignUp from "./pages/SignUp";
 import BuyerDashboard from "./pages/BuyerDashboard";
 import SellerDashboard from "./pages/SellerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import ProductDetail from "./pages/ProductDetail";
 import Profile from "./pages/Profile";
 import { CartProvider } from "./context/CartContext";
 import { UserProvider } from "./context/UserContext";
@@ -33,6 +34,7 @@ function App() {
             <Route path="/seller-dashboard" element={<SellerDashboard />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/product/:id" element={<ProductDetail />} />
           </Routes>
         </Router>
       </CartProvider>

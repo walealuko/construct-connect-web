@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import API from "../api";
 import { useCart } from "../context/CartContext";
 
@@ -121,12 +122,14 @@ const Marketplace = () => {
             const inCart = cart.some((item) => item._id === product._id);
             return (
               <div key={product._id} style={{ background: "#fff", padding: "16px", borderRadius: "10px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
-                {product.imageUrl ? (
-                  <img src={product.imageUrl} alt={product.name} style={{ width: "100%", height: "140px", objectFit: "cover", borderRadius: "6px", marginBottom: "10px" }} />
-                ) : (
-                  <div style={{ width: "100%", height: "140px", background: "#e5e7eb", borderRadius: "6px", marginBottom: "10px", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af" }}>No Image</div>
-                )}
-                <h4 style={{ margin: "0 0 6px", color: "#1e3a5f" }}>{product.name}</h4>
+                <Link to={`/product/${product._id}`} style={{ textDecoration: "none" }}>
+                  {product.imageUrl ? (
+                    <img src={product.imageUrl} alt={product.name} style={{ width: "100%", height: "140px", objectFit: "cover", borderRadius: "6px", marginBottom: "10px" }} />
+                  ) : (
+                    <div style={{ width: "100%", height: "140px", background: "#e5e7eb", borderRadius: "6px", marginBottom: "10px", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af" }}>🏗️</div>
+                  )}
+                  <h4 style={{ margin: "0 0 6px", color: "#1e3a5f" }}>{product.name}</h4>
+                </Link>
                 <p style={{ margin: "0 0 6px", color: "#6b7280", fontSize: "0.85rem" }}>{product.description || "No description"}</p>
                 <p style={{ margin: "0 0 4px", fontWeight: "700", color: "#2563eb", fontSize: "1.1rem" }}>${product.price?.toFixed(2)}</p>
                 <p style={{ margin: "0", fontSize: "0.8rem", color: "#9ca3af" }}>
