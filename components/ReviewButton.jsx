@@ -1,6 +1,8 @@
+"use client";
+
 import React, { useState, useContext } from "react";
-import { UserContext } from "../context/UserContext";
-import API from "../api";
+import { UserContext } from "./UserContext";
+import API from "@/lib/api";
 
 export default function ReviewButton({ sellerId, sellerName }) {
   const { user } = useContext(UserContext);

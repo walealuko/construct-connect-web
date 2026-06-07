@@ -1,5 +1,7 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
-import API from "../api";
+import API from "@/lib/api";
 
 export default function SellerRating({ sellerId, sellerName }) {
   const [rating, setRating] = useState({ average: 0, count: 0 });
@@ -44,7 +46,7 @@ export default function SellerRating({ sellerId, sellerName }) {
       </div>
 
       {reviews.length > 0 && (
-        <div>
+        <div style={{ display: "none" }}> {/* Hide review list by default as this is a summary component */}
           {showAll ? (
             <>
               {reviews.slice(0, 10).map((review) => (
