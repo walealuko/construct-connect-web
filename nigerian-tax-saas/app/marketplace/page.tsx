@@ -1,7 +1,9 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import API from "../api";
-import { useCart } from "../context/CartContext";
+import Link from "next/link";
+import API from "@/lib/api";
+import { useCart } from "@/components/CartContext";
 
 const CATEGORIES = [
   { value: "all", label: "All Categories" },
@@ -17,7 +19,7 @@ const CATEGORIES = [
   { value: "general", label: "General" },
 ];
 
-const Marketplace = () => {
+export default function Marketplace() {
   const { addToCart, cart } = useCart();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +63,6 @@ const Marketplace = () => {
         Marketplace
       </h2>
 
-      {/* Search and Filter Bar */}
       <div style={{ display: "flex", gap: "12px", marginBottom: "24px", flexWrap: "wrap" }}>
         <div style={{ flex: "2", minWidth: "200px", position: "relative" }}>
           <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: "1.1rem" }}>🔍</span>
@@ -118,11 +119,11 @@ const Marketplace = () => {
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "16px" }}>
-          {products.map((product) => {
-            const inCart = cart.some((item) => item._id === product._id);
+          {products.map((product: any) => {
+            const inCart = cart.some((item: any) => item._id === product._id);
             return (
               <div key={product._id} style={{ background: "#fff", padding: "16px", borderRadius: "10px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
-                <Link to={`/product/${product._id}`} style={{ textDecoration: "none" }}>
+                <Link href={`/product/${product._id}`} style={{ textDecoration: "none" }}>
                   {product.imageUrl ? (
                     <img src={product.imageUrl} alt={product.name} style={{ width: "100%", height: "140px", objectFit: "cover", borderRadius: "6px", marginBottom: "10px" }} />
                   ) : (
@@ -164,6 +165,6 @@ const Marketplace = () => {
       )}
     </div>
   );
-};
+}
 
 export default Marketplace;

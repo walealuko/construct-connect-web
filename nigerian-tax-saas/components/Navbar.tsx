@@ -1,20 +1,23 @@
+"use client";
+
 import React, { useContext, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCart } from "../context/CartContext";
-import { UserContext } from "../context/UserContext";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCart } from "./CartContext";
+import { UserContext } from "./UserContext";
 
 const Navbar = () => {
   const { cart } = useCart();
   const { user, logout } = useContext(UserContext);
   const [menuOpen, setMenuOpen] = useState(false);
-  const navigate = useNavigate();
+  const router = useRouter();
 
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItems = cart.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
 
   const handleLogout = () => {
     logout();
     setMenuOpen(false);
-    navigate("/");
+    router.push("/");
   };
 
   const getDashboardLink = () => {
@@ -22,7 +25,7 @@ const Navbar = () => {
     switch (user.role) {
       case "seller": return "/seller-dashboard";
       case "admin": return "/admin-dashboard";
-      default: return "/buyer-dashboard";
+      default: return "/dashboard";
     }
   };
 
@@ -40,16 +43,16 @@ const Navbar = () => {
       zIndex: 1000,
     }}>
       {/* Logo */}
-      <Link to="/" style={{ display: "flex", alignItems: "center", gap: "12px", textDecoration: "none" }}>
+      <Link href="/" style={{ display: "flex", alignItems: "center", gap: "12px", textDecoration: "none" }}>
         <img src="/logo.png" alt="Construct Hub" style={{ height: "52px" }} />
       </Link>
 
       {/* Navigation Links */}
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <Link to="/" style={navLink}>Home</Link>
-        <Link to="/marketplace" style={navLink}>Marketplace</Link>
-        <Link to="/artisans" style={navLink}>Artisans</Link>
-        <Link to="/cart" style={{ ...navLink, background: "#1e3a5f", color: "#fff" }}>
+        <Link href="/" style={navLink}>Home</Link>
+        <Link href="/marketplace" style={navLink}>Marketplace</Link>
+        <Link href="/artisans" style={navLink}>Artisans</Link>
+        <Link href="/cart" style={{ ...navLink, background: "#1e3a5f", color: "#fff" }}>
           Cart ({totalItems})
         </Link>
 
@@ -77,14 +80,14 @@ const Navbar = () => {
                 zIndex: 1001,
               }}>
                 <Link
-                  to={getDashboardLink()}
+                  href={getDashboardLink()}
                   onClick={() => setMenuOpen(false)}
                   style={{ ...dropdownItem, borderBottom: "1px solid #e5e7eb" }}
                 >
                   Dashboard
                 </Link>
                 <Link
-                  to="/profile"
+                  href={`/profile/${user.id || user._id}`}
                   onClick={() => setMenuOpen(false)}
                   style={{ ...dropdownItem, borderBottom: "1px solid #e5e7eb" }}
                 >
@@ -96,13 +99,13 @@ const Navbar = () => {
                 >
                   Logout
                 </button>
-              </div>
+              </div
             )}
           </div>
         ) : (
           <>
-            <Link to="/signin" style={{ ...navLink, color: "#2563eb", fontWeight: "600" }}>Sign In</Link>
-            <Link to="/signup" style={navBtn}>Register</Link>
+            <Link href="/login" style={{ ...navLink, color: "#2563eb", fontWeight: "600" }}>Sign In</Link>
+            <Link href="/register" style={navBtn}>Register</Link>
           </>
         )}
       </div>

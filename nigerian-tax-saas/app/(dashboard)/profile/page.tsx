@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from "react";
-import API from "../api";
-import { getUserActivities } from "../services/activityService";
+"use client";
 
-const Profile = () => {
-  const [user, setUser] = useState(null);
+import React, { useEffect, useState } from "react";
+import API from "@/lib/api";
+import { getUserActivities } from "@/lib/services/activityService";
+
+export default function Profile() {
+  const [user, setUser] = useState<any>(null);
   const [activities, setActivities] = useState([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
 
@@ -19,7 +21,6 @@ const Profile = () => {
 
     const fetchActivities = async () => {
       try {
-        // In a real app, we'd pass the user id from the session/token
         const data = await getUserActivities("current-user");
         setActivities(data);
       } catch (err) {
@@ -48,7 +49,7 @@ const Profile = () => {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplate uma-columns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px", borderTop: "1px solid #f3f4f6", paddingTop: "20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px", borderTop: "1px solid #f3f4f6", paddingTop: "20px" }}>
           <div>
             <p style={{ fontSize: "0.75rem", color: "#9ca3af", textTransform: "uppercase", fontWeight: "600", marginBottom: "4px" }}>Member Since</p>
             <p style={{ fontWeight: "500", color: "#374151" }}>January 2024</p>
@@ -76,7 +77,7 @@ const Profile = () => {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {activities.map((act) => (
+          {activities.map((act: any) => (
             <div
               key={act.id}
               style={{
@@ -134,6 +135,6 @@ const Profile = () => {
       )}
     </div>
   );
-};
+}
 
 export default Profile;

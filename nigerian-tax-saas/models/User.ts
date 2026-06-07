@@ -38,4 +38,6 @@ const UserSchema = new Schema<IUser>({
   createdAt: { type: Date, default: Date.now },
 });
 
+UserSchema.index({ state: 1 });
+
 export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
