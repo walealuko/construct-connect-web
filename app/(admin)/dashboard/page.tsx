@@ -218,7 +218,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {activeTab === a"products" && (
+      {activeTab === "products" && (
         <div style={{ overflowX: "auto" }}>
           {loading ? (
             <p style={{ color: "#6b7280" }}>Loading...</p>
