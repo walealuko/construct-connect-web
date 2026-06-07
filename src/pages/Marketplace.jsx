@@ -56,22 +56,22 @@ const Marketplace = () => {
   }, [search, category]);
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "1100px", margin: "0 auto" }}>
-      <h2 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#1e3a5f", marginBottom: "1.5rem" }}>
+    <div style={{ padding: "2rem", maxinline-size: "1100px", margin: "0 auto" }}>
+      <h2 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#1e3a5f", margininset-block-end: "1.5rem" }}>
         Marketplace
       </h2>
 
       {/* Search and Filter Bar */}
-      <div style={{ display: "flex", gap: "12px", marginBottom: "24px", flexWrap: "wrap" }}>
-        <div style={{ flex: "2", minWidth: "200px", position: "relative" }}>
-          <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: "1.1rem" }}>🔍</span>
+      <div style={{ display: "flex", gap: "12px", margininset-block-end: "24px", flexWrap: "wrap" }}>
+        <div style={{ flex: "2", mininline-size: "200px", position: "relative" }}>
+          <span style={{ position: "absolute", inset-inline-start: "14px", inset-block-start: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: "1.1rem" }}>🔍</span>
           <input
             type="text"
             placeholder="Search by product name, type, or location..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             style={{
-              width: "100%",
+              inline-size: "100%",
               padding: "12px 14px 12px 40px",
               borderRadius: "8px",
               border: "1px solid #d1d5db",
@@ -86,7 +86,7 @@ const Marketplace = () => {
           onChange={(e) => setCategory(e.target.value)}
           style={{
             flex: "1",
-            minWidth: "160px",
+            mininline-size: "160px",
             padding: "12px 14px",
             borderRadius: "8px",
             border: "1px solid #d1d5db",
@@ -102,7 +102,7 @@ const Marketplace = () => {
       </div>
 
       {!loading && (
-        <p style={{ color: "#6b7280", marginBottom: "16px", fontSize: "0.9rem" }}>
+        <p style={{ color: "#6b7280", margininset-block-end: "16px", fontSize: "0.9rem" }}>
           {products.length} {products.length === 1 ? "product" : "products"} found
           {search && ` for "${search}"`}
           {category !== "all" && ` in ${CATEGORIES.find(c => c.value === category)?.label}`}
@@ -124,9 +124,9 @@ const Marketplace = () => {
               <div key={product._id} style={{ background: "#fff", padding: "16px", borderRadius: "10px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
                 <Link to={`/product/${product._id}`} style={{ textDecoration: "none" }}>
                   {product.imageUrl ? (
-                    <img src={product.imageUrl} alt={product.name} style={{ width: "100%", height: "140px", objectFit: "cover", borderRadius: "6px", marginBottom: "10px" }} />
+                    <img src={product.imageUrl} alt={product.name} style={{ inline-size: "100%", block-size: "140px", objectFit: "cover", borderRadius: "6px", margininset-block-end: "10px" }} />
                   ) : (
-                    <div style={{ width: "100%", height: "140px", background: "#e5e7eb", borderRadius: "6px", marginBottom: "10px", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af" }}>🏗️</div>
+                    <div style={{ inline-size: "100%", block-size: "140px", background: "#e5e7eb", borderRadius: "6px", margininset-block-end: "10px", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af" }}>🏗️</div>
                   )}
                   <h4 style={{ margin: "0 0 6px", color: "#1e3a5f" }}>{product.name}</h4>
                 </Link>
@@ -136,7 +136,7 @@ const Marketplace = () => {
                   {product.sellerName || "Unknown"}
                   {product.sellerLocation && ` • ${product.sellerLocation}`}
                 </p>
-                <span style={{ display: "inline-block", background: "#eff6ff", color: "#2563eb", fontSize: "0.75rem", padding: "2px 8px", borderRadius: "12px", marginTop: "6px", marginRight: "6px" }}>
+                <span style={{ display: "inline-block", background: "#eff6ff", color: "#2563eb", fontSize: "0.75rem", padding: "2px 8px", borderRadius: "12px", margininset-block-start: "6px", margininset-inline-end: "6px" }}>
                   {product.category}
                 </span>
                 <button
@@ -144,7 +144,7 @@ const Marketplace = () => {
                   disabled={inCart}
                   style={{
                     display: "inline-block",
-                    marginTop: "6px",
+                    margininset-block-start: "6px",
                     padding: "8px 16px",
                     backgroundColor: inCart ? "#93c5fd" : "#2563eb",
                     color: "#fff",

@@ -1,0 +1,13 @@
+var R=require("../chunks/ssr/[turbopack]_runtime.js")("server/app/page.js")
+R.c("server/chunks/ssr/[root-of-the-server]__0douios._.js")
+R.c("server/chunks/ssr/12lx_next_dist_esm_build_templates_app-page_0x~sfpe.js")
+R.c("server/chunks/ssr/[root-of-the-server]__0_cpcq6._.js")
+R.c("server/chunks/ssr/12lx_next_dist_0my5rt2._.js")
+R.c("server/chunks/ssr/nigerian-tax-saas_0zrazsx._.js")
+R.c("server/chunks/ssr/12lx_next_dist_client_components_0dp5c4t._.js")
+R.c("server/chunks/ssr/12lx_next_dist_client_components_builtin_forbidden_0uh1p5m.js")
+R.c("server/chunks/ssr/12lx_next_dist_client_components_builtin_unauthorized_0su_cc5.js")
+R.c("server/chunks/ssr/12lx_next_dist_client_components_builtin_global-error_0k~pfnc.js")
+R.c("server/chunks/ssr/nigerian-tax-saas__next-internal_server_app_page_actions_11u4is-.js")
+R.m(7938)
+module.exports=R.m(7938).exports

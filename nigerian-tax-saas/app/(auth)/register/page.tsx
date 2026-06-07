@@ -1,0 +1,252 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+
+export default function RegisterPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const defaultTier = searchParams.get('tier') === 'business' ? 'business' : 'individual';
+
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+    tier: defaultTier as 'individual' | 'business',
+    businessType: '',
+    businessName: '',
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          tier: formData.tier,
+          businessType: formData.tier === 'business' ? formData.businessType : undefined,
+          businessName: formData.tier === 'business' ? formData.businessName : undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Registration failed');
+        setLoading(false);
+        return;
+      }
+
+      router.push('/login?registered=true');
+    } catch (err) {
+      setError('Something went wrong. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-6 py-12">
+      <div className="max-w-md mx-auto w-full">
+        <div className="text-center mb-8">
+          <Link href="/" className="text-2xl font-bold text-green-700">TaxHub Nigeria</Link>
+        </div>
+
+        <div className="bg-white p-8 rounded-xl shadow-sm">
+          <h1 className="text-2xl font-bold mb-2">Create your account</h1>
+          <p className="text-gray-600 mb-6">Start your 14-day free trial</p>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Tier Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">I am a...</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, tier: 'individual' })}
+                  className={`p-3 border-2 rounded-lg text-center font-medium transition-colors ${
+                    formData.tier === 'individual'
+                      ? 'border-green-600 bg-green-50 text-green-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  Individual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, tier: 'business' })}
+                  className={`p-3 border-2 rounded-lg text-center font-medium transition-colors ${
+                    formData.tier === 'business'
+                      ? 'border-green-600 bg-green-50 text-green-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  Business
+                </button>
+              </div>
+            </div>
+
+            {/* Business fields */}
+            {formData.tier === 'business' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
+                  <input
+                    type="text"
+                    name="businessName"
+                    value={formData.businessName}
+                    onChange={handleChange}
+                    placeholder="e.g., Chidi Hotels Ltd"
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Type</label>
+                  <select
+                    name="businessType"
+                    value={formData.businessType}
+                    onChange={handleChange}
+                    className="w-full"
+                    required
+                  >
+                    <option value="">Select type</option>
+                    <option value="sole_proprietor">Sole Proprietor</option>
+                    <option value="company">Limited Liability Company</option>
+                    <option value="partnership">Partnership</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  placeholder="Chidi"
+                  required
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  placeholder="Okonkwo"
+                  required
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="chidi@email.com"
+                required
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="08012345678"
+                required
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="At least 6 characters"
+                required
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="Re-enter your password"
+                required
+                className="w-full"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-green-700 text-white font-semibold rounded-lg hover:bg-green-800 disabled:opacity-50"
+            >
+              {loading ? 'Creating account...' : 'Create Account'}
+            </button>
+          </form>
+
+          <p className="mt-6 text-center text-gray-600">
+            Already have an account?{' '}
+            <Link href="/login" className="text-green-700 font-semibold hover:underline">Sign in</Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

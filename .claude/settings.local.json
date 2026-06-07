@@ -26,7 +26,15 @@
       "Bash(curl -s https://raw.githubusercontent.com/walealuko/construct-connect-web/main/App.js)",
       "Bash(git pull:*)",
       "Bash(curl -s \"https://walealuko-construct-connect-backend.onrender.com/api/products\")",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebFetch(domain:walealuko-construct-connect-backend.onrender.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:dashboard.render.com)",
+      "Bash(npm i:*)",
+      "Bash(npx degit:*)",
+      "Bash(git remote:*)",
+      "Bash(git branch:*)"
     ]
   }
 }

@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+}
+
+/* Utility classes for Nigerian tax context */
+.aira-green { color: #00A859; }
+.bg-aira-green { background-color: #00A859; }
+.border-aira-green { border-color: #00A859; }
+
+.font-naira { font-family: 'Segoe UI', system-ui, sans-serif; }
+
+/* Form styles */
+input, select, textarea {
+  @apply border border-gray-300 rounded-lg px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent;
+}
+
+/* Card hover effect */
+.card-hover {
+  @apply transition-shadow hover:shadow-lg;
+}
+
+/* Mobile-first responsive utilities */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

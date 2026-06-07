@@ -1,0 +1,10 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/payments/initialize/route.js")
+R.c("server/chunks/[root-of-the-server]__0cckf0c._.js")
+R.c("server/chunks/[root-of-the-server]__0p3rln3._.js")
+R.c("server/chunks/12lx_bcryptjs_0rtfofv._.js")
+R.c("server/chunks/[root-of-the-server]__0ne568j._.js")
+R.c("server/chunks/nigerian-tax-saas_0rvgx7e._.js")
+R.c("server/chunks/12lx_next_095mmsy._.js")
+R.c("server/chunks/0swi__next-internal_server_app_api_payments_initialize_route_actions_0ww~3ws.js")
+R.m(7447)
+module.exports=R.m(7447).exports

@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "axios": "^1.14.0",
     "cors": "^2.8.6",
     "react": "^18.2.0",
