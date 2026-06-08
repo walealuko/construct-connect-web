@@ -21,7 +21,7 @@ const CATEGORIES = [
 
 export default function Marketplace() {
   const { addToCart, cart } = useCart();
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
