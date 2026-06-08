@@ -23,8 +23,8 @@ export async function POST(req: NextRequest) {
       title,
       description,
       budget,
-      userId: session.user.id,
-      state: session.user.state, // Use the state from the user session
+      userId: (session.user as any).id,
+      state: (session.user as any).state, // Use the state from the user session
     });
 
     return NextResponse.json(project, { status: 201 });

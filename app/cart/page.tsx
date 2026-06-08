@@ -74,7 +74,7 @@ const Cart = () => {
   );
 };
 
-const cardStyle = {
+const cardStyle: React.CSSProperties = {
   display: "flex",
   gap: "20px",
   background: "#fff",
@@ -84,14 +84,14 @@ const cardStyle = {
   alignItems: "center",
 };
 
-const imageStyle = {
+const imageStyle: React.CSSProperties = {
   width: "100px",
   height: "100px",
   objectFit: "cover",
   borderRadius: "8px",
 };
 
-const inputStyle = {
+const inputStyle: React.CSSProperties = {
   width: "60px",
   padding: "4px 8px",
   borderRadius: "4px",
@@ -99,7 +99,7 @@ const inputStyle = {
   fontSize: "0.9rem",
 };
 
-const removeBtnStyle = {
+const removeBtnStyle: React.CSSProperties = {
   background: "#fee2e2",
   color: "#dc2626",
   border: "none",
@@ -110,7 +110,7 @@ const removeBtnStyle = {
   cursor: "pointer",
 };
 
-const clearBtnStyle = {
+const clearBtnStyle: React.CSSProperties = {
   background: "#fff",
   color: "#6b7280",
   border: "1px solid #d1d5db",
@@ -120,7 +120,7 @@ const clearBtnStyle = {
   cursor: "pointer",
 };
 
-const checkoutBtnStyle = {
+const checkoutBtnStyle: React.CSSProperties = {
   background: "#2563eb",
   color: "#fff",
   padding: "12px 24px",

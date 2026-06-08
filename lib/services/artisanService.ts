@@ -93,14 +93,14 @@ export const getArtisans = async () => {
   return ARTISANS;
 };
 
-export const getArtisanById = async (id) => {
+export const getArtisanById = async (id: string) => {
   await new Promise((resolve) => setTimeout(resolve, 200));
   const artisan = ARTISANS.find(a => a.id === id);
   if (!artisan) throw new Error("Artisan not found");
   return artisan;
 };
 
-export const getArtisansByCategory = async (category) => {
+export const getArtisansByCategory = async (category: string) => {
   await new Promise((resolve) => setTimeout(resolve, 300));
   return ARTISANS.filter(a => a.category === category);
 };

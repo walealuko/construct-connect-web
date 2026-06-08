@@ -17,7 +17,7 @@ const ARTISAN_CATEGORIES = [
 ];
 
 export default function Artisans() {
-  const [artisans, setArtisans] = useState([]);
+  const [artisans, setArtisans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
@@ -41,7 +41,7 @@ export default function Artisans() {
       const matchesCategory = activeCategory === "All" || artisan.category === activeCategory;
       const matchesSearch =
         artisan.name.toLowerCase().includes(search.toLowerCase()) ||
-        artisan.skills.some(skill => skill.toLowerCase().includes(search.toLowerCase()));
+        artisan.skills.some((skill: string) => skill.toLowerCase().includes(search.toLowerCase()));
       return matchesCategory && matchesSearch;
     });
   }, [artisans, search, activeCategory]);
@@ -153,7 +153,7 @@ export default function Artisans() {
               <div style={{ marginBottom: "20px" }}>
                 <p style={{ fontSize: "0.8rem", fontWeight: "600", color: "#9ca3af", textTransform: "uppercase", marginBottom: "8px" }}>Specialized Skills</p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                  {artisan.skills.map(skill => (
+                  {artisan.skills.map((skill: string) => (
                     <span key={skill} style={{ fontSize: "0.75rem", padding: "4px 8px", background: "#f3f4f6", color: "#4b5563", borderRadius: "4px", border: "1px solid #e5e7eb" }}>
                       {skill}
                     </span>
@@ -180,4 +180,3 @@ export default function Artisans() {
   );
 }
 
-export default Artisans;

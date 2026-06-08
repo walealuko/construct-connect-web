@@ -6,7 +6,7 @@ import ProfileCard from "@/components/ProfileCard";
 
 export default function Orders() {
   const { user } = useContext(UserContext);
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function Orders() {
     }
   }
 
-  async function handleConfirm(order) {
+  async function handleConfirm(order: any) {
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(`/api/orders/${order.id}/complete`, {

@@ -15,9 +15,9 @@ export default function AdminDashboard() {
   const { user } = useContext(UserContext);
   const [activeTab, setActiveTab] = useState("overview");
   const [stats, setStats] = useState({ users: 0, sellers: 0, buyers: 0, products: 0 });
-  const [users, setUsers] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [reviews, setReviews] = useState([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -56,7 +56,7 @@ export default function AdminDashboard() {
     setLoading(true);
     try {
       const sellers = users.filter((u: any) => u.role === "seller");
-      let allReviews = [];
+      let allReviews: any[] = [];
       for (const seller of sellers) {
         try {
           const res = await API.get(`/reviews/seller/${seller._id || seller.id}`);
@@ -116,7 +116,7 @@ export default function AdminDashboard() {
   if (user && user.role !== "admin") {
     return (
       <div style={{ textAlign: "center", padding: "4rem" }}>
-        <p style={{ color: "#dc2 laC26", fontSize: "1.2rem" }}>Access denied. Admins only.</p>
+        <p style={{ color: "#dc2626", fontSize: "1.2rem" }}>Access denied. Admins only.</p>
       </div>
     );
   }
@@ -183,7 +183,7 @@ export default function AdminDashboard() {
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody style={{ margin: 0 }}>
                 {users.map((u: any) => (
                   <tr key={u._id || u.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                     <td style={{ padding: "12px 16px", fontSize: "0.9rem", color: "#1f2937" }}>{u.name || "—"}</td>
@@ -233,7 +233,7 @@ export default function AdminDashboard() {
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody style={{ margin: 0 }}>
                 {products.map((p: any) => (
                   <tr key={p._id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                     <td style={{ padding: "12px 16px", fontSize: "0.9rem", color: "#1f2937", maxWidth: "200px" }}>
@@ -298,5 +298,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-export default AdminDashboard;

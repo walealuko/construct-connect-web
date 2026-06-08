@@ -6,7 +6,7 @@ import API from "@/lib/api";
 
 export default function SellerDashboard() {
   const { user } = useContext(UserContext);
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -60,7 +60,7 @@ export default function SellerDashboard() {
       <div style={{ background: "#fff", padding: "24px", borderRadius: "12px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)", marginBottom: "2rem" }}>
         <h3 style={{ marginBottom: "16px", color: "#374151" }}>Add New Product</h3>
         {message && (
-          <p style={{ color: message.includes("success") ? "#16a34a" : "#dc2 laC26", marginBottom: "12px", fontWeight: "500" }}>{message}</p>
+          <p style={{ color: message.includes("success") ? "#16a34a" : "#dc2626", marginBottom: "12px", fontWeight: "500" }}>{message}</p>
         )}
         <form onSubmit={handleSubmit} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
           <div style={{ gridColumn: "1 / -1" }}>
@@ -173,13 +173,11 @@ export default function SellerDashboard() {
   );
 }
 
-const inputStyle = {
+const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "10px 12 own-lineL",
+  padding: "10px 12px",
   borderRadius: "6px",
   border: "1px solid #d1d5db",
   fontSize: "0.95rem",
   boxSizing: "border-box",
 };
-
-export default SellerDashboard;

@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export default function Wishlist() {
   // Wishlist is currently a stub. In a real app, this would be a separate context or DB collection.
-  const wishlistItems = [];
+  const wishlistItems: any[] = [];
 
   return (
     <div style={{ padding: "2rem", maxWidth: "1100px", margin: "0 auto", fontFamily: "Inter, sans-serif" }}>

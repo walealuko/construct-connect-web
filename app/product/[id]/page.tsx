@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useContext } from "react";
-import { useParams, Link } from "next/navigation";
+import { useParams } from "next/navigation";
+import Link from "next/link";
 import API from "@/lib/api";
 import { useCart } from "@/components/CartContext";
 import { UserContext } from "@/components/UserContext";
@@ -96,8 +97,8 @@ export default function ProductDetail() {
 
           <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
             <span style={{ color: "#6b7280", fontSize: "0.9rem" }}>
-              Stock: <strong style={{ color: product.stock > 0 ? "#16a34a" : "#dc2626" }}>{product.stock > 0 ? `${product.stock} available` : "Out of stock"}</strong
-            </span
+              Stock: <strong style={{ color: product.stock > 0 ? "#16a34a" : "#dc2626" }}>{product.stock > 0 ? `${product.stock} available` : "Out of stock"}</strong>
+            </span>
           </div>
 
           <p style={{ fontSize: "1rem", color: "#4b5563", lineHeight: "1.7", marginBottom: "28px" }}>
@@ -141,9 +142,9 @@ export default function ProductDetail() {
           {/* Meta info */}
           <div style={{ marginTop: "28px", padding: "16px", background: "#f9fafb", borderRadius: "10px" }}>
             <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>📦 Ships from: {product.sellerLocation || "Seller's location"}</span
-              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>🏷️ Category: <span style={{ textTransform: "capitalize" }}>{product.category}</span></span
-              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>🕐 Listed: {new Date(product.createdAt).toLocaleDateString()}</span
+              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>📦 Ships from: {product.sellerLocation || "Seller's location"}</span>
+              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>🏷️ Category: <span style={{ textTransform: "capitalize" }}>{product.category}</span></span>
+              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>🕐 Listed: {new Date(product.createdAt).toLocaleDateString()}</span>
             </div>
           </div>
         </div>
@@ -152,4 +153,3 @@ export default function ProductDetail() {
   );
 }
 
-export default ProductDetail;

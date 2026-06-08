@@ -34,7 +34,11 @@
       "Bash(npm i:*)",
       "Bash(npx degit:*)",
       "Bash(git remote:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "PowerShell(npm run *)",
+      "PowerShell(npm install *)",
+      "PowerShell(New-Item *)",
+      "Bash(python3 *)"
     ]
   }
 }

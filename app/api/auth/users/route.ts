@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     await dbConnect();
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== "admin") {
+    if (!session || (session.user as any)?.role !== "admin") {
       return NextResponse.json({ message: "Unauthorized: Admin access required" }, { status: 403 });
     }
 
@@ -25,7 +25,7 @@ export async function PUT(req: NextRequest) {
     await dbConnect();
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== "admin") {
+    if (!session || (session.user as any)?.role !== "admin") {
       return NextResponse.json({ message: "Unauthorized: Admin access required" }, { status: 403 });
     }
 
@@ -56,15 +56,7 @@ export async function DELETE(req: NextRequest) {
     await dbConnect();
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== " laC26") { // This is a mistake in the user's prompt or my interpretation of the content from Read result
-      // wait, I see "laC26" in some Read results, that looks like a weird encoding issue or corruption.
-      // I should check the Read result again.
-      // Line 119 of AdminDashboard.tsx says: <p style={{ color: "#dc2 laC26", fontSize: "1.2rem" }}>
-      // That's definitely a corrupted string in the provided context/files.
-    }
-
-    // Correcting to "admin"
-    if (!session || session.user.role !== "admin") {
+    if (!session || (session.user as any)?.role !== "admin") {
       return NextResponse.json({ message: "Unauthorized: Admin access required" }, { status: 403 });
     }
 

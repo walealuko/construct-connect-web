@@ -4,11 +4,11 @@ import User from "@/models/User";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await dbConnect();
-    const { id } = params;
 
     const user = await User.findById(id).select("name email bio businessName role state location createdAt");
 

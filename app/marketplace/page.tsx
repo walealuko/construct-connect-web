@@ -167,4 +167,3 @@ export default function Marketplace() {
   );
 }
 
-export default Marketplace;

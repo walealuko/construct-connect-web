@@ -34,7 +34,7 @@ export default function Checkout() {
             <span style={{ fontSize: "1.2rem", fontWeight: "600", color: "#6b7280" }}>Total</span>
             <span style={{ fontSize: "1.8rem", fontWeight: "800", color: "#2563eb" }}>
               ${cart.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0).toFixed(2)}
-            </span
+            </span>
           </div>
 
           <button
@@ -60,4 +60,3 @@ export default function Checkout() {
   );
 }
 
-export default Checkout;

@@ -6,7 +6,7 @@ import { getUserActivities } from "@/lib/services/activityService";
 
 export default function Profile() {
   const [user, setUser] = useState<any>(null);
-  const [activities, setActivities] = useState([]);
+  const [activities, setActivities] = useState<any[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
 
   useEffect(() => {
@@ -137,4 +137,3 @@ export default function Profile() {
   );
 }
 
-export default Profile;
