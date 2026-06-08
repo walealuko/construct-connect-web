@@ -3,6 +3,8 @@ import dbConnect from '@/lib/db';
 import Review from '@/models/Review';
 import User from '@/models/User';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
