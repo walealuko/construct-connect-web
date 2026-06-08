@@ -9,10 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "mongoose": "^8.0.0",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.108.0",
     "next": "^16.2.3",
-    "next-auth": "^4.24.5",
     "paystack-sdk": "^2.0.0",
     "pdfkit": "^0.14.0",
     "react": "^18.2.0",
