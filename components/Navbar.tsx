@@ -44,7 +44,7 @@ const Navbar = () => {
     }}>
       {/* Logo */}
       <Link href="/" style={{ display: "flex", alignItems: "center", gap: "12px", textDecoration: "none" }}>
-        <img src="/logo.png" alt="Construct Hub" style={{ height: "52px" }} />
+        <img src="/logo.png" alt="TaxHub Nigeria" style={{ height: "52px" }} />
       </Link>
 
       {/* Navigation Links */}
