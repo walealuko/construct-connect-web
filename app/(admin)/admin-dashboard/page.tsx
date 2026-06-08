@@ -226,7 +226,7 @@ export default function AdminDashboard() {
                     <td style={{ padding: "12px 16px" }}>
                       <button
                         onClick={() => deleteUser(u.id)}
-                        style={{ padding: "4px 12px", background: "#fee2e2", color: "#dc2 la l", border: "none", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer" }}
+                        style={{ padding: "4px 12px", background: "#fee2e2", color: "#dc2626", border: "none", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer" }}
                       >
                         Delete
                       </button>
@@ -275,7 +275,7 @@ export default function AdminDashboard() {
                     <td style={{ padding: "12px 16px" }}>
                       <button
                         onClick={() => deleteProduct(p.id)}
-                        style={{ padding: "4px 12px", background: "#fee2e2", color: "#dc262 la l", border: "none", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer" }}
+                        style={{ padding: "4px 12px", background: "#fee2e2", color: "#dc2626", border: "none", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer" }}
                       >
                         Delete
                       </button>
