@@ -3,6 +3,8 @@ import { verifyTransaction } from '@/lib/paystack';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
