@@ -5,6 +5,8 @@ import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import { initializeTransaction, getSubscriptionAmount } from '@/lib/paystack';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
