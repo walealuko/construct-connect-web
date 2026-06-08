@@ -38,7 +38,7 @@ export default function ReviewButton({ sellerId, sellerName }) {
         setShowModal(false);
         setMessage("");
       }, 1500);
-    } catch (err: any) {
+    } catch (err) {
       setMessage(err.message || "Failed to submit review");
     } finally {
       setLoading(false);
