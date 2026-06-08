@@ -4,8 +4,8 @@ import Navbar from '@/components/Navbar';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'TaxHub Nigeria - Simplified Tax Management for Individuals & Small Businesses',
-  description: 'Calculate, prepare, and file your Nigerian taxes easily. PAYE, CIT, VAT, WHT, CGT - all in one platform.',
+  title: 'Construct Hub - Premium Construction Materials & Expert Artisans',
+  description: 'Find quality building materials and skilled professionals for your construction projects in Nigeria.',
 };
 
 export default function RootLayout({

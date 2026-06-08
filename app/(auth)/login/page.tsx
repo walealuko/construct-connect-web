@@ -28,7 +28,7 @@ export default function LoginPage() {
         setError('Invalid email or password');
         setLoading(false);
       } else {
-        router.push('/dashboard');
+        router.push('/marketplace');
         router.refresh();
       }
     } catch (err) {
@@ -41,7 +41,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-6">
       <div className="max-w-md mx-auto w-full">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-green-700">TaxHub Nigeria</Link>
+          <Link href="/" className="text-2xl font-bold text-blue-800">Construct Hub</Link>
         </div>
 
         <div className="bg-white p-8 rounded-xl shadow-sm">

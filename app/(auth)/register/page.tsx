@@ -77,7 +77,7 @@ function RegisterForm() {
   return (
     <div className="bg-white p-8 rounded-xl shadow-sm">
       <h1 className="text-2xl font-bold mb-2">Create your account</h1>
-      <p className="text-gray-600 mb-6">Start your 14-day free trial</p>
+      <p className="text-gray-600 mb-6">Join the construction network</p>
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
@@ -248,7 +248,7 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-6 py-12">
       <div className="max-w-md mx-auto w-full">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-green-700">TaxHub Nigeria</Link>
+          <Link href="/" className="text-2xl font-bold text-blue-800">Construct Hub</Link>
         </div>
         <Suspense fallback={<div>Loading registration form...</div>}>
           <RegisterForm />
