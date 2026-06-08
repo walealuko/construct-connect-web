@@ -95,7 +95,7 @@ export default function ReviewButton({ sellerId, sellerName }) {
                       ★
                     </button>
                   ))}
-                </div
+                </div>
               </div>
 
               <div style={{ marginBottom: "20px" }}>

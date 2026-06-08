@@ -97,14 +97,14 @@ export default function ProductDetail() {
         <div>
           <span style={{ background: "#eff6ff", color: "#2563eb", fontSize: "0.75rem", padding: "4px 12px", borderRadius: "20px", fontWeight: "600", textTransform: "capitalize" }}>
             {product.category}
-          </span
+          </span>
           <h1 style={{ fontSize: "2rem", fontWeight: "800", color: "#1e3a5f", margin: "12px 0 8px", lineHeight: "1.2" }}>{product.name}</h1>
           <p style={{ fontSize: "2.2rem", fontWeight: "800", color: "#2563eb", marginBottom: "16px" }}>${product.price?.toFixed(2)}</p>
 
           <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
             <span style={{ color: "#6b7280", fontSize: "0.9rem" }}>
               Stock: <strong style={{ color: product.stock > 0 ? "#16a34a" : "#dc2626" }}>{product.stock > 0 ? `${product.stock} available` : "Out of stock"}</strong>
-            </span
+            </span>
           </div>
 
           <p style={{ fontSize: "1rem", color: "#4b5563", lineHeight: "1.7", marginBottom: "28px" }}>
@@ -148,13 +148,13 @@ export default function ProductDetail() {
           {/* Meta info */}
           <div style={{ marginTop: "28px", padding: "16px", background: "#f9fafb", borderRadius: "10px" }}>
             <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>📦 Ships from: {product.seller_location || "Seller's location"}</span
-              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>🏷️ Category: <span style={{ textTransform: "capitalize" }}>{product.category}</span></span
-              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>🕐 Listed: {new Date(product.created_at).toLocaleDateString()}</span
+              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>📦 Ships from: {product.seller_location || "Seller's location"}</span>
+              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>🏷️ Category: <span style={{ textTransform: "capitalize" }}>{product.category}</span></span>
+              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>🕐 Listed: {new Date(product.created_at).toLocaleDateString()}</span>
             </div>
           </div>
         </div>
-      </div
+      </div>
     </div>
   );
 }

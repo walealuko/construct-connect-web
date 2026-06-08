@@ -13,8 +13,8 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Logic is now handled primarily by NextAuth,
-    // but we keep this for compatibility with migrated CRA components
+    // Logic is now handled primarily by Supabase Auth,
+    // but we keep this for compatibility with migrated components
     return false;
   };
 
