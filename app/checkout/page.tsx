@@ -31,7 +31,7 @@ export default function Checkout() {
           buyer_id: user.id,
           total_amount: totalPrice,
           status: 'pending',
-          items: cart.map(item => ({
+          items: cart.map((item: any) => ({
             product_id: item.id,
             quantity: item.quantity,
             price: item.price
