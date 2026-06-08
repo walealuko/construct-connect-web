@@ -25,7 +25,7 @@ export async function initializeTransaction(email: string, amount: number, refer
     email,
     amount: String(amount * 100), // Convert to kobo
     reference,
-    callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard/verify-payment`,
+    callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/marketplace`,
   });
 }
 

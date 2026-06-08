@@ -27,7 +27,7 @@ export default function PostProject() {
       await API.post("/projects", formData);
       setMessage("Project posted successfully!");
       setTimeout(() => {
-        router.push("/dashboard");
+        router.push("/marketplace");
       }, 2000);
     } catch (err: any) {
       setMessage(err.response?.data?.message || "Failed to post project");

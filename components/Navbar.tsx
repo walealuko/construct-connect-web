@@ -25,7 +25,7 @@ const Navbar = () => {
     switch (user.role) {
       case "seller": return "/seller-dashboard";
       case "admin": return "/admin-dashboard";
-      default: return "/dashboard";
+      default: return "/marketplace";
     }
   };
 
