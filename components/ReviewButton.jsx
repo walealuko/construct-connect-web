@@ -2,7 +2,7 @@
 
 import React, { useState, useContext } from "react";
 import { UserContext } from "./UserContext";
-import API from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 export default function ReviewButton({ sellerId, sellerName }) {
   const { user } = useContext(UserContext);
@@ -19,7 +19,18 @@ export default function ReviewButton({ sellerId, sellerName }) {
     setLoading(true);
     setMessage("");
     try {
-      await API.post("/reviews", { sellerId, rating, comment });
+      const { error } = await supabase
+        .from('reviews')
+        .insert({
+          seller_id: sellerId,
+          reviewer_id: user.id,
+          rating,
+          comment,
+          reviewer_name: user.name || 'Customer'
+        });
+
+      if (error) throw error;
+
       setMessage("Review submitted! Thank you.");
       setComment("");
       setRating(5);
@@ -27,8 +38,8 @@ export default function ReviewButton({ sellerId, sellerName }) {
         setShowModal(false);
         setMessage("");
       }, 1500);
-    } catch (err) {
-      setMessage(err.response?.data?.message || "Failed to submit review");
+    } catch (err: any) {
+      setMessage(err.message || "Failed to submit review");
     } finally {
       setLoading(false);
     }
@@ -84,7 +95,7 @@ export default function ReviewButton({ sellerId, sellerName }) {
                       ★
                     </button>
                   ))}
-                </div>
+                </div
               </div>
 
               <div style={{ marginBottom: "20px" }}>

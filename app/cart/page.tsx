@@ -29,8 +29,8 @@ const Cart = () => {
 
       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         {cart.map((item: any) => (
-          <div key={item._id} style={cardStyle}>
-            <img src={item.image} alt={item.name} style={imageStyle} />
+          <div key={item.id} style={cardStyle}>
+            <img src={item.image_url} alt={item.name} style={imageStyle} />
 
             <div style={{ flex: 1 }}>
               <h3 style={{ margin: "0 0 4px", color: "#1e3a5f", fontSize: "1.1rem" }}>{item.name}</h3>
@@ -42,10 +42,10 @@ const Cart = () => {
                   type="number"
                   min="1"
                   value={item.quantity}
-                  onChange={(e) => updateQuantity(item._id, Number(e.target.value))}
+                  onChange={(e) => updateQuantity(item.id, Number(e.target.value))}
                   style={inputStyle}
                 />
-                <button onClick={() => removeFromCart(item._id)} style={removeBtnStyle}>
+                <button onClick={() => removeFromCart(item.id)} style={removeBtnStyle}>
                   Remove
                 </button>
               </div>

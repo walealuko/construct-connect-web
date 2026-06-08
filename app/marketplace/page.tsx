@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import API from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { useCart } from "@/components/CartContext";
 
 const CATEGORIES = [
@@ -41,11 +41,20 @@ export default function Marketplace() {
   const loadProducts = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (category && category !== "all") params.append("category", category);
-      if (search) params.append("search", search);
-      const res = await API.get(`/products?${params.toString()}`);
-      setProducts(res.data);
+      let query = supabase.from('products').select('*');
+
+      if (category && category !== 'all') {
+        query = query.eq('category', category);
+      }
+
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%,location.ilike.%${search}%`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setProducts(data || []);
     } catch (err) {
       console.error("Failed to load products:", err);
     } finally {
@@ -65,7 +74,7 @@ export default function Marketplace() {
 
       <div style={{ display: "flex", gap: "12px", marginBottom: "24px", flexWrap: "wrap" }}>
         <div style={{ flex: "2", minWidth: "200px", position: "relative" }}>
-          <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: "1.1rem" }}>🔍</span>
+          <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: "1.1rem" }}>🔍</span
           <input
             type="text"
             placeholder="Search by product name, type, or location..."
@@ -120,12 +129,12 @@ export default function Marketplace() {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "16px" }}>
           {products.map((product: any) => {
-            const inCart = cart.some((item: any) => item._id === product._id);
+            const inCart = cart.some((item: any) => item.id === product.id);
             return (
-              <div key={product._id} style={{ background: "#fff", padding: "16px", borderRadius: "10px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
-                <Link href={`/product/${product._id}`} style={{ textDecoration: "none" }}>
-                  {product.imageUrl ? (
-                    <img src={product.imageUrl} alt={product.name} style={{ width: "100%", height: "140px", objectFit: "cover", borderRadius: "6px", marginBottom: "10px" }} />
+              <div key={product.id} style={{ background: "#fff", padding: "16px", borderRadius: "10px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
+                <Link href={`/product/${product.id}`} style={{ textDecoration: "none" }}>
+                  {product.image_url ? (
+                    <img src={product.image_url} alt={product.name} style={{ width: "100%", height: "140px", objectFit: "cover", borderRadius: "6px", marginBottom: "10px" }} />
                   ) : (
                     <div style={{ width: "100%", height: "140px", background: "#e5e7eb", borderRadius: "6px", marginBottom: "10px", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af" }}>🏗️</div>
                   )}
@@ -134,8 +143,8 @@ export default function Marketplace() {
                 <p style={{ margin: "0 0 6px", color: "#6b7280", fontSize: "0.85rem" }}>{product.description || "No description"}</p>
                 <p style={{ margin: "0 0 4px", fontWeight: "700", color: "#2563eb", fontSize: "1.1rem" }}>${product.price?.toFixed(2)}</p>
                 <p style={{ margin: "0", fontSize: "0.8rem", color: "#9ca3af" }}>
-                  {product.sellerName || "Unknown"}
-                  {product.sellerLocation && ` • ${product.sellerLocation}`}
+                  {product.seller_name || "Unknown"}
+                  {product.seller_location && ` • ${product.seller_location}`}
                 </p>
                 <span style={{ display: "inline-block", background: "#eff6ff", color: "#2563eb", fontSize: "0.75rem", padding: "2px 8px", borderRadius: "12px", marginTop: "6px", marginRight: "6px" }}>
                   {product.category}

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,21 +18,20 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = await signIn('credentials', {
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        redirect: false,
       });
 
-      if (result?.error) {
-        setError('Invalid email or password');
-        setLoading(false);
+      if (error) {
+        setError(error.message);
       } else {
         router.push('/marketplace');
         router.refresh();
       }
     } catch (err) {
       setError('Something went wrong. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
@@ -82,7 +81,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-green-700 text-white font-semibold rounded-lg hover:bg-green-800 disabled:opacity-50"
+              className="w-full py-3 bg-blue-800 text-white font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-50"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
@@ -90,7 +89,7 @@ export default function LoginPage() {
 
           <p className="mt-6 text-center text-gray-600">
             Don't have an account?{' '}
-            <Link href="/register" className="text-green-700 font-semibold hover:underline">Create one</Link>
+            <Link href="/register" className="text-blue-800 font-semibold hover:underline">Create one</Link>
           </p>
         </div>
       </div>

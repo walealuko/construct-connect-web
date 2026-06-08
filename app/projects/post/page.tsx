@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import API from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 export default function PostProject() {
   const router = useRouter();
@@ -24,13 +24,31 @@ export default function PostProject() {
     setLoading(true);
     setMessage("");
     try {
-      await API.post("/projects", formData);
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        setMessage("You must be logged in to post a project");
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from("projects")
+        .insert({
+          title: formData.title,
+          description: formData.description,
+          budget: formData.budget ? parseInt(formData.budget) : null,
+          user_id: user.id,
+        });
+
+      if (error) throw error;
+
       setMessage("Project posted successfully!");
       setTimeout(() => {
         router.push("/marketplace");
       }, 2000);
     } catch (err: any) {
-      setMessage(err.response?.data?.message || "Failed to post project");
+      setMessage(err.message || "Failed to post project");
     } finally {
       setLoading(false);
     }

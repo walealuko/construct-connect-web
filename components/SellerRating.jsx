@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import API from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 export default function SellerRating({ sellerId, sellerName }) {
   const [rating, setRating] = useState({ average: 0, count: 0 });
@@ -10,25 +10,31 @@ export default function SellerRating({ sellerId, sellerName }) {
 
   useEffect(() => {
     if (!sellerId) return;
-    loadRating();
-    loadReviews();
+    loadRatingAndReviews();
   }, [sellerId]);
 
-  const loadRating = async () => {
+  const loadRatingAndReviews = async () => {
     try {
-      const res = await API.get(`/reviews/seller/${sellerId}/rating`);
-      setRating(res.data);
-    } catch (err) {
-      console.error("Failed to load rating:", err);
-    }
-  };
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('seller_id', sellerId)
+        .order('created_at', { ascending: false });
 
-  const loadReviews = async () => {
-    try {
-      const res = await API.get(`/reviews/seller/${sellerId}`);
-      setReviews(res.data);
+      if (error) throw error;
+
+      const reviewsData = data || [];
+      setReviews(reviewsData);
+
+      if (reviewsData.length > 0) {
+        const sum = reviewsData.reduce((acc, curr) => acc + curr.rating, 0);
+        setRating({
+          average: sum / reviewsData.length,
+          count: reviewsData.length
+        });
+      }
     } catch (err) {
-      console.error("Failed to load reviews:", err);
+      console.error("Failed to load rating and reviews:", err);
     }
   };
 
@@ -41,7 +47,7 @@ export default function SellerRating({ sellerId, sellerName }) {
           ))}
         </div>
         <span style={{ fontSize: "0.9rem", color: "#6b7280" }}>
-          {rating.average > 0 ? `${rating.average} (${rating.count} ${rating.count === 1 ? "review" : "reviews"})` : "No reviews yet"}
+          {rating.average > 0 ? `${rating.average.toFixed(1)} (${rating.count} ${rating.count === 1 ? "review" : "reviews"})` : "No reviews yet"}
         </span>
       </div>
 
@@ -50,9 +56,9 @@ export default function SellerRating({ sellerId, sellerName }) {
           {showAll ? (
             <>
               {reviews.slice(0, 10).map((review) => (
-                <div key={review._id} style={{ background: "#f9fafb", padding: "12px", borderRadius: "8px", marginBottom: "8px" }}>
+                <div key={review.id} style={{ background: "#f9fafb", padding: "12px", borderRadius: "8px", marginBottom: "8px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                    <span style={{ fontWeight: "600", color: "#374151", fontSize: "0.9rem" }}>{review.reviewerName}</span>
+                    <span style={{ fontWeight: "600", color: "#374151", fontSize: "0.9rem" }}>{review.reviewer_name || 'Unknown'}</span>
                     <div style={{ display: "flex", gap: "1px" }}>
                       {[1, 2, 3, 4, 5].map((star) => (
                         <span key={star} style={{ fontSize: "0.85rem", color: star <= review.rating ? "#f59e0b" : "#d1d5db" }}>★</span>
@@ -60,7 +66,7 @@ export default function SellerRating({ sellerId, sellerName }) {
                     </div>
                   </div>
                   {review.comment && <p style={{ margin: 0, color: "#6b7280", fontSize: "0.85rem" }}>{review.comment}</p>}
-                  <p style={{ margin: "4px 0 0", color: "#9ca3af", fontSize: "0.75rem" }}>{new Date(review.createdAt).toLocaleDateString()}</p>
+                  <p style={{ margin: "4px 0 0", color: "#9ca3af", fontSize: "0.75rem" }}>{review.created_at ? new Date(review.created_at).toLocaleDateString() : "—"}</p>
                 </div>
               ))}
               {reviews.length > 10 && (
@@ -70,7 +76,7 @@ export default function SellerRating({ sellerId, sellerName }) {
           ) : (
             <div style={{ background: "#f9fafb", padding: "12px", borderRadius: "8px", marginBottom: "8px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                <span style={{ fontWeight: "600", color: "#374151", fontSize: "0.9rem" }}>{reviews[0].reviewerName}</span>
+                <span style={{ fontWeight: "600", color: "#374151", fontSize: "0.9rem" }}>{reviews[0].reviewer_name || 'Unknown'}</span>
                 <div style={{ display: "flex", gap: "1px" }}>
                   {[1, 2, 3, 4, 5].map((star) => (
                     <span key={star} style={{ fontSize: "0.85rem", color: star <= reviews[0].rating ? "#f59e0b" : "#d1d5db" }}>★</span>
@@ -78,7 +84,7 @@ export default function SellerRating({ sellerId, sellerName }) {
                 </div>
               </div>
               {reviews[0].comment && <p style={{ margin: 0, color: "#6b7280", fontSize: "0.85rem" }}>{reviews[0].comment}</p>}
-              <p style={{ margin: "4px 0 0", color: "#9ca3af", fontSize: "0.75rem" }}>{new Date(reviews[0].createdAt).toLocaleDateString()}</p>
+              <p style={{ margin: "4px 0 0", color: "#9ca3af", fontSize: "0.75rem" }}>{reviews[0].created_at ? new Date(reviews[0].created_at).toLocaleDateString() : "—"}</p>
             </div>
           )}
           {reviews.length > 1 && !showAll && (

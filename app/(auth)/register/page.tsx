@@ -3,6 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 
 function RegisterForm() {
   const router = useRouter();
@@ -44,32 +45,38 @@ function RegisterForm() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          phone: formData.phone,
-          tier: formData.tier,
-          businessType: formData.tier === 'business' ? formData.businessType : undefined,
-          businessName: formData.tier === 'business' ? formData.businessName : undefined,
-        }),
+      // 1. Sign up the user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
       });
 
-      const data = await res.json();
+      if (authError) throw authError;
 
-      if (!res.ok) {
-        setError(data.error || 'Registration failed');
-        setLoading(false);
-        return;
+      const user = authData.user;
+
+      if (user) {
+        // 2. Create a profile record in the 'profiles' table
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            phone: formData.phone,
+            tier: formData.tier,
+            business_type: formData.tier === 'business' ? formData.businessType : null,
+            business_name: formData.tier === 'business' ? formData.businessName : null,
+            email: formData.email,
+          });
+
+        if (profileError) throw profileError;
       }
 
       router.push('/login?registered=true');
-    } catch (err) {
-      setError('Something went wrong. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
@@ -95,7 +102,7 @@ function RegisterForm() {
               onClick={() => setFormData({ ...formData, tier: 'individual' })}
               className={`p-3 border-2 rounded-lg text-center font-medium transition-colors ${
                 formData.tier === 'individual'
-                  ? 'border-green-600 bg-green-50 text-green-700'
+                  ? 'border-blue-600 bg-blue-50 text-blue-700'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
@@ -106,7 +113,7 @@ function RegisterForm() {
               onClick={() => setFormData({ ...formData, tier: 'business' })}
               className={`p-3 border-2 rounded-lg text-center font-medium transition-colors ${
                 formData.tier === 'business'
-                  ? 'border-green-600 bg-green-50 text-green-700'
+                  ? 'border-blue-600 bg-blue-50 text-blue-700'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
@@ -229,7 +236,7 @@ function RegisterForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 bg-green-700 text-white font-semibold rounded-lg hover:bg-green-800 disabled:opacity-50"
+          className="w-full py-3 bg-blue-800 text-white font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-50"
         >
           {loading ? 'Creating account...' : 'Create Account'}
         </button>
@@ -237,7 +244,7 @@ function RegisterForm() {
 
       <p className="mt-6 text-center text-gray-600">
         Already have an account?{' '}
-        <Link href="/login" className="text-green-700 font-semibold hover:underline">Sign in</Link>
+        <Link href="/login" className="text-blue-800 font-semibold hover:underline">Sign in</Link>
       </p>
     </div>
   );

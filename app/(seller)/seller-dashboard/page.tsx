@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useContext } from "react";
 import { UserContext } from "@/components/UserContext";
-import API from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 export default function SellerDashboard() {
   const { user } = useContext(UserContext);
@@ -14,6 +14,7 @@ export default function SellerDashboard() {
     price: "",
     category: "general",
     stock: "",
+    imageFile: null as File | null,
     imageUrl: "",
   });
   const [message, setMessage] = useState("");
@@ -24,10 +25,21 @@ export default function SellerDashboard() {
 
   const loadProducts = async () => {
     try {
-      const res = await API.get("/products/my");
-      setProducts(res.data);
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('seller_id', user?.id);
+
+      if (error) throw error;
+      setProducts(data || []);
     } catch (err) {
       console.error("Failed to load products:", err);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData({ ...formData, imageFile: e.target.files[0] });
     }
   };
 
@@ -39,13 +51,53 @@ export default function SellerDashboard() {
     }
     setLoading(true);
     setMessage("");
+
     try {
-      await API.post("/products", formData);
-      setFormData({ name: "", description: "", price: "", category: "general", stock: "", imageUrl: "" });
+      let finalImageUrl = formData.imageUrl;
+
+      // Handle Image Upload
+      if (formData.imageFile) {
+        const fileName = `${Date.now()}-${formData.imageFile.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(fileName, formData.imageFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(fileName);
+
+        finalImageUrl = publicUrl;
+      }
+
+      const { error } = await supabase
+        .from('products')
+        .insert({
+          seller_id: user?.id,
+          name: formData.name,
+          description: formData.description,
+          price: parseFloat(formData.price),
+          category: formData.category,
+          stock: parseInt(formData.stock || '0'),
+          image_url: finalImageUrl,
+        });
+
+      if (error) throw error;
+
+      setFormData({
+        name: "",
+        description: "",
+        price: "",
+        category: "general",
+        stock: "",
+        imageFile: null,
+        imageUrl: ""
+      });
       setMessage("Product added successfully!");
       loadProducts();
     } catch (err: any) {
-      setMessage(err.response?.data?.message || "Failed to add product");
+      setMessage(err.message || "Failed to add product");
     } finally {
       setLoading(false);
     }
@@ -54,7 +106,7 @@ export default function SellerDashboard() {
   return (
     <div style={{ padding: "2rem", maxWidth: "900px", margin: "0 auto" }}>
       <h2 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#1e3a5f", marginBottom: "1.5rem" }}>
-        Seller Dashboard — Welcome, {user?.name}
+        Seller Dashboard — Welcome, {user?.name || 'Seller'}
       </h2>
 
       <div style={{ background: "#fff", padding: "24px", borderRadius: "12px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)", marginBottom: "2rem" }}>
@@ -122,11 +174,11 @@ export default function SellerDashboard() {
             </select>
           </div>
           <div>
-            <label style={{ display: "block", marginBottom: "6px", fontWeight: "500", color: "#374151", fontSize: "0.9rem" }}>Image URL</label>
+            <label style={{ display: "block", marginBottom: "6px", fontWeight: "500", color: "#374151", fontSize: "0.9rem" }}>Product Image</label>
             <input
-              placeholder="https://..."
-              value={formData.imageUrl}
-              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
               style={inputStyle}
             />
           </div>
@@ -157,9 +209,9 @@ export default function SellerDashboard() {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "16px" }}>
           {products.map((product: any) => (
-            <div key={product._id} style={{ background: "#fff", padding: "16px", borderRadius: "10px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
-              {product.imageUrl && (
-                <img src={product.imageUrl} alt={product.name} style={{ width: "100%", height: "140px", objectFit: "cover", borderRadius: "6px", marginBottom: "10px" }} />
+            <div key={product.id} style={{ background: "#fff", padding: "16px", borderRadius: "10px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
+              {product.image_url && (
+                <img src={product.image_url} alt={product.name} style={{ width: "100%", height: "140px", objectFit: "cover", borderRadius: "6px", marginBottom: "10px" }} />
               )}
               <h4 style={{ margin: "0 0 6px", color: "#1e3a5f" }}>{product.name}</h4>
               <p style={{ margin: "0 0 6px", color: "#6b7280", fontSize: "0.85rem" }}>{product.description || "No description"}</p>

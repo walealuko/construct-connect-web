@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import API from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
 export default function PublicProfile() {
@@ -15,11 +15,17 @@ export default function PublicProfile() {
   useEffect(() => {
     const fetchPublicProfile = async () => {
       try {
-        const res = await API.get(`/users/${id}`);
-        setUser(res.data);
+        const { data, error: supabaseError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (supabaseError) throw supabaseError;
+        setUser(data);
       } catch (err: any) {
         console.error("Error fetching public profile:", err);
-        setError(err.response?.data?.message || "Failed to load profile");
+        setError(err.message || "Failed to load profile");
       } finally {
         setLoading(false);
       }
@@ -57,8 +63,12 @@ export default function PublicProfile() {
             👤
           </div>
           <div>
-            <h1 style={{ fontSize: "2rem", fontWeight: "800", color: "#1e3a5f", margin: 0 }}>{user.name}</h1>
-            <p style={{ color: "#6b7280", fontSize: "1.1rem", margin: "4px 0 0" }}>{user.role === "seller" ? "Verified Seller" : "Member"}</p>
+            <h1 style={{ fontSize: "2rem", fontWeight: "800", color: "#1e3a5f", margin: 0 }}>
+              {`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown User'}
+            </h1>
+            <p style={{ color: "#6b7280", fontSize: "1.1rem", margin: "4px 0 0" }}>
+              {user.tier === "business" ? "Verified Seller" : "Member"}
+            </p>
           </div>
         </div>
 
@@ -74,13 +84,13 @@ export default function PublicProfile() {
             <h3 style={{ fontSize: "0.9rem", color: "#9ca3af", textTransform: "uppercase", fontWeight: "700", marginBottom: "8px" }}>Details</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <p style={{ margin: 0, color: "#374151" }}>
-                <strong style={{ color: "#6b7280" }}>Business:</strong> {user.businessName || "N/A"}
+                <strong style={{ color: "#6b7280" }}>Business:</strong> {user.business_name || "N/A"}
               </p>
               <p style={{ margin: 0, color: "#374151" }}>
-                <strong style={{ color: "#6b7280" }}>Location:</strong> {user.state || "Not specified"}
+                <strong style={{ color: "#6b7280" }}>Location:</strong> {user.location || "Not specified"}
               </p>
               <p style={{ margin: 0, color: "#374151" }}>
-                <strong style={{ color: "#6b7280" }}>Joined:</strong> {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}
+                <strong style={{ color: "#6b7280" }}>Joined:</strong> {user.created_at ? new Date(user.created_at).toLocaleDateString() : "N/A"}
               </p>
             </div>
           </div>
