@@ -1,6 +1,6 @@
 import { Paystack } from 'paystack-sdk';
 
-const paystack = new Paystack(process.env.PAYSTACK_SECRET_KEY!);
+const paystack = new Paystack(process.env.PAYSTACK_SECRET_KEY || 'placeholder-paystack-key');
 
 // Create customer
 export async function createCustomer(email: string, firstName: string, lastName: string) {
