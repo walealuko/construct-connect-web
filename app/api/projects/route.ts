@@ -4,6 +4,8 @@ import Project from "@/models/Project";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     await dbConnect();
