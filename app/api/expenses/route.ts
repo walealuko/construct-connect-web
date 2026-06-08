@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/db';
 import Expense from '@/models/Expense';
+import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,15 +15,20 @@ export async function GET(req: NextRequest) {
     }
 
     const userId = (session.user as any).id;
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID not found in session' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const year = searchParams.get('year');
 
     await dbConnect();
 
-    let query: any = { userId };
-    if (year) {
-      const startDate = new Date(parseInt(year), 0, 1);
-      const endDate = new Date(parseInt(year), 11, 31);
+    let query: any = { userId: new mongoose.Types.ObjectId(userId) };
+    if (year && !isNaN(parseInt(year))) {
+      const startYear = parseInt(year);
+      const startDate = new Date(startYear, 0, 1);
+      const endDate = new Date(startYear, 11, 31, 23, 59, 59, 999);
       query.date = { $gte: startDate, $lte: endDate };
     }
 
@@ -31,7 +37,7 @@ export async function GET(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Get expenses error:', error);
-    return NextResponse.json({ error: 'Failed to fetch expenses' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch expenses: ' + error.message }, { status: 500 });
   }
 }
 
@@ -50,11 +56,14 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = (session.user as any).id;
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID not found in session' }, { status: 401 });
+    }
 
     await dbConnect();
 
     const expense = new Expense({
-      userId,
+      userId: new mongoose.Types.ObjectId(userId),
       category,
       description,
       amount: parseFloat(amount),
@@ -67,7 +76,7 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Create expense error:', error);
-    return NextResponse.json({ error: 'Failed to create expense entry' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create expense entry: ' + error.message }, { status: 500 });
   }
 }
 
@@ -86,10 +95,17 @@ export async function PUT(req: NextRequest) {
     }
 
     const userId = (session.user as any).id;
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID not found in session' }, { status: 401 });
+    }
 
     await dbConnect();
 
-    const expense = await Expense.findOne({ _id: id, userId });
+    const expense = await Expense.findOne({
+      _id: new mongoose.Types.ObjectId(id),
+      userId: new mongoose.Types.ObjectId(userId)
+    });
+
     if (!expense) {
       return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
     }
@@ -105,7 +121,7 @@ export async function PUT(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Update expense error:', error);
-    return NextResponse.json({ error: 'Failed to update expense' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to update expense: ' + error.message }, { status: 500 });
   }
 }
 
@@ -124,10 +140,17 @@ export async function DELETE(req: NextRequest) {
     }
 
     const userId = (session.user as any).id;
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID not found in session' }, { status: 401 });
+    }
 
     await dbConnect();
 
-    const expense = await Expense.findOneAndDelete({ _id: id, userId });
+    const expense = await Expense.findOneAndDelete({
+      _id: new mongoose.Types.ObjectId(id),
+      userId: new mongoose.Types.ObjectId(userId)
+    });
+
     if (!expense) {
       return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
     }
@@ -136,6 +159,6 @@ export async function DELETE(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Delete expense error:', error);
-    return NextResponse.json({ error: 'Failed to delete expense' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to delete expense: ' + error.message }, { status: 500 });
   }
 }
