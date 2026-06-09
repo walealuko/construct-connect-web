@@ -5,7 +5,8 @@ import { UserContext } from "./UserContext";
 import { supabase } from "@/lib/supabase";
 
 export default function ReviewButton({ sellerId, sellerName }) {
-  const { user } = useContext(UserContext);
+  const userContext = useContext(UserContext);
+  const user = userContext?.user;
   const [showModal, setShowModal] = useState(false);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");

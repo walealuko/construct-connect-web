@@ -5,7 +5,8 @@ import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
 
 export default function SellerDashboard() {
-  const { user } = useContext(UserContext);
+  const userContext = useContext(UserContext);
+  const user = userContext?.user;
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({

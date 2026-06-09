@@ -8,7 +8,8 @@ import Link from "next/link";
 
 export default function Checkout() {
   const { cart, clearCart } = useCart();
-  const { user } = useContext(UserContext);
+  const userContext = useContext(UserContext);
+  const user = userContext?.user;
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 

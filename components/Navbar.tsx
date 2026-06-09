@@ -8,7 +8,9 @@ import { UserContext } from "./UserContext";
 
 const Navbar = () => {
   const { cart } = useCart();
-  const { user, logout } = useContext(UserContext);
+  const userContext = useContext(UserContext);
+  const user = userContext?.user;
+  const logout = userContext?.logout;
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
 
