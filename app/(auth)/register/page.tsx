@@ -84,14 +84,11 @@ function RegisterForm() {
       }
 
       // SUCCESS: User registered and profile created
-      setTimeout(() => {
-        if (authData.session) {
-          router.push(getRedirectPath(formData.tier));
-        } else {
-          router.push('/login?registered=true');
-        }
-        router.refresh();
-      }, 1000);
+      if (authData.session) {
+        window.location.href = getRedirectPath(formData.tier);
+      } else {
+        router.push('/login?registered=true');
+      }
     } catch (err: any) {
       console.error("Registration error:", err);
       setError(err.message || 'Something went wrong. Please try again.');
