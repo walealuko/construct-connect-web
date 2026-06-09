@@ -17,7 +17,9 @@ const Navbar = () => {
   const totalItems = cart.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
 
   const handleLogout = () => {
-    logout();
+    if (logout) {
+      logout();
+    }
     setMenuOpen(false);
     router.push("/");
   };
