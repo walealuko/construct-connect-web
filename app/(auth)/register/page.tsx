@@ -73,7 +73,16 @@ function RegisterForm() {
         if (profileError) throw profileError;
       }
 
-      router.push('/login?registered=true');
+      // Redirect based on tier and session status
+      if (authData.session) {
+        if (formData.tier === 'business') {
+          router.push('/seller-dashboard');
+        } else {
+          router.push('/marketplace');
+        }
+      } else {
+        router.push('/login?registered=true');
+      }
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
