@@ -59,7 +59,7 @@ function RegisterForm() {
         // 2. Create a profile record in the 'profiles' table
         const { error: profileError } = await supabase
           .from('profiles')
-          .insert({
+          .upsert({
             id: user.id,
             first_name: formData.firstName,
             last_name: formData.lastName,
