@@ -5,6 +5,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
+const NIGERIAN_STATES = [
+  "Abia", "Adamawa", "Akwa Ibom", "Amachi", "Anambra", "Bauchi", "Bayelsa", "Borno", "Cross River", "Delta",
+  "Ebonyi", "Edo", "Ekidid", "Enugu", "Gombe", "Imbibi", "Imo", "Jigawa", "Kaduna", "Kano",
+  "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun",
+  "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara", "FCT"
+];
+
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -20,6 +27,7 @@ function RegisterForm() {
     tier: defaultTier as 'individual' | 'business',
     businessType: '',
     businessName: '',
+    location: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -68,6 +76,7 @@ function RegisterForm() {
             business_type: formData.tier === 'business' ? formData.businessType : null,
             business_name: formData.tier === 'business' ? formData.businessName : null,
             email: formData.email,
+            location: formData.location,
           });
 
         if (profileError) throw profileError;
@@ -214,6 +223,22 @@ function RegisterForm() {
             required
             className="w-full"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Location (State)</label>
+          <select
+            name="location"
+            value={formData.location}
+            onChange={handleChange}
+            required
+            className="w-full"
+          >
+            <option value="">Select State</option>
+            {NIGERIAN_STATES.map(state => (
+              <option key={state} value={state}>{state}</option>
+            ))}
+          </select>
         </div>
 
         <div>
