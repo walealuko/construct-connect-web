@@ -91,7 +91,7 @@ const Navbar = () => {
                   Dashboard
                 </Link>
                 <Link
-                  href={`/profile/${user.id || user._id}`}
+                  href={`/profile/${user.id}`}
                   onClick={() => setMenuOpen(false)}
                   style={{ ...dropdownItem, borderBottom: "1px solid #e5e7eb" }}
                 >
