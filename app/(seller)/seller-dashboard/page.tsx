@@ -107,7 +107,7 @@ export default function SellerDashboard() {
   return (
     <div style={{ padding: "2rem", maxWidth: "900px", margin: "0 auto" }}>
       <h2 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#1e3a5f", marginBottom: "1.5rem" }}>
-        Seller Dashboard — Welcome, {user?.name || 'Seller'}
+        Seller Dashboard — Welcome, {user?.email?.split('@')[0] || 'Seller'}
       </h2>
 
       <div style={{ background: "#fff", padding: "24px", borderRadius: "12px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)", marginBottom: "2rem" }}>
