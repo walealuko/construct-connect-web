@@ -5,6 +5,8 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useCart } from "@/components/CartContext";
 import { Product } from "@/types/database";
+import { toast } from "sonner";
+import ProductSkeleton from "./ProductSkeleton";
 
 const CATEGORIES = [
   { value: "all", label: "All Categories" },
@@ -54,6 +56,7 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
       setProducts(data || []);
     } catch (err) {
       console.error("Failed to load products:", err);
+      toast.error("Failed to load products. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -103,8 +106,8 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
       )}
 
       {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <p className="text-gray-500">Searching products...</p>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-4">
+          {[...Array(6)].map((_, i) => <ProductSkeleton key={i} />)}
         </div>
       ) : products.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-xl">
@@ -140,7 +143,10 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
                     {product.category}
                   </span>
                   <button
-                    onClick={() => addToCart(product)}
+                    onClick={() => {
+                      addToCart(product);
+                      toast.success(`${product.name} added to cart!`);
+                    }}
                     disabled={inCart}
                     className={`ml-auto py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
                       inCart

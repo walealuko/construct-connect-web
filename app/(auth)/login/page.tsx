@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { getRedirectPath } from '@/lib/roles';
+import { toast } from 'sonner';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export default function LoginPage() {
 
       if (error) {
         setError(error.message);
+        toast.error(error.message);
       } else {
         // Fetch user profile to determine role
         const { data: profile } = await supabase
@@ -34,11 +36,13 @@ export default function LoginPage() {
           .eq('id', (await supabase.auth.getUser()).data.user?.id)
           .single();
 
+        toast.success("Welcome back!");
         router.push(getRedirectPath(profile?.tier));
         router.refresh();
       }
     } catch (err) {
       setError('Something went wrong. Please try again.');
+      toast.error('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

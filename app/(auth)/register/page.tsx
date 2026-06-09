@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { getRedirectPath } from '@/lib/roles';
+import { toast } from 'sonner';
 
 const NIGERIAN_STATES = [
   "Abia", "Adamawa", "Akwa Ibom", "Amachi", "Anambra", "Bauchi", "Bayelsa", "Borno", "Cross River", "Delta",
@@ -43,11 +44,13 @@ function RegisterForm() {
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
 
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
+      toast.error('Password must be at least 6 characters');
       return;
     }
 
@@ -85,13 +88,17 @@ function RegisterForm() {
 
       // SUCCESS: User registered and profile created
       if (authData.session) {
-        window.location.href = getRedirectPath(formData.tier);
+        toast.success("Account created successfully!");
+        const destination = getRedirectPath(formData.tier);
+        window.location.href = destination;
       } else {
+        toast.info("Please verify your email to continue.");
         router.push('/login?registered=true');
       }
     } catch (err: any) {
       console.error("Registration error:", err);
       setError(err.message || 'Something went wrong. Please try again.');
+      toast.error(err.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
