@@ -46,7 +46,8 @@
       "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3000/marketplace\" -UseBasicParsing; Invoke-WebRequest -Uri \"http://localhost:3000/artisans\" -UseBasicParsing; Invoke-WebRequest -Uri \"http://localhost:3000/product/123\" -UseBasicParsing)",
       "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3000/login\" -UseBasicParsing)",
       "PowerShell(Stop-Process *)",
-      "PowerShell(npm uninstall *)"
+      "PowerShell(npm uninstall *)",
+      "Bash(Get-ChildItem *)"
     ]
   }
 }

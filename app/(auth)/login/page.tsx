@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { getRedirectPath } from '@/lib/roles';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,13 +34,7 @@ export default function LoginPage() {
           .eq('id', (await supabase.auth.getUser()).data.user?.id)
           .single();
 
-        if (profile?.tier === 'business') {
-          router.push('/seller-dashboard');
-        } else if (profile?.tier === 'admin') {
-          router.push('/admin-dashboard');
-        } else {
-          router.push('/marketplace');
-        }
+        router.push(getRedirectPath(profile?.tier));
         router.refresh();
       }
     } catch (err) {

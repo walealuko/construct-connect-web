@@ -1,157 +1,91 @@
-"use client";
-
-import React, { useState, useEffect, useContext } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { useCart } from "@/components/CartContext";
-import { UserContext } from "@/components/UserContext";
+import { Product } from "@/types/database";
+import Link from "next/link";
 import SellerRating from "@/components/SellerRating";
 import ReviewButton from "@/components/ReviewButton";
+import ProductAddToCart from "@/components/ProductAddToCart";
+import { UserContext } from "@/components/UserContext";
+import { useContext } from "react";
 
-export default function ProductDetail() {
-  const params = useParams();
-  const id = params.id;
-  const { addToCart, cart } = useCart();
-  const { user } = useContext(UserContext);
-  const [product, setProduct] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [added, setAdded] = useState(false);
+export default async function ProductPage({ params }: { params: { id: string } }) {
+  const { id } = params;
 
-  useEffect(() => {
-    loadProduct();
-  }, [id]);
+  const { data: product, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('id', id)
+    .single();
 
-  const loadProduct = async () => {
-    try {
-      const { data, error: supabaseError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', id)
-        .single();
+  if (error || !product) {
+    throw new Error("Product not found");
+  }
 
-      if (supabaseError) throw supabaseError;
-      setProduct(data);
-    } catch (err) {
-      setError("Failed to load product.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddToCart = () => {
-    addToCart(product);
-    setAdded(true);
-  };
-
-  if (loading) return (
-    <div style={{ textAlign: "center", padding: "4rem", color: "#6b7280" }}>
-      Loading product...
-    </div>
-  );
-
-  if (error) return (
-    <div style={{ textAlign: "center", padding: "4rem" }}>
-      <p style={{ color: "#dc2626", fontSize: "1.2rem" }}>{error}</p>
-      <Link href="/marketplace" style={{ color: "#2563eb" }}>Back to Marketplace</Link>
-    </div>
-  );
+  const p = product as Product;
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "1100px", margin: "0 auto" }}>
-      <Link href="/marketplace" style={{ color: "#6b7280", textDecoration: "none", fontSize: "0.9rem", display: "inline-flex", alignItems: "center", gap: "4px", marginBottom: "24px" }}>
+    <div className="p-8 max-w-[1100px] mx-auto">
+      <Link
+        href="/marketplace"
+        className="text-gray-500 no-underline text-sm inline-flex items-center gap-1 mb-6 hover:text-blue-700 transition-colors"
+      >
         ← Back to Marketplace
       </Link>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "40px", alignItems: "start" }}>
-        {/* Left: Image */}
-        <div>
-          {product.image_url ? (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
+        {/* Left: Image & Seller Info */}
+        <div className="space-y-5">
+          {p.image_url ? (
             <img
-              src={product.image_url}
-              alt={product.name}
-              style={{ width: "100%", maxHeight: "420px", objectFit: "cover", borderRadius: "14px", boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}
+              src={p.image_url}
+              alt={p.name}
+              className="w-full max-h-[420px] object-cover rounded-2xl shadow-lg"
             />
           ) : (
-            <div style={{ width: "100%", height: "360px", background: "#e5e7eb", borderRadius: "14px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "4rem" }}>
+            <div className="w-full h-[360px] bg-gray-100 rounded-2xl flex items-center justify-center text-6xl">
               🏗️
             </div>
           )}
 
-          {/* Seller Info Card */}
-          <div style={{ marginTop: "20px", background: "#fff", padding: "20px", borderRadius: "12px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)" }}>
-            <p style={{ fontSize: "0.8rem", color: "#9ca3af", marginBottom: "8px", textTransform: "uppercase", fontWeight: "600", letterSpacing: "0.05em" }}>Sold By</p>
-            <p style={{ fontSize: "1.1rem", fontWeight: "700", color: "#1e3a5f", marginBottom: "4px" }}>{product.seller_name || "Unknown Seller"}</p>
-            {product.seller_location && (
-              <p style={{ fontSize: "0.85rem", color: "#6b7280", marginBottom: "12px" }}>📍 {product.seller_location}</p>
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <p className="text-xs text-gray-400 mb-2 uppercase font-bold tracking-wider">Sold By</p>
+            <p className="text-lg font-bold text-slate-900 mb-1">{p.seller_name || "Unknown Seller"}</p>
+            {p.seller_location && (
+              <p className="text-sm text-gray-500 mb-3">📍 {p.seller_location}</p>
             )}
-            <SellerRating sellerId={product.seller_id} sellerName={product.seller_name} />
-            <div style={{ marginTop: "10px" }}>
-              <ReviewButton sellerId={product.seller_id} sellerName={product.seller_name} />
+            <SellerRating sellerId={p.seller_id} sellerName={p.seller_name} />
+            <div className="mt-3">
+              <ReviewButton sellerId={p.seller_id} sellerName={p.seller_name} />
             </div>
           </div>
         </div>
 
         {/* Right: Details */}
-        <div>
-          <span style={{ background: "#eff6ff", color: "#2563eb", fontSize: "0.75rem", padding: "4px 12px", borderRadius: "20px", fontWeight: "600", textTransform: "capitalize" }}>
-            {product.category}
+        <div className="space-y-6">
+          <span className="bg-blue-50 text-blue-600 text-xs px-3 py-1 rounded-full font-bold uppercase">
+            {p.category}
           </span>
-          <h1 style={{ fontSize: "2rem", fontWeight: "800", color: "#1e3a5f", margin: "12px 0 8px", lineHeight: "1.2" }}>{product.name}</h1>
-          <p style={{ fontSize: "2.2rem", fontWeight: "800", color: "#2563eb", marginBottom: "16px" }}>${product.price?.toFixed(2)}</p>
+          <h1 className="text-4xl font-extrabold text-slate-900 leading-tight">
+            {p.name}
+          </h1>
+          <p className="text-4xl font-black text-blue-600">${p.price?.toFixed(2)}</p>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
-            <span style={{ color: "#6b7280", fontSize: "0.9rem" }}>
-              Stock: <strong style={{ color: product.stock > 0 ? "#16a34a" : "#dc2626" }}>{product.stock > 0 ? `${product.stock} available` : "Out of stock"}</strong>
-            </span>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <span>Stock:</span>
+            <strong className={p.stock > 0 ? "text-green-600" : "text-red-600"}>
+              {p.stock > 0 ? `${p.stock} available` : "Out of stock"}
+            </strong>
           </div>
 
-          <p style={{ fontSize: "1rem", color: "#4b5563", lineHeight: "1.7", marginBottom: "28px" }}>
-            {product.description || "No description provided for this product."}
+          <p className="text-gray-600 leading-relaxed">
+            {p.description || "No description provided for this product."}
           </p>
 
-          {/* Actions */}
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-            {product.stock > 0 ? (
-              <button
-                onClick={handleAddToCart}
-                disabled={added}
-                style={{
-                  padding: "14px 32px",
-                  fontSize: "1rem",
-                  fontWeight: "700",
-                  background: added ? "#16a34a" : "#2563eb",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "10px",
-                  cursor: added ? "default" : "pointer",
-                }}
-              >
-                {added ? "✓ Added to Cart" : "Add to Cart"}
-              </button>
-            ) : (
-              <button disabled style={{ padding: "14px 32px", fontSize: "1rem", fontWeight: "700", background: "#d1d5db", color: "#6b7280", border: "none", borderRadius: "10px", cursor: "not-allowed" }}>
-                Out of Stock
-              </button>
-            )}
+          <ProductAddToCart product={p} />
 
-            {user?.role === "seller" && (
-              <Link href="/seller-dashboard">
-                <button style={{ padding: "14px 24px", fontSize: "1rem", fontWeight: "600", background: "#fff", color: "#1e3a5f", border: "2px solid #1e3a5f", borderRadius: "10px", cursor: "pointer" }}>
-                  Manage Products
-                </button>
-              </Link>
-            )}
-          </div>
-
-          {/* Meta info */}
-          <div style={{ marginTop: "28px", padding: "16px", background: "#f9fafb", borderRadius: "10px" }}>
-            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>📦 Ships from: {product.seller_location || "Seller's location"}</span>
-              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>🏷️ Category: <span style={{ textTransform: "capitalize" }}>{product.category}</span></span>
-              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>🕐 Listed: {new Date(product.created_at).toLocaleDateString()}</span>
-            </div>
+          <div className="p-4 bg-gray-50 rounded-xl flex flex-wrap gap-4 text-xs text-gray-500">
+            <span>📦 Ships from: {p.seller_location || "Seller's location"}</span>
+            <span>🏷️ Category: <span className="capitalize">{p.category}</span></span>
+            <span>🕐 Listed: {new Date(p.created_at).toLocaleDateString()}</span>
           </div>
         </div>
       </div>

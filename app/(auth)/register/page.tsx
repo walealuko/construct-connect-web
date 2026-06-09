@@ -1,9 +1,8 @@
-'use client';
-
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { getRedirectPath } from '@/lib/roles';
 
 const NIGERIAN_STATES = [
   "Abia", "Adamawa", "Akwa Ibom", "Amachi", "Anambra", "Bauchi", "Bayelsa", "Borno", "Cross River", "Delta",
@@ -82,17 +81,17 @@ function RegisterForm() {
         if (profileError) throw profileError;
       }
 
-      // Redirect based on tier and session status
-      if (authData.session) {
-        if (formData.tier === 'business') {
-          router.push('/seller-dashboard');
+      // SUCCESS: User registered and profile created
+      setTimeout(() => {
+        if (authData.session) {
+          router.push(getRedirectPath(formData.tier));
         } else {
-          router.push('/marketplace');
+          router.push('/login?registered=true');
         }
-      } else {
-        router.push('/login?registered=true');
-      }
+        router.refresh();
+      }, 1000);
     } catch (err: any) {
+      console.error("Registration error:", err);
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);

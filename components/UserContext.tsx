@@ -1,11 +1,18 @@
-"use client";
-
 import React, { createContext, useState, useEffect } from "react";
+import { User } from "@/types/database";
+import { supabase } from "@/lib/supabase";
 
-export const UserContext = createContext<any>(null);
+interface UserContextType {
+  user: User | null;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+}
+
+export const UserContext = createContext<UserContextType | null>(null);
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("user") || "null");
@@ -13,8 +20,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Logic is now handled primarily by Supabase Auth,
-    // but we keep this for compatibility with migrated components
     return false;
   };
 

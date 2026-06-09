@@ -1,8 +1,21 @@
 "use client";
 
 import React, { createContext, useState, useEffect, useContext } from "react";
+import { Product } from "@/types/database";
 
-export const CartContext = createContext<any>(null);
+interface CartItem extends Product {
+  quantity: number;
+}
+
+interface CartContextType {
+  cart: CartItem[];
+  addToCart: (product: Product) => void;
+  removeFromCart: (id: string) => void;
+  updateQuantity: (id: string, quantity: number) => void;
+  clearCart: () => void;
+}
+
+export const CartContext = createContext<CartContextType | null>(null);
 
 export const useCart = () => {
   const context = useContext(CartContext);
@@ -13,7 +26,7 @@ export const useCart = () => {
 };
 
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
-  const [cart, setCart] = useState<any[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
 
   useEffect(() => {
     const savedCart = localStorage.getItem("cart");
@@ -24,7 +37,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 
-  const addToCart = (product: any) => {
+  const addToCart = (product: Product) => {
     if (!cart.find((item) => item.id === product.id)) {
       setCart([...cart, { ...product, quantity: 1 }]);
     }

@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { REDIRECT_MAP } from '@/lib/roles';
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -40,30 +41,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 2. Role-Based Protection (Sellers Only)
-  if (request.nextUrl.pathname.startsWith('/seller-dashboard')) {
+  // 2. Role-Based Protection
+  const path = request.nextUrl.pathname;
+
+  if (path.startsWith('/seller-dashboard') || path.startsWith('/admin-dashboard')) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('tier')
       .eq('id', user?.id)
       .single();
 
-    if (!user || profile?.tier !== 'business') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      return NextResponse.redirect(url);
-    }
-  }
+    const role = profile?.tier;
 
-  // 3. Role-Based Protection (Admins Only)
-  if (request.nextUrl.pathname.startsWith('/admin-dashboard')) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('tier')
-      .eq('id', user?.id)
-      .single();
-
-    if (!user || profile?.tier !== 'admin') {
+    if (!user || (path.startsWith('/seller-dashboard') && role !== 'business') || (path.startsWith('/admin-dashboard') && role !== 'admin')) {
       const url = request.nextUrl.clone();
       url.pathname = '/login';
       return NextResponse.redirect(url);
