@@ -66,7 +66,7 @@ const Navbar = () => {
               onClick={() => setMenuOpen(!menuOpen)}
               style={{ ...navBtnOutline, display: "flex", alignItems: "center", gap: "8px" }}
             >
-              <span style={{ color: "#6b7280", fontSize: "0.9rem" }}>Hi, {user.name || user.email}</span>
+              <span style={{ color: "#6b7280", fontSize: "0.9rem" }}>Hi, {user?.email?.split('@')[0] || 'User'}</span>
               <span style={{ fontSize: "0.7rem" }}>{menuOpen ? "▲" : "▼"}</span>
             </button>
 
