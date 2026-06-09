@@ -15,8 +15,36 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("user") || "null");
-    setUser(stored);
+    // 1. Initial session check
+    const initializeAuth = async () => {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        setUser({
+          id: authUser.id,
+          email: authUser.email!,
+          role: authUser.user_metadata?.tier || 'individual'
+        });
+      }
+    };
+
+    initializeAuth();
+
+    // 2. Listen for auth changes (sign-in, sign-out, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email!,
+          role: session.user.user_metadata?.tier || 'individual'
+        });
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -26,8 +54,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
     window.location.href = "/";
   };
 
