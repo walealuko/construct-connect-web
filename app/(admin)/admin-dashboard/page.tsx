@@ -12,7 +12,8 @@ const TABS = [
 ];
 
 export default function AdminDashboard() {
-  const { user } = useContext(UserContext);
+  const userContext = useContext(UserContext);
+  const user = userContext?.user;
   const [activeTab, setActiveTab] = useState("overview");
   const [stats, setStats] = useState({ users: 0, sellers: 0, buyers: 0, products: 0 });
   const [users, setUsers] = useState<any[]>([]);
