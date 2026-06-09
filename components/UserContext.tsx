@@ -18,11 +18,14 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     return false;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
     localStorage.removeItem("user");
     localStorage.removeItem("token");
+    window.location.href = "/";
   };
+
 
   return (
     <UserContext.Provider value={{ user, setUser, login, logout }}>

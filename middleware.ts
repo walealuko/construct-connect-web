@@ -30,7 +30,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Protect routes that require authentication
+  // 1. Protected Routes (Require ANY logged-in user)
   const protectedRoutes = ['/profile', '/projects/post', '/cart', '/checkout'];
   const isProtectedRoute = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route));
 
@@ -38,6 +38,36 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
+  }
+
+  // 2. Role-Based Protection (Sellers Only)
+  if (request.nextUrl.pathname.startsWith('/seller-dashboard')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('tier')
+      .eq('id', user?.id)
+      .single();
+
+    if (!user || profile?.tier !== 'business') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // 3. Role-Based Protection (Admins Only)
+  if (request.nextUrl.pathname.startsWith('/admin-dashboard')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('tier')
+      .eq('id', user?.id)
+      .single();
+
+    if (!user || profile?.tier !== 'admin') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
   }
 
   return response;

@@ -26,7 +26,20 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else {
-        router.push('/marketplace');
+        // Fetch user profile to determine role
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('tier')
+          .eq('id', (await supabase.auth.getUser()).data.user?.id)
+          .single();
+
+        if (profile?.tier === 'business') {
+          router.push('/seller-dashboard');
+        } else if (profile?.tier === 'admin') {
+          router.push('/admin-dashboard');
+        } else {
+          router.push('/marketplace');
+        }
         router.refresh();
       }
     } catch (err) {
