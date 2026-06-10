@@ -5,6 +5,7 @@ import { useCart } from "@/components/CartContext";
 import Link from "next/link";
 import Image from "next/image";
 import { CartItem } from "@/types/database";
+import MessageSellerButton from "@/components/MessageSellerButton";
 
 export default function Cart() {
   const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
@@ -32,7 +33,18 @@ export default function Cart() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto font-sans">
-      <h1 className="text-3xl font-extrabold text-slate-900 mb-8">Shopping Cart</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-extrabold text-slate-900">Shopping Cart</h1>
+        <div className="relative w-16 h-16">
+          <Image
+            src="https://cdn.pixabay.com/photo/2017/08/12/15/47/construction-2639382_1280.jpg"
+            alt="Construct Meme"
+            fill
+            className="rounded-full object-cover border-2 border-blue-600 shadow-sm"
+          />
+          <span className="absolute -top-2 -right-2 text-2xl">🏗️</span>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Items List */}
@@ -81,6 +93,9 @@ export default function Cart() {
                   >
                     Remove
                   </button>
+                </div>
+                <div className="mt-3">
+                  <MessageSellerButton sellerId={item.seller_id} />
                 </div>
               </div>
 

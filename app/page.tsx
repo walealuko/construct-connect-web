@@ -4,8 +4,6 @@ import Navbar from '@/components/Navbar';
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
-      <Navbar />
-
       {/* Hero Section */}
       <section className="px-6 py-16 max-w-4xl mx-auto text-center">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">
