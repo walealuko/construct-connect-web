@@ -7,7 +7,7 @@ export interface Profile {
   email?: string;
   business_name?: string;
   avatar_url?: string;
-  tier: 'admin' | 'business' | 'individual';
+  tier: 'admin' | 'business' | 'individual' | 'artisan';
   bio?: string;
   location?: string;
   created_at: string;

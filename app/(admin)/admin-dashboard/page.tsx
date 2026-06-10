@@ -69,7 +69,7 @@ export default function AdminDashboard() {
 
       setStats({
         users: allUsers.length,
-        sellers: allUsers.filter((u) => u.tier === 'business').length,
+        sellers: allUsers.filter((u) => u.tier === 'business' || u.tier === 'artisan').length,
         buyers: allUsers.filter((u) => u.tier === 'individual').length,
         products: productsRes.data?.length || 0,
         revenue: totalRevenue,

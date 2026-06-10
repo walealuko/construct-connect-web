@@ -54,10 +54,10 @@ const Navbar = () => {
         </Link>
 
         <Link
-          href="/cart"
+          href="/dashboard"
           className="px-4 py-2 text-sm font-bold text-white bg-slate-800 hover:bg-slate-900 transition-all rounded-lg"
         >
-          Cart ({totalItems})
+          Dashboard
         </Link>
 
         {user ? (
@@ -73,7 +73,7 @@ const Navbar = () => {
             {menuOpen && (
               <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl py-2 z-[1001] overflow-hidden">
                 <Link
-                  href={getDashboardLink()}
+                  href="/dashboard"
                   onClick={() => setMenuOpen(false)}
                   className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-blue-600 transition-colors"
                 >
