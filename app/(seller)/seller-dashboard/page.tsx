@@ -302,7 +302,7 @@ export default function SellerDashboard() {
               ))}
             </div>
           )}
-        </div
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -355,7 +355,7 @@ export default function SellerDashboard() {
             </table>
           </div>
         )}
-      </div
+      </div>
     </div>
   );
 }
