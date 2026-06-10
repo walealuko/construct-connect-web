@@ -1,0 +1,232 @@
+"use client";
+
+import React, { useState, useEffect, useContext } from "react";
+import { supabase } from "@/lib/supabase";
+import { UserContext } from "@/components/UserContext";
+import { toast } from "sonner";
+import { Message, Conversation, Profile } from "@/types/chat";
+import Link from "next/link";
+
+export default function ChatPage() {
+  const userContext = useContext(UserContext);
+  const user = userContext?.user;
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConv, setActiveConv] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    loadConversations();
+  }, [user]);
+
+  const loadConversations = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('conversations')
+        .select(`
+          *,
+          profiles:participant_ids (
+            id, first_name, last_name, avatar_url
+          )
+        `)
+        .order('last_message_at', { ascending: false });
+
+      if (error) throw error;
+      setConversations(data || []);
+    } catch (err: any) {
+      toast.error("Failed to load conversations");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMessages = async (convId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', convId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setMessages(data || []);
+    } catch (err: any) {
+      toast.error("Failed to load messages");
+    }
+  };
+
+  useEffect(() => {
+    if (activeConv) {
+      loadMessages(activeConv.id);
+
+      // Setup Realtime Subscription
+      const channel = supabase
+        .channel(`conv-${activeConv.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${activeConv.id}`,
+        }, (payload) => {
+          setMessages((prev) => [...prev, payload.new as Message]);
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [activeConv]);
+
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !activeConv || !user) return;
+
+    const msgContent = newMessage;
+    setNewMessage("");
+
+    try {
+      // 1. Insert Message
+      const { error: msgError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: activeConv.id,
+          sender_id: user.id,
+          content: msgContent,
+        });
+
+      if (msgError) throw msgError;
+
+      // 2. Update Conversation last message
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: msgContent,
+          last_message_at: new Date().toISOString()
+        })
+        .eq('id', activeConv.id);
+
+    } catch (err: any) {
+      toast.error("Failed to send message");
+    }
+  };
+
+  const getOtherParticipant = (conv: Conversation) => {
+    const other = conv.participant_ids.find(id => id !== user?.id);
+    const profile = conv.profiles?.find((p: any) => p.id === other);
+    return profile || { first_name: "Unknown", last_name: "" };
+  };
+
+  return (
+    <div className="flex h-[calc(100vh-70px)] bg-white overflow-hidden">
+      {/* Sidebar */}
+      <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50">
+        <div className="p-4 border-b border-gray-200 bg-white">
+          <h2 className="text-xl font-bold text-slate-900">Messages</h2>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="p-4 text-center text-gray-400 text-sm">Loading chats...</div>
+          ) : conversations.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm">
+              No conversations yet. <br /> Start chatting with sellers!
+            </div>
+          ) : (
+            conversations.map(conv => {
+              const other = getOtherParticipant(conv);
+              return (
+                <div
+                  key={conv.id}
+                  onClick={() => setActiveConv(conv)}
+                  className={`p-4 cursor-pointer transition-colors flex items-center gap-3 border-b border-gray-100 ${
+                    activeConv?.id === conv.id ? "bg-blue-50 border-l-4 border-l-blue-600" : "hover:bg-gray-100"
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                    {other.first_name[0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-baseline">
+                      <p className="text-sm font-bold text-slate-900 truncate">
+                        {other.first_name} {other.last_name}
+                      </p>
+                      <span className="text-[10px] text-gray-400">
+                        {new Date(conv.last_message_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 truncate">{conv.last_message || "Start a conversation..."}</p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Chat Window */}
+      <div className="flex-1 flex flex-col">
+        {activeConv ? (
+          <>
+            {/* Chat Header */}
+            <div className="p-4 border-b border-gray-200 flex items-center gap-3 bg-white">
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                {getOtherParticipant(activeConv).first_name[0]}
+              </div>
+              <h3 className="font-bold text-slate-900">
+                {getOtherParticipant(activeConv).first_name} {getOtherParticipant(activeConv).last_name}
+              </h3>
+            </div>
+
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+              {messages.map(msg => (
+                <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-md p-3 rounded-2xl text-sm ${
+                    msg.sender_id === user?.id
+                      ? "bg-blue-600 text-white rounded-tr-none"
+                      : "bg-white text-gray-800 shadow-sm border border-gray-100 rounded-tl-none"
+                  }`}>
+                    {msg.content}
+                    <div className={`text-[10px] mt-1 text-right ${msg.sender_id === user?.id ? "text-blue-200" : "text-gray-400"}`}>
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Message Input */}
+            <form onSubmit={sendMessage} className="p-4 bg-white border-t border-gray-200 flex gap-3">
+              <input
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Type a message..."
+                className="flex-1 p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+              />
+              <button
+                type="submit"
+                className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all active:scale-95"
+              >
+                Send
+              </button>
+            </form>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-center p-8">
+            <div>
+              <div className="text-6xl mb-4">💬</div>
+              <h3 className="text-xl font-bold text-slate-900">No Conversation Selected</h3>
+              <p className="text-gray-500 max-w-xs mx-auto mt-2">
+                Select a conversation from the sidebar or start a new one from a product page.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

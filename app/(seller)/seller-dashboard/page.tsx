@@ -6,12 +6,13 @@ import { supabase } from "@/lib/supabase";
 import { productSchema } from "@/lib/validations";
 import { toast } from "sonner";
 import Image from "next/image";
+import { Product, Order } from "@/types/database";
 
 export default function SellerDashboard() {
   const userContext = useContext(UserContext);
   const user = userContext?.user;
-  const [products, setProducts] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState({ revenue: 0, ordersCount: 0, productsCount: 0 });
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -52,8 +53,8 @@ export default function SellerDashboard() {
         setOrders(ordersData || []);
 
         const totalRev = (ordersData || [])
-          .filter((o: any) => o.status === 'completed')
-          .reduce((sum: number, o: any) => sum + o.total_amount, 0);
+          .filter((o) => o.status === 'completed')
+          .reduce((sum: number, o) => sum + o.total_price, 0);
 
         setStats({
           revenue: totalRev,
@@ -282,7 +283,7 @@ export default function SellerDashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {products.map((product: any) => (
+              {products.map((product) => (
                 <div key={product.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-4 group">
                   {product.image_url && (
                     <Image
@@ -323,12 +324,12 @@ export default function SellerDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {orders.map((order: any) => (
+                {orders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 text-slate-900 font-medium">
                       {order.profiles?.first_name ? `${order.profiles.first_name} ${order.profiles.last_name}` : "Unknown Buyer"}
                     </td>
-                    <td className="px-6 py-4 text-slate-900 font-bold">${order.total_amount?.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-slate-900 font-bold">${order.total_price?.toFixed(2)}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
                         order.status === 'completed' ? 'bg-green-100 text-green-700' :

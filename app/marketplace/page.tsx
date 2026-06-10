@@ -2,6 +2,8 @@ import { supabase } from "@/lib/supabase";
 import MarketplaceClient from "@/components/MarketplaceClient";
 import { Product } from "@/types/database";
 
+export const dynamic = 'force-dynamic';
+
 export default async function MarketplacePage() {
   // Fetch initial products on the server for SEO and speed
   const { data: initialProducts, error } = await supabase

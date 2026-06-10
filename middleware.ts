@@ -34,18 +34,13 @@ export async function middleware(request: NextRequest) {
 
   // 1. Redirect authenticated users away from Auth pages
   if (user && (path === '/login' || path === '/register')) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('tier')
-      .eq('id', user.id)
-      .single();
-
-    const redirectPath = getRedirectPath(profile?.tier);
+    const role = user.user_metadata?.tier || 'individual';
+    const redirectPath = getRedirectPath(role);
     return NextResponse.redirect(new URL(redirectPath, request.url));
   }
 
   // 2. Protected Routes (Require ANY logged-in user)
-  const protectedRoutes = ['/profile', '/projects/post', '/cart', '/checkout'];
+  const protectedRoutes = ['/profile', '/projects/post', '/checkout'];
   const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route));
 
   if (isProtectedRoute && !user) {
@@ -54,13 +49,7 @@ export async function middleware(request: NextRequest) {
 
   // 3. Role-Based Protection
   if (path.startsWith('/seller-dashboard') || path.startsWith('/admin-dashboard')) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('tier')
-      .eq('id', user?.id)
-      .single();
-
-    const role = profile?.tier;
+    const role = user?.user_metadata?.tier;
 
     if (!user || (path.startsWith('/seller-dashboard') && role !== 'business') || (path.startsWith('/admin-dashboard') && role !== 'admin')) {
       return NextResponse.redirect(new URL('/login', request.url));

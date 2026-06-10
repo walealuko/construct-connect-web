@@ -5,6 +5,7 @@ import { useCart } from "@/components/CartContext";
 import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import { CartItem } from "@/types/database";
 
 export default function Checkout() {
   const { cart, clearCart } = useCart();
@@ -13,7 +14,7 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const totalPrice = cart.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+  const totalPrice = cart.reduce((sum: number, item: CartItem) => sum + item.price * item.quantity, 0);
 
   const handlePurchase = async () => {
     if (!user) {
@@ -29,9 +30,9 @@ export default function Checkout() {
         .from('orders')
         .insert({
           buyer_id: user.id,
-          total_amount: totalPrice,
+          total_price: totalPrice,
           status: 'pending',
-          items: cart.map((item: any) => ({
+          items: cart.map((item: CartItem) => ({
             product_id: item.id,
             quantity: item.quantity,
             price: item.price
@@ -90,7 +91,7 @@ export default function Checkout() {
           )}
 
           <ul className="divide-y divide-gray-100 mb-6">
-            {cart.map((item: any) => (
+            {cart.map((item: CartItem) => (
               <li key={item.id} className="flex justify-between py-3">
                 <span className="text-gray-600">{item.name} x {item.quantity || 1}</span>
                 <span className="font-semibold text-slate-900">${(item.price * (item.quantity || 1)).toFixed(2)}</span>

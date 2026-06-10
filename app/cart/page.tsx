@@ -3,20 +3,27 @@
 import React from "react";
 import { useCart } from "@/components/CartContext";
 import Link from "next/link";
+import Image from "next/image";
+import { CartItem } from "@/types/database";
 
-const Cart = () => {
+export default function Cart() {
   const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
 
   const totalPrice = cart.reduce(
-    (sum: number, item: any) => sum + item.price * item.quantity,
+    (sum: number, item: CartItem) => sum + item.price * item.quantity,
     0
   );
 
   if (cart.length === 0) {
     return (
-      <div style={{ padding: "4rem", textAlign: "center" }}>
-        <h2 style={{ color: "#6b7280" }}>🛒 Your cart is empty</h2>
-        <Link href="/marketplace" style={{ color: "#2563eb", textDecoration: "none", fontWeight: "600" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center">
+        <div className="text-6xl mb-4">🛒</div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">Your cart is empty</h2>
+        <p className="text-gray-500 mb-8">Looks like you haven't added any materials yet.</p>
+        <Link
+          href="/marketplace"
+          className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all active:scale-95"
+        >
           Go Shopping
         </Link>
       </div>
@@ -24,111 +31,101 @@ const Cart = () => {
   }
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "800px", margin: "0 auto", fontFamily: "Inter, system-ui, sans-serif" }}>
-      <h1 style={{ fontSize: "2rem", fontWeight: "800", color: "#1e3a5f", marginBottom: "2rem" }}>🛒 Your Cart</h1>
+    <div className="p-8 max-w-5xl mx-auto font-sans">
+      <h1 className="text-3xl font-extrabold text-slate-900 mb-8">Shopping Cart</h1>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-        {cart.map((item: any) => (
-          <div key={item.id} style={cardStyle}>
-            <img src={item.image_url} alt={item.name} style={imageStyle} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Items List */}
+        <div className="lg:col-span-2 space-y-4">
+          {cart.map((item: CartItem) => (
+            <div
+              key={item.id}
+              className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-4 items-center hover:shadow-md transition-shadow"
+            >
+              <div className="relative w-24 h-24 flex-shrink-0">
+                {item.image_url ? (
+                  <Image
+                    src={item.image_url}
+                    alt={item.name}
+                    fill
+                    className="object-cover rounded-xl"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-100 rounded-xl flex items-center justify-center text-2xl">🏗️</div>
+                )}
+              </div>
 
-            <div style={{ flex: 1 }}>
-              <h3 style={{ margin: "0 0 4px", color: "#1e3a5f", fontSize: "1.1rem" }}>{item.name}</h3>
-              <p style={{ color: "#2563eb", fontWeight: "700", margin: "0 0 12px" }}>${item.price}</p>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-slate-900 truncate">{item.name}</h3>
+                <p className="text-blue-600 font-bold">${item.price?.toFixed(2)}</p>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <label style={{ fontSize: "0.85rem", color: "#6b7280" }}>Quantity:</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={item.quantity}
-                  onChange={(e) => updateQuantity(item.id, Number(e.target.value))}
-                  style={inputStyle}
-                />
-                <button onClick={() => removeFromCart(item.id)} style={removeBtnStyle}>
-                  Remove
-                </button>
+                <div className="flex items-center gap-4 mt-3">
+                  <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                    <button
+                      onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                      className="px-3 py-1 hover:bg-gray-200 transition-colors text-gray-600 font-bold"
+                    >
+                      -
+                    </button>
+                    <span className="px-3 py-1 text-sm font-semibold text-slate-700">{item.quantity}</span>
+                    <button
+                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      className="px-3 py-1 hover:bg-gray-200 transition-colors text-gray-600 font-bold"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => removeFromCart(item.id)}
+                    className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors uppercase tracking-wider"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+
+              <div className="text-right min-w-fit">
+                <p className="text-sm text-gray-400">Subtotal</p>
+                <p className="text-lg font-black text-slate-900">${(item.price * item.quantity).toFixed(2)}</p>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ marginTop: "32px", padding: "24px", background: "#f9fafb", borderRadius: "12px", border: "1px solid #e5e7eb", textAlign: "right" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <span style={{ fontSize: "1.1rem", color: "#6b7280" }}>Total Amount:</span>
-          <span style={{ fontSize: "1.8rem", fontWeight: "800", color: "#1e3a5f" }}>${totalPrice.toFixed(2)}</span>
+          ))}
         </div>
-        <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-          <button onClick={clearCart} style={clearBtnStyle}>
-            Clear Cart
-          </button>
-          <Link href="/checkout">
-            <button style={checkoutBtnStyle}>
-              Proceed to Checkout
+
+        {/* Summary Card */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit sticky top-24">
+          <h2 className="text-xl font-bold text-slate-800 mb-6">Order Summary</h2>
+
+          <div className="space-y-3 mb-6">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Subtotal</span>
+              <span className="text-slate-900 font-medium">${totalPrice.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Shipping</span>
+              <span className="text-green-600 font-medium">Free</span>
+            </div>
+            <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
+              <span className="text-lg font-bold text-slate-900">Total</span>
+              <span className="text-2xl font-black text-blue-600">${totalPrice.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={clearCart}
+              className="w-full py-3 text-sm font-semibold text-gray-500 hover:text-red-600 transition-colors"
+            >
+              Clear Cart
             </button>
-          </Link>
+            <Link href="/checkout">
+              <button className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-200">
+                Proceed to Checkout
+              </button>
+            </Link>
+          </div>
         </div>
       </div>
     </div>
   );
-};
-
-const cardStyle: React.CSSProperties = {
-  display: "flex",
-  gap: "20px",
-  background: "#fff",
-  padding: "16px",
-  borderRadius: "12px",
-  border: "1px solid #e5e7eb",
-  alignItems: "center",
-};
-
-const imageStyle: React.CSSProperties = {
-  width: "100px",
-  height: "100px",
-  objectFit: "cover",
-  borderRadius: "8px",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "60px",
-  padding: "4px 8px",
-  borderRadius: "4px",
-  border: "1px solid #d1d5db",
-  fontSize: "0.9rem",
-};
-
-const removeBtnStyle: React.CSSProperties = {
-  background: "#fee2e2",
-  color: "#dc2626",
-  border: "none",
-  padding: "6px 12px",
-  borderRadius: "6px",
-  fontSize: "0.8rem",
-  fontWeight: "600",
-  cursor: "pointer",
-};
-
-const clearBtnStyle: React.CSSProperties = {
-  background: "#fff",
-  color: "#6b7280",
-  border: "1px solid #d1d5db",
-  padding: "12px 20px",
-  borderRadius: "8px",
-  fontSize: "0.9rem",
-  cursor: "pointer",
-};
-
-const checkoutBtnStyle: React.CSSProperties = {
-  background: "#2563eb",
-  color: "#fff",
-  padding: "12px 24px",
-  borderRadius: "8px",
-  fontSize: "0.9rem",
-  fontWeight: "600",
-  border: "none",
-  cursor: "pointer",
-};
-
-export default Cart;
+}

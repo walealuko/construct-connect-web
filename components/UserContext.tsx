@@ -1,10 +1,12 @@
 import React, { createContext, useState, useEffect } from "react";
 import { User } from "@/types/database";
 import { supabase } from "@/lib/supabase";
+import { UserRole } from "@/lib/roles";
 
 interface UserContextType {
   user: User | null;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
+  loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
 }
@@ -13,17 +15,35 @@ export const UserContext = createContext<UserContextType | null>(null);
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // 1. Initial session check
     const initializeAuth = async () => {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser) {
-        setUser({
-          id: authUser.id,
-          email: authUser.email!,
-          role: authUser.user_metadata?.tier || 'individual'
-        });
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          let role = authUser.user_metadata?.tier as UserRole;
+
+          if (!role) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('tier')
+              .eq('id', authUser.id)
+              .single();
+            role = profile?.tier as UserRole || 'individual';
+          }
+
+          setUser({
+            id: authUser.id,
+            email: authUser.email!,
+            role: role || 'individual'
+          });
+        }
+      } catch (err) {
+        console.error("Auth initialization error:", err);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -48,7 +68,25 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    return false;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      if (data.user) {
+        setUser({
+          id: data.user.id,
+          email: data.user.email!,
+          role: data.user.user_metadata?.tier || 'individual'
+        });
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      console.error("Login error:", err);
+      return false;
+    }
   };
 
   const logout = async () => {
@@ -59,7 +97,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, logout }}>
+    <UserContext.Provider value={{ user, setUser, loading, login, logout }}>
       {children}
     </UserContext.Provider>
   );

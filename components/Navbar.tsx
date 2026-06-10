@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "./CartContext";
 import { UserContext } from "./UserContext";
+import { CartItem } from "@/types/database";
 
 const Navbar = () => {
   const { cart } = useCart();
@@ -14,7 +15,7 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
 
-  const totalItems = cart.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+  const totalItems = cart.reduce((sum: number, item: CartItem) => sum + (item.quantity || 1), 0);
 
   const handleLogout = () => {
     if (logout) {

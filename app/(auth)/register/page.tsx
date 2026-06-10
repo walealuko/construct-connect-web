@@ -82,6 +82,13 @@ function RegisterForm() {
           });
 
         if (profileError) throw profileError;
+
+        // 4. Update user metadata in Supabase Auth (For Middleware performance)
+        const { error: metaError } = await supabase.auth.updateUser({
+          data: { tier: formData.tier }
+        });
+
+        if (metaError) console.error("Meta update error:", metaError);
       }
 
       // SUCCESS: User registered and profile created

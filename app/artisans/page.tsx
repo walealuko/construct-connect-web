@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { getArtisans } from "@/lib/services/artisanService";
 import SellerRating from "@/components/SellerRating";
 import ReviewButton from "@/components/ReviewButton";
+import MessageSellerButton from "@/components/MessageSellerButton";
 
 const ARTISAN_CATEGORIES = [
   "All",
@@ -164,6 +165,7 @@ export default function Artisans() {
               <div style={{ marginTop: "auto", paddingTop: "20px", borderTop: "1px solid #f3f4f6", display: "flex", flexDirection: "column", gap: "12px" }}>
                 <SellerRating sellerId={artisan.id} sellerName={artisan.name} />
                 <ReviewButton sellerId={artisan.id} sellerName={artisan.name} />
+                <MessageSellerButton sellerId={artisan.id} />
               </div>
             </div>
           </div>

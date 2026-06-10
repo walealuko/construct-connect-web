@@ -4,6 +4,25 @@ import React, { useState, useEffect, useContext } from "react";
 import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
+import { Profile, Product, Order } from "@/types/database";
+import { updateUserRoleAction } from "@/app/actions/admin";
+import { toast } from "sonner";
+
+interface Review {
+  id: string;
+  rating: number;
+  comment: string | null;
+  seller_id: string;
+  reviewer_id: string;
+  reviewer_name: string | null;
+  created_at: string;
+  profiles?: {
+    first_name: string | null;
+    last_name: string | null;
+  };
+  reviewerName?: string;
+  sellerName?: string;
+}
 
 const TABS = [
   { key: "overview", label: "Overview" },
@@ -17,9 +36,9 @@ export default function AdminDashboard() {
   const user = userContext?.user;
   const [activeTab, setActiveTab] = useState("overview");
   const [stats, setStats] = useState({ users: 0, sellers: 0, buyers: 0, products: 0, revenue: 0 });
-  const [users, setUsers] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [users, setUsers] = useState<Profile[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -33,7 +52,7 @@ export default function AdminDashboard() {
       const [usersRes, productsRes, ordersRes] = await Promise.all([
         supabase.from('profiles').select('*'),
         supabase.from('products').select('*'),
-        supabase.from('orders').select('total_amount'),
+        supabase.from('orders').select('total_price'),
       ]);
 
       if (usersRes.error) throw usersRes.error;
@@ -44,14 +63,14 @@ export default function AdminDashboard() {
       setUsers(allUsers);
       setProducts(productsRes.data || []);
 
-      const totalRevenue = (ordersRes.data || [])
-        .filter((o: any) => o.status === 'completed')
-        .reduce((sum: number, o: any) => sum + o.total_amount, 0);
+      const totalRevenue = (ordersRes.data as Order[] || [])
+        .filter((o) => o.status === 'completed')
+        .reduce((sum: number, o) => sum + o.total_price, 0);
 
       setStats({
         users: allUsers.length,
-        sellers: allUsers.filter((u: any) => u.tier === 'business').length,
-        buyers: allUsers.filter((u: any) => u.tier === 'individual').length,
+        sellers: allUsers.filter((u) => u.tier === 'business').length,
+        buyers: allUsers.filter((u) => u.tier === 'individual').length,
         products: productsRes.data?.length || 0,
         revenue: totalRevenue,
       });
@@ -96,17 +115,21 @@ export default function AdminDashboard() {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      const tier = newRole === 'seller' ? 'business' : 'individual';
-      const { error } = await supabase
-        .from('profiles')
-        .update({ tier })
-        .eq('id', userId);
+      setLoading(true);
+      const result = await updateUserRoleAction(userId, newRole);
 
-      if (error) throw error;
-      setUsers(users.map((u: any) => (u.id === userId ? { ...u, tier: tier } : u)));
-      setMessage("User role updated.");
+      if (!result.success) {
+        throw new Error(result.error || "Failed to update role");
+      }
+
+      setUsers(users.map((u) => (u.id === userId ? { ...u, tier: newRole === 'seller' ? 'business' : 'individual' } : u)));
+      setMessage("User role successfully updated!");
+      toast.success("Role updated successfully");
     } catch (err: any) {
-      setMessage("Failed to update role.");
+      setMessage(err.message || "Failed to update role.");
+      toast.error(err.message || "Failed to update role");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -119,8 +142,8 @@ export default function AdminDashboard() {
         .eq('id', userId);
 
       if (error) throw error;
-      setUsers(users.filter((u: any) => u.id !== userId));
-      setStats((s: any) => ({ ...s, users: s.users - 1 }));
+      setUsers(users.filter((u) => u.id !== userId));
+      setStats((s) => ({ ...s, users: s.users - 1 }));
       setMessage("User profile deleted.");
     } catch (err) {
       setMessage("Failed to delete user.");
@@ -136,8 +159,8 @@ export default function AdminDashboard() {
         .eq('id', productId);
 
       if (error) throw error;
-      setProducts(products.filter((p: any) => p.id !== productId));
-      setStats((s: any) => ({ ...s, products: s.products - 1 }));
+      setProducts(products.filter((p) => p.id !== productId));
+      setStats((s) => ({ ...s, products: s.products - 1 }));
       setMessage("Product deleted.");
     } catch (err) {
       setMessage("Failed to delete product.");
@@ -208,7 +231,7 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {users.map((u: any) => (
+              {users.map((u) => (
                 <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 text-slate-900 font-medium">{`${u.first_name || ''} ${u.last_name || ''}`.trim() || "—"}</td>
                   <td className="px-6 py-4 text-gray-500">{u.email}</td>
@@ -254,7 +277,7 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {products.map((p: any) => (
+              {products.map((p) => (
                 <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -291,7 +314,7 @@ export default function AdminDashboard() {
             <p className="text-center text-gray-500">No reviews found.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {reviews.map((review: any) => (
+              {reviews.map((review) => (
                 <div key={review.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                   <div className="flex justify-between items-start mb-3">
                     <div>

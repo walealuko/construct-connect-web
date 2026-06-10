@@ -5,6 +5,7 @@ import Image from "next/image";
 import SellerRating from "@/components/SellerRating";
 import ReviewButton from "@/components/ReviewButton";
 import ProductAddToCart from "@/components/ProductAddToCart";
+import MessageSellerButton from "@/components/MessageSellerButton";
 import { UserContext } from "@/components/UserContext";
 import { useContext } from "react";
 
@@ -56,8 +57,9 @@ export default async function ProductPage({ params }: { params: { id: string } }
               <p className="text-sm text-gray-500 mb-3">📍 {p.seller_location}</p>
             )}
             <SellerRating sellerId={p.seller_id} sellerName={p.seller_name} />
-            <div className="mt-3">
+            <div className="mt-3 space-y-3">
               <ReviewButton sellerId={p.seller_id} sellerName={p.seller_name} />
+              <MessageSellerButton sellerId={p.seller_id} />
             </div>
           </div>
         </div>
