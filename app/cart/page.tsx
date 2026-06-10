@@ -54,7 +54,7 @@ export default function Cart() {
               key={item.id}
               className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-4 items-center hover:shadow-md transition-shadow"
             >
-              <div className="relative w-24 h-24 flex-shrink-0">
+              <Link href={`/product/${item.id}`} className="relative w-24 h-24 flex-shrink-0 transition-transform hover:scale-105">
                 {item.image_url ? (
                   <Image
                     src={item.image_url}
@@ -65,10 +65,12 @@ export default function Cart() {
                 ) : (
                   <div className="w-full h-full bg-gray-100 rounded-xl flex items-center justify-center text-2xl">🏗️</div>
                 )}
-              </div>
+              </Link>
 
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-slate-900 truncate">{item.name}</h3>
+                <Link href={`/product/${item.id}`} className="hover:text-blue-600 transition-colors">
+                  <h3 className="text-lg font-bold text-slate-900 truncate">{item.name}</h3>
+                </Link>
                 <p className="text-blue-600 font-bold">${item.price?.toFixed(2)}</p>
 
                 <div className="flex items-center gap-4 mt-3">

@@ -9,6 +9,14 @@ const nextConfig = {
         hostname: '*.supabase.co',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'cdn.pixabay.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
     ],
   },
 }

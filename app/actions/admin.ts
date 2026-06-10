@@ -4,6 +4,33 @@ import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { createClient as createServerClient } from '@/utils/supabase/server';
 
+export async function clearAllUserSessionsAction(userId: string) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+  if (!supabaseServiceKey) {
+    throw new Error("Server role key is missing");
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+  try {
+    // Since Supabase doesn't have a direct "signOut all other sessions" Admin API,
+    // we can rotate a "session_version" in the profiles table and check it in middleware.
+    // But a simpler way is to update a metadata field that we check.
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(
+      userId,
+      { user_metadata: { ...({ session_version: Date.now() }) } }
+    );
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    console.error("Clear sessions action failed:", err);
+    return { success: false, error: err.message };
+  }
+}
+
 export async function updateUserRoleAction(userId: string, newRole: string) {
   const supabase = await createServerClient();
 

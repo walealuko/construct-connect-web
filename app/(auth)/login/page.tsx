@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { getRedirectPath } from '@/lib/roles';
 import { toast } from 'sonner';
+import { clearAllUserSessionsAction } from '@/app/actions/admin';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,11 +30,17 @@ export default function LoginPage() {
         setError(error.message);
         toast.error(error.message);
       } else {
+        // Cancel previous sessions by updating session version in metadata
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await clearAllUserSessionsAction(user.id);
+        }
+
         // Fetch user profile to determine role
         const { data: profile } = await supabase
           .from('profiles')
           .select('tier')
-          .eq('id', (await supabase.auth.getUser()).data.user?.id)
+          .eq('id', user?.id || (await supabase.auth.getUser()).data.user?.id)
           .single();
 
         toast.success("Welcome back!");

@@ -10,8 +10,16 @@ export interface Profile {
   tier: 'admin' | 'business' | 'individual' | 'artisan';
   bio?: string;
   location?: string;
+  state?: string;
   created_at: string;
   portfolio?: string[];
+}
+
+export interface ViewedProduct {
+  id: string;
+  user_id: string;
+  product_id: string;
+  viewed_at: string;
 }
 
 export interface Artisan {
