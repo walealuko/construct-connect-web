@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
+import Image from "next/image";
 
 const TABS = [
   { key: "overview", label: "Overview" },
@@ -266,7 +267,7 @@ export default function AdminDashboard() {
                   <td className="px-6 py-4 text-gray-500">{p.seller_name || "—"}</td>
                   <td className="px-6 py-4 text-blue-600 font-bold">${p.price?.toFixed(2)}</td>
                   <td className="px-6 py-4 text-gray-500 capitalize">{p.category}</td>
-                  <td className="px-6 py-4 font-medium {p.stock > 0 ? 'text-green-600' : 'text-red-600'}">{p.stock}</td>
+                  <td className="px-6 py-4 font-medium text-gray-900">{p.stock}</td>
                   <td className="px-6 py-4 text-right">
                     <button
                       onClick={() => deleteProduct(p.id)}
