@@ -25,7 +25,6 @@ export default function Checkout() {
     setMessage("");
 
     try {
-      // 1. Create Order in Supabase
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -43,33 +42,23 @@ export default function Checkout() {
 
       if (orderError) throw orderError;
 
-      // 2. (Optional) Handle Payment via Paystack/Stripe here
-      // For now, we'll simulate a successful payment
+      const paymentRes = await fetch('/api/payments/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user.email,
+          amount: totalPrice,
+          orderId: order.id,
+        }),
+      });
 
-      // 3. Update Product Stock
-      for (const item of cart) {
-        const { data: product } = await supabase
-          .from('products')
-          .select('stock')
-          .eq('id', item.id)
-          .single();
+      const paymentData = await paymentRes.json();
 
-        if (product) {
-          await supabase
-            .from('products')
-            .update({ stock: (product.stock || 0) - item.quantity })
-            .eq('id', item.id);
-        }
+      if (!paymentRes.ok || !paymentData.url) {
+        throw new Error(paymentData.error || "Payment initialization failed");
       }
 
-      // 4. Update Order Status
-      await supabase
-        .from('orders')
-        .update({ status: 'completed' })
-        .eq('id', order.id);
-
-      clearCart();
-      setMessage("Purchase completed successfully!");
+      window.location.href = paymentData.url;
     } catch (err: any) {
       setMessage(`Error: ${err.message || "Payment failed"}`);
     } finally {
@@ -78,46 +67,40 @@ export default function Checkout() {
   };
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "800px", margin: "0 auto", fontFamily: "Inter, system-ui, sans-serif" }}>
-      <h1 style={{ fontSize: "2rem", fontWeight: "800", color: "#1e3a5f", marginBottom: "2rem" }}>Checkout</h1>
+    <div className="p-8 max-w-[800px] mx-auto font-sans">
+      <h1 className="text-4xl font-extrabold text-slate-900 mb-8">Checkout</h1>
 
       {cart.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "3rem", background: "#f9fafb", borderRadius: "12px", border: "1px dashed #d1d5db" }}>
-          <p style={{ color: "#6b7280", marginBottom: "16px" }}>Your cart is empty</p>
-          <Link href="/marketplace" style={{ color: "#2563eb", fontWeight: "600" }}>
+        <div className="text-center p-12 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+          <p className="text-gray-500 mb-4">Your cart is empty</p>
+          <Link href="/marketplace" className="text-blue-600 font-semibold hover:underline">
             Go to Marketplace
           </Link>
         </div>
       ) : (
-        <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #e5e7eb", padding: "2rem" }}>
-          <h2 style={{ fontSize: "1.2rem", fontWeight: "700", color: "#374151", marginBottom: "16px" }}>Order Summary</h2>
+        <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+          <h2 className="text-xl font-bold text-slate-800 mb-4">Order Summary</h2>
 
           {message && (
-            <p style={{
-              padding: "12px",
-              borderRadius: "8px",
-              marginBottom: "16px",
-              backgroundColor: message.includes("success") ? "#f0fdf4" : "#fef2f2",
-              color: message.includes("success") ? "#16a34a" : "#dc2626",
-              textAlign: "center",
-              fontWeight: "500"
-            }}>
+            <div className={`p-3 rounded-lg mb-4 text-center font-medium text-sm ${
+              message.includes("success") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+            }`}>
               {message}
-            </p>
+            </div>
           )}
 
-          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px 0" }}>
+          <ul className="divide-y divide-gray-100 mb-6">
             {cart.map((item: any) => (
-              <li key={item.id} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid #f3f4f6" }}>
-                <span style={{ color: "#4b5563" }}>{item.name} x {item.quantity || 1}</span>
-                <span style={{ fontWeight: "600", color: "#1e3a5f" }}>${(item.price * (item.quantity || 1)).toFixed(2)}</span>
+              <li key={item.id} className="flex justify-between py-3">
+                <span className="text-gray-600">{item.name} x {item.quantity || 1}</span>
+                <span className="font-semibold text-slate-900">${(item.price * (item.quantity || 1)).toFixed(2)}</span>
               </li>
             ))}
           </ul>
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "16px", borderTop: "2px solid #e5e7eb" }}>
-            <span style={{ fontSize: "1.2rem", fontWeight: "600", color: "#6b7280" }}>Total</span>
-            <span style={{ fontSize: "1.8rem", fontWeight: "800", color: "#2563eb" }}>
+          <div className="flex justify-between items-center pt-4 border-t-2 border-gray-100">
+            <span className="text-lg font-medium text-gray-500">Total</span>
+            <span className="text-3xl font-black text-blue-600">
               ${totalPrice.toFixed(2)}
             </span>
           </div>
@@ -125,18 +108,9 @@ export default function Checkout() {
           <button
             onClick={handlePurchase}
             disabled={loading}
-            style={{
-              width: "100%",
-              marginTop: "32px",
-              padding: "16px",
-              background: loading ? "#93c5fd" : "#2563eb",
-              color: "#fff",
-              border: "none",
-              borderRadius: "12px",
-              fontSize: "1.1rem",
-              fontWeight: "700",
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
+            className={`w-full mt-8 py-4 rounded-xl text-white font-bold text-lg transition-all active:scale-95 ${
+              loading ? "bg-blue-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+            }`}
           >
             {loading ? "Processing..." : "Complete Purchase"}
           </button>

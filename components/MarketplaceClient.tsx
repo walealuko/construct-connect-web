@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { useCart } from "@/components/CartContext";
 import { Product } from "@/types/database";
@@ -28,6 +29,7 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
+  const [sort, setSort] = useState("newest");
   const [searchInput, setSearchInput] = useState("");
 
   useEffect(() => {
@@ -50,6 +52,14 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
         query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%,location.ilike.%${search}%`);
       }
 
+      if (sort === 'price-asc') {
+        query = query.order('price', { ascending: true });
+      } else if (sort === 'price-desc') {
+        query = query.order('price', { ascending: false });
+      } else {
+        query = query.order('created_at', { ascending: false });
+      }
+
       const { data, error } = await query;
 
       if (error) throw error;
@@ -63,10 +73,10 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
   };
 
   useEffect(() => {
-    if (search !== "" || category !== "all") {
+    if (search !== "" || category !== "all" || sort !== "newest") {
       loadProducts();
     }
-  }, [search, category]);
+  }, [search, category, sort]);
 
   return (
     <div className="p-8 max-w-[1100px] mx-auto">
@@ -95,6 +105,16 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
             <option key={cat.value} value={cat.value}>{cat.label}</option>
           ))}
         </select>
+
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+          className="flex-1 min-w-[160px] py-3 px-3.5 rounded-lg border border-gray-300 text-sm bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+        >
+          <option value="newest">Newest First</option>
+          <option value="price-asc">Price: Low to High</option>
+          <option value="price-desc">Price: High to Low</option>
+        </select>
       </div>
 
       {!loading && (
@@ -122,9 +142,11 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
               <div key={product.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <Link href={`/product/${product.id}`} className="block group">
                   {product.image_url ? (
-                    <img
+                    <Image
                       src={product.image_url}
                       alt={product.name}
+                      width={300}
+                      height={144}
                       className="w-full h-36 object-cover rounded-lg mb-3 group-hover:opacity-90 transition-opacity"
                     />
                   ) : (
