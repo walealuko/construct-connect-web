@@ -2,7 +2,7 @@
 
 import React, { useState, useContext } from "react";
 import { UserContext } from "./UserContext";
-import { supabase } from "@/lib/supabase";
+import { submitReviewAction } from "@/app/actions/reviews";
 
 interface ReviewButtonProps {
   sellerId: string;
@@ -25,17 +25,15 @@ export default function ReviewButton({ sellerId, sellerName }: ReviewButtonProps
     setLoading(true);
     setMessage("");
     try {
-      const { error } = await supabase
-        .from('reviews')
-        .insert({
-          seller_id: sellerId,
-          reviewer_id: user.id,
-          rating,
-          comment,
-          reviewer_name: user.email?.split('@')[0] || 'Customer'
-        });
+      const result = await submitReviewAction({
+        sellerId,
+        rating,
+        comment,
+      });
 
-      if (error) throw error;
+      if (!result.success) {
+        throw new Error(result.error);
+      }
 
       setMessage("Review submitted! Thank you.");
       setComment("");
@@ -87,8 +85,9 @@ export default function ReviewButton({ sellerId, sellerName }: ReviewButtonProps
                       key={star}
                       type="button"
                       onClick={() => setRating(star)}
-                      className="text-3xl leading-none cursor-pointer transition-colors"
-                      style={{ color: star <= rating ? "#f59e0b" : "#d1d5db" }}
+                      className={`text-3xl leading-none cursor-pointer transition-colors ${
+                        star <= rating ? "text-amber-500" : "text-gray-300"
+                      }`}
                     >
                       ★
                     </button>

@@ -31,6 +31,7 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
   const [category, setCategory] = useState("all");
   const [sort, setSort] = useState("newest");
   const [searchInput, setSearchInput] = useState("");
+  const [searchType, setSearchType] = useState("all");
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -49,7 +50,15 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
       }
 
       if (search) {
-        query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%,location.ilike.%${search}%`);
+        if (searchType === "all") {
+          query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%,location.ilike.%${search}%`);
+        } else if (searchType === "name") {
+          query = query.ilike('name', `%${search}%`);
+        } else if (searchType === "location") {
+          query = query.ilike('location', `%${search}%`);
+        } else if (searchType === "category") {
+          query = query.ilike('category', `%${search}%`);
+        }
       }
 
       if (sort === 'price-asc') {
@@ -84,16 +93,28 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
         Marketplace
       </h2>
 
-      <div className="flex gap-3 mb-6 flex-wrap">
-        <div className="flex-[2] min-w-[200px] relative">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-lg">🔍</span>
-          <input
-            type="text"
-            placeholder="Search by product name, type, or location..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full py-3 pl-10 pr-4 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-          />
+      <div className="flex gap-3 mb-6 flex-wrap items-center">
+        <div className="flex-[2] min-w-[200px] relative flex gap-2">
+          <div className="relative flex-1">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-lg">🔍</span>
+            <input
+              type="text"
+              placeholder="Search materials..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full py-3 pl-10 pr-4 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+            />
+          </div>
+          <select
+            value={searchType}
+            onChange={(e) => setSearchType(e.target.value)}
+            className="py-3 px-2 rounded-lg border border-gray-300 text-xs bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+          >
+            <option value="all">All</option>
+            <option value="name">Name</option>
+            <option value="location">Location</option>
+            <option value="category">Category</option>
+          </select>
         </div>
 
         <select
@@ -115,6 +136,20 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
           <option value="price-asc">Price: Low to High</option>
           <option value="price-desc">Price: High to Low</option>
         </select>
+
+        {(searchInput !== "" || category !== "all" || sort !== "newest") && (
+          <button
+            onClick={() => {
+              setSearchInput("");
+              setSearchType("all");
+              setCategory("all");
+              setSort("newest");
+            }}
+            className="px-3 py-3 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors"
+          >
+            Clear All
+          </button>
+        )}
       </div>
 
       {!loading && (

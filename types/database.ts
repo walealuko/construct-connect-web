@@ -11,6 +11,18 @@ export interface Profile {
   bio?: string;
   location?: string;
   created_at: string;
+  portfolio?: string[];
+}
+
+export interface Artisan {
+  id: string;
+  name: string;
+  category: string;
+  skills: string[];
+  rate: string;
+  image: string;
+  location: string;
+  bio: string;
 }
 
 export interface Product {
@@ -32,14 +44,19 @@ export interface CartItem extends Product {
   quantity: number;
 }
 
+export interface OrderItem {
+  product_id: string;
+  quantity: number;
+  price: number;
+}
+
 export interface Order {
   id: string;
   user_id: string;
-  product_id: string;
-  quantity: number;
   total_price: number;
   status: 'pending' | 'completed' | 'cancelled' | 'shipped' | 'delivered';
   created_at: string;
+  items: OrderItem[];
   profiles?: {
     first_name: string | null;
     last_name: string | null;

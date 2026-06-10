@@ -46,9 +46,10 @@ export default function BuyerDashboard() {
           <div className="flex flex-wrap gap-3">
             <Link href="/cart" className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors">My Cart</Link>
             <Link href="/checkout" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">Proceed to Payment</Link>
+            <Link href="/projects/post" className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-200 transition-colors">Post a Project</Link>
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

@@ -116,7 +116,7 @@ export default function ChatPage() {
 
   const getOtherParticipant = (conv: Conversation) => {
     const other = conv.participant_ids.find(id => id !== user?.id);
-    const profile = conv.profiles?.find((p: any) => p.id === other);
+    const profile = conv.profiles?.find((p: Profile) => p.id === other);
     return profile || { first_name: "Unknown", last_name: "" };
   };
 

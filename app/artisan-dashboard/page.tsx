@@ -11,7 +11,7 @@ import { toast } from "sonner";
 export default function ArtisanDashboard() {
   const userContext = useContext(UserContext);
   const user = userContext?.user;
-  const [portfolio, setPortfolio] = useState<any[]>([]);
+  const [portfolio, setPortfolio] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -73,7 +73,10 @@ export default function ArtisanDashboard() {
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
               <h3 className="text-lg font-bold text-slate-800 mb-4">Direct Chat</h3>
               <p className="text-gray-500 text-sm mb-4">Communicate with your clients in real-time.</p>
-              <a href="/messages" className="block w-full py-3 text-center bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-all">Open Messages</a>
+              <div className="flex flex-col gap-2">
+                <a href="/messages" className="block w-full py-3 text-center bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-all">Open Messages</a>
+                <a href="/projects" className="block w-full py-3 text-center bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all">Browse Projects</a>
+              </div>
             </div>
           </div>
 
@@ -104,6 +107,6 @@ export default function ArtisanDashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

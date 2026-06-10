@@ -56,7 +56,7 @@ export default function SellerRating({ sellerId }: SellerRatingProps) {
       <div className="flex items-center gap-2 mb-3">
         <div className="flex gap-0.5">
           {[1, 2, 3, 4, 5].map((star) => (
-            <span key={star} className="text-lg" style={{ color: star <= Math.round(rating.average) ? "#f59e0b" : "#d1d5db" }}>★</span>
+            <span key={star} className={`text-lg ${star <= Math.round(rating.average) ? "text-amber-500" : "text-gray-300"}`}>★</span>
           ))}
         </div>
         <span className="text-sm text-gray-500">
@@ -74,11 +74,11 @@ export default function SellerRating({ sellerId }: SellerRatingProps) {
                     <span className="font-semibold text-slate-800 text-sm">{review.reviewer_name || 'Unknown'}</span>
                     <div className="flex gap-0.5">
                       {[1, 2, 3, 4, 5].map((star) => (
-                        <span key={star} className="text-xs" style={{ color: star <= review.rating ? "#f59e0b" : "#d1d5db" }}>★</span>
+                        <span key={star} className={`text-xs ${star <= review.rating ? "text-amber-500" : "text-gray-300"}`}>★</span>
                       ))}
                     </div>
                   </div>
-                  {review.comment && <p className="text-gray-600 text-xs leading-relaxed">{review.comment}</p>}
+                  {review.comment && <p className="text-gray-600 text-sm leading-relaxed">{review.comment}</p>}
                   <p className="text-gray-400 text-[10px] mt-1">{review.created_at ? new Date(review.created_at).toLocaleDateString() : "—"}</p>
                 </div>
               ))}
@@ -97,11 +97,11 @@ export default function SellerRating({ sellerId }: SellerRatingProps) {
                 <span className="font-semibold text-slate-800 text-sm">{reviews[0].reviewer_name || 'Unknown'}</span>
                 <div className="flex gap-0.5">
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <span key={star} className="text-xs" style={{ color: star <= reviews[0].rating ? "#f59e0b" : "#d1d5db" }}>★</span>
+                    <span key={star} className={`text-xs ${star <= reviews[0].rating ? "text-amber-500" : "text-gray-300"}`}>★</span>
                   ))}
                 </div>
               </div>
-              {reviews[0].comment && <p className="text-gray-600 text-xs leading-relaxed">{reviews[0].comment}</p>}
+              {reviews[0].comment && <p className="text-gray-600 text-sm leading-relaxed">{reviews[0].comment}</p>}
               <p className="text-gray-400 text-[10px] mt-1">{reviews[0].created_at ? new Date(reviews[0].created_at).toLocaleDateString() : "—"}</p>
             </div>
           )}

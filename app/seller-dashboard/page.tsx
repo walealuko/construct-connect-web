@@ -3,16 +3,17 @@
 import React, { useState, useEffect, useContext } from "react";
 import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
-import { Product } from "@/types/database";
+import { Product, Order } from "@/types/database";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import Image from "next/image";
 import { toast } from "sonner";
+import Link from "next/link";
 
 export default function SellerDashboard() {
   const userContext = useContext(UserContext);
   const user = userContext?.user;
   const [products, setProducts] = useState<Product[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState({ revenue: 0, ordersCount: 0, productsCount: 0 });
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -53,8 +54,8 @@ export default function SellerDashboard() {
         setOrders(ordersData || []);
 
         const totalRev = (ordersData || [])
-          .filter((o: any) => o.status === 'completed')
-          .reduce((sum: number, o: any) => sum + o.total_price, 0);
+          .filter((o: Order) => o.status === 'completed')
+          .reduce((sum: number, o: Order) => sum + o.total_price, 0);
 
         setStats({
           revenue: totalRev,
@@ -299,10 +300,10 @@ export default function SellerDashboard() {
                   </tr>
                 ))}
               </tbody>
-            </table}
+            </table>
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

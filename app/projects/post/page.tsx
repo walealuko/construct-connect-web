@@ -55,117 +55,58 @@ export default function PostProject() {
   };
 
   return (
-    <div style={styles.container}>
-      <form style={styles.card} onSubmit={handleSubmit}>
-        <h2 style={styles.title}>Post a New Project</h2>
+    <div className="flex justify-center p-10 min-h-[80vh]">
+      <form className="flex flex-col w-full max-w-xl p-8 bg-white rounded-2xl shadow-sm border border-gray-200 gap-5" onSubmit={handleSubmit}>
+        <h2 className="text-center text-3xl font-black text-slate-900 mb-2">Post a New Project</h2>
 
         {message && (
-          <p style={{
-            color: message.includes("success") ? "#16a34a" : "#dc2626",
-            textAlign: "center",
-            fontSize: "0.9rem",
-            marginBottom: "12px"
-          }}>
+          <p className={`text-center text-sm font-medium ${message.includes("success") ? "text-green-600" : "text-red-600"}`}>
             {message}
           </p>
         )}
 
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Project Title *</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold text-gray-700">Project Title *</label>
           <input
             type="text"
             placeholder="e.g. Build a 3-bedroom bungalow"
             value={formData.title}
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            style={styles.input}
+            className="w-full p-3 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
         </div>
 
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Description *</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold text-gray-700">Description *</label>
           <textarea
             placeholder="Describe the project requirements, materials needed, and timeline..."
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            style={{ ...styles.input, height: "120px", resize: "vertical" }}
+            className="w-full p-3 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-vertical"
             required
           />
         </div>
 
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Budget (Optional)</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold text-gray-700">Budget (Optional)</label>
           <input
             type="number"
             placeholder="Estimated budget in $"
             value={formData.budget}
             onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-            style={styles.input}
+            className="w-full p-3 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
-        <button type="submit" disabled={loading} style={styles.button}>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-blue-300 transition-all active:scale-95"
+        >
           {loading ? "Posting..." : "Post Project"}
         </button>
       </form>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    display: "flex",
-    justifyContent: "center",
-    padding: "40px 20px",
-    minHeight: "80vh",
-  },
-  card: {
-    display: "flex",
-    flexDirection: "column" as "column",
-    width: "100%",
-    maxWidth: "500px",
-    padding: "32px",
-    background: "#fff",
-    borderRadius: "16px",
-    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-    border: "1px solid #e5e7eb",
-    gap: "20px",
-  },
-  title: {
-    textAlign: "center" as "center",
-    fontSize: "1.8rem",
-    fontWeight: "700",
-    color: "#1e3a5f",
-    marginBottom: "8px",
-  },
-  formGroup: {
-    display: "flex" as "flex",
-    flexDirection: "column" as "column",
-    gap: "6px",
-  },
-  label: {
-    fontSize: "0.9rem",
-    fontWeight: "600",
-    color: "#374151",
-  },
-  input: {
-    padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid #d1d5db",
-    fontSize: "1rem",
-    width: "100%",
-    boxSizing: "border-box" as "border-box",
-  },
-  button: {
-    padding: "14px",
-    borderRadius: "8px",
-    border: "none",
-    backgroundColor: "#2563eb",
-    color: "#fff",
-    fontSize: "1.1rem",
-    fontWeight: "700",
-    cursor: "pointer",
-    marginTop: "10px",
-    transition: "background 0.2s",
-  },
-};

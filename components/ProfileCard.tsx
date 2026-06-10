@@ -2,48 +2,40 @@
 
 import React from "react";
 import Link from "next/link";
+import { Product, Order } from "@/types/database";
 
 interface ProfileCardProps {
-  item: any;
+  item: Product | Order;
 }
 
 export default function ProfileCard({ item }: ProfileCardProps) {
   if (!item) return null;
 
   // Handle both Product and Order types
-  const isOrder = !!item.status;
-  const title = isOrder ? `Order #${item.id?.slice(-6) || 'N/A'}` : item.name;
-  const price = item.price || (item.totalAmount || 0);
-  const description = isOrder ? `Status: ${item.status}` : item.description;
-  const imageUrl = item.imageUrl || "https://via.placeholder.com/150?text=Item";
+  const isOrder = 'status' in item;
+  const title = isOrder ? `Order #${(item as Order).id?.slice(-6) || 'N/A'}` : (item as Product).name;
+  const price = isOrder ? (item as Order).total_price : (item as Product).price;
+  const description = isOrder ? `Status: ${(item as Order).status}` : (item as Product).description;
+  const imageUrl = (item as any).imageUrl || "https://via.placeholder.com/150?text=Item";
 
   return (
-    <div style={{
-      background: "#fff",
-      padding: "16px",
-      borderRadius: "12px",
-      border: "1px solid #e5e7eb",
-      boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-      maxWidth: "300px",
-      transition: "transform 0.2s",
-      cursor: "pointer"
-    }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm max-w-[300px] transition-transform cursor-pointer hover:-translate-y-1">
+      <div className="flex flex-col gap-3">
         <img
           src={imageUrl}
           alt={title}
-          style={{ width: "100%", height: "150px", objectFit: "cover", borderRadius: "8px" }}
+          className="w-full h-36 object-cover rounded-lg"
         />
         <div>
-          <h4 style={{ margin: "0 0 4px", color: "#1e3a5f", fontSize: "1rem", fontWeight: "700" }}>{title}</h4>
-          <p style={{ margin: "0 0 8px", color: "#6b7280", fontSize: "0.85rem", lineHeight: "1.4" }}>
+          <h4 className="m-0 text-slate-900 text-base font-bold">{title}</h4>
+          <p className="m-0 mb-2 text-gray-500 text-sm leading-relaxed">
             {description}
           </p>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontWeight: "700", color: "#2563eb", fontSize: "1.1rem" }}>${price?.toFixed(2)}</span>
+          <div className="flex justify-between items-center">
+            <span className="font-bold text-blue-600 text-lg">${price?.toFixed(2)}</span>
             <Link
-              href={isOrder ? `/orders/${item.id}` : `/product/${item._id || item.id}`}
-              style={{ fontSize: "0.85rem", color: "#2563eb", textDecoration: "none", fontWeight: "600" }}
+              href={isOrder ? `/orders/${(item as Order).id}` : `/product/${(item as Product).id}`}
+              className="text-sm text-blue-600 no-underline font-semibold hover:underline"
             >
               View Details →
             </Link>

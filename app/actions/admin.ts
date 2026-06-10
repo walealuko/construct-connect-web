@@ -2,8 +2,25 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
+import { createClient as createServerClient } from '@/utils/supabase/server';
 
 export async function updateUserRoleAction(userId: string, newRole: string) {
+  const supabase = await createServerClient();
+
+  // Check if the current user is an admin
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Unauthorized" };
+
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('tier')
+    .eq('id', user.id)
+    .single();
+
+  if (adminProfile?.tier !== 'admin') {
+    return { success: false, error: "Only administrators can perform this action" };
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 

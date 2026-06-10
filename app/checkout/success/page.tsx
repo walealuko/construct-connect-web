@@ -64,7 +64,7 @@ function SuccessContent() {
 
       {status === "error" && (
         <>
-          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3 la-l 2xl mx-auto mb-6">✕</div>
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">✕</div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Verification Failed</h1>
           <p className="text-gray-500 mb-8">We couldn't verify your payment. Please contact support if you were charged.</p>
           <Link
