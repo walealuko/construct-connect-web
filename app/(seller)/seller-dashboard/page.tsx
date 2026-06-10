@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useContext } from "react";
 import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
+import { productSchema } from "@/lib/validations";
+import { toast } from "sonner";
 
 export default function SellerDashboard() {
   const userContext = useContext(UserContext);
@@ -46,12 +48,23 @@ export default function SellerDashboard() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.price) {
-      setMessage("Name and price are required");
+    setMessage("");
+
+    // 1. Validate with Zod
+    const validation = productSchema.safeParse({
+      ...formData,
+      price: formData.price,
+      stock: formData.stock,
+    });
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0].message;
+      setMessage(firstError);
+      toast.error(firstError);
       return;
     }
+
     setLoading(true);
-    setMessage("");
 
     try {
       let finalImageUrl = formData.imageUrl;
@@ -96,9 +109,11 @@ export default function SellerDashboard() {
         imageUrl: ""
       });
       setMessage("Product added successfully!");
+      toast.success("Product added successfully!");
       loadProducts();
     } catch (err: any) {
       setMessage(err.message || "Failed to add product");
+      toast.error(err.message || "Failed to add product");
     } finally {
       setLoading(false);
     }

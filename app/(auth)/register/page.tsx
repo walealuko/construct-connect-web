@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { getRedirectPath } from '@/lib/roles';
 import { toast } from 'sonner';
+import { registerSchema } from '@/lib/validations';
 
 const NIGERIAN_STATES = [
   "Abia", "Adamawa", "Akwa Ibom", "Amachi", "Anambra", "Bauchi", "Bayelsa", "Borno", "Cross River", "Delta",
@@ -42,22 +43,19 @@ function RegisterForm() {
     e.preventDefault();
     setError('');
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      toast.error('Passwords do not match');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
-      toast.error('Password must be at least 6 characters');
+    // 1. Validate with Zod
+    const validation = registerSchema.safeParse(formData);
+    if (!validation.success) {
+      const firstError = validation.error.errors[0].message;
+      setError(firstError);
+      toast.error(firstError);
       return;
     }
 
     setLoading(true);
 
     try {
-      // 1. Sign up the user in Supabase Auth
+      // 2. Sign up the user in Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -68,7 +66,7 @@ function RegisterForm() {
       const user = authData.user;
 
       if (user) {
-        // 2. Create a profile record in the 'profiles' table
+        // 3. Create a profile record in the 'profiles' table
         const { error: profileError } = await supabase
           .from('profiles')
           .upsert({
