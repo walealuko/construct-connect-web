@@ -184,7 +184,7 @@ export default function SellerDashboard() {
           <p className="text-gray-500 text-sm font-medium uppercase tracking-wider mb-2">Active Products</p>
           <p className="text-3xl font-black text-slate-900">{stats.productsCount}</p>
         </div>
-      </div
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit">
@@ -203,7 +203,7 @@ export default function SellerDashboard() {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full p-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-blue-600 outline-none"
               />
-            </div
+            </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Description</label>
               <textarea
@@ -213,7 +213,7 @@ export default function SellerDashboard() {
                 rows={3}
                 className="w-full p-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-blue-600 outline-none"
               />
-            </div
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Price ($) *</label>
@@ -224,7 +224,7 @@ export default function SellerDashboard() {
                   onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                   className="w-full p-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-blue-600 outline-none"
                 />
-              </div
+              </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Stock Qty</label>
                 <input
@@ -234,8 +234,8 @@ export default function SellerDashboard() {
                   onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                   className="w-full p-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-blue-600 outline-none"
                 />
-              </div
-            </div
+              </div>
+            </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Category</label>
               <select
@@ -254,7 +254,7 @@ export default function SellerDashboard() {
                 <option value="roofing">Roofing</option>
                 <option value="flooring">Flooring</option>
               </select>
-            </div
+            </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Product Image</label>
               <input
@@ -263,14 +263,14 @@ export default function SellerDashboard() {
                 onChange={handleFileChange}
                 className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
-            </div
+            </div>
             <button
               type="submit"
               disabled={loading}
               className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:bg-blue-300 transition-all active:scale-95"
             >
               {loading ? "Adding..." : "Add Product"}
-            </button
+            </button>
           </form>
         </div>
 
@@ -297,13 +297,13 @@ export default function SellerDashboard() {
                     <h4 className="font-bold text-slate-900 truncate">{product.name}</h4>
                     <p className="text-blue-600 font-bold text-sm">${product.price?.toFixed(2)}</p>
                     <p className="text-gray-400 text-xs">Stock: {product.stock} | {product.category}</p>
-                  </div
-                </div
+                  </div>
+                </div>
               ))}
-            </div
+            </div>
           )}
         </div
-      </div
+      </div>
 
       <div className="space-y-4">
         <h3 className="text-xl font-bold text-slate-800">Recent Orders</h3>
