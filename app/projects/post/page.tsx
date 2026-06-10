@@ -3,6 +3,10 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Card, CardHeader, CardContent } from "@/components/ui/Card";
+import { toast } from "sonner";
 
 export default function PostProject() {
   const router = useRouter();
@@ -12,22 +16,20 @@ export default function PostProject() {
     budget: "",
   });
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.description) {
-      setMessage("Please fill in all required fields");
+      toast.error("Please fill in all required fields");
       return;
     }
 
     setLoading(true);
-    setMessage("");
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        setMessage("You must be logged in to post a project");
+        toast.error("You must be logged in to post a project");
         setLoading(false);
         return;
       }
@@ -39,16 +41,15 @@ export default function PostProject() {
           description: formData.description,
           budget: formData.budget ? parseInt(formData.budget) : null,
           user_id: user.id,
+          status: 'open'
         });
 
       if (error) throw error;
 
-      setMessage("Project posted successfully!");
-      setTimeout(() => {
-        router.push("/marketplace");
-      }, 2000);
+      toast.success("Project posted successfully!");
+      router.push("/projects/my-projects");
     } catch (err: any) {
-      setMessage(err.message || "Failed to post project");
+      toast.error(err.message || "Failed to post project");
     } finally {
       setLoading(false);
     }
@@ -56,57 +57,49 @@ export default function PostProject() {
 
   return (
     <div className="flex justify-center p-10 min-h-[80vh]">
-      <form className="flex flex-col w-full max-w-xl p-8 bg-white rounded-2xl shadow-sm border border-gray-200 gap-5" onSubmit={handleSubmit}>
-        <h2 className="text-center text-3xl font-black text-slate-900 mb-2">Post a New Project</h2>
-
-        {message && (
-          <p className={`text-center text-sm font-medium ${message.includes("success") ? "text-green-600" : "text-red-600"}`}>
-            {message}
-          </p>
-        )}
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold text-gray-700">Project Title *</label>
-          <input
-            type="text"
-            placeholder="e.g. Build a 3-bedroom bungalow"
-            value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            className="w-full p-3 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold text-gray-700">Description *</label>
-          <textarea
-            placeholder="Describe the project requirements, materials needed, and timeline..."
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="w-full p-3 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-vertical"
-            required
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold text-gray-700">Budget (Optional)</label>
-          <input
-            type="number"
-            placeholder="Estimated budget in $"
-            value={formData.budget}
-            onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-            className="w-full p-3 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-blue-300 transition-all active:scale-95"
-        >
-          {loading ? "Posting..." : "Post Project"}
-        </button>
-      </form>
+      <Card className="w-full max-w-xl">
+        <CardHeader className="text-center">
+          <h2 className="text-3xl font-black text-slate-900">Post a New Project</h2>
+          <p className="text-gray-500 text-sm mt-2">Share your project details to attract the best artisans.</p>
+        </CardHeader>
+        <CardContent>
+          <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+            <Input
+              label="Project Title *"
+              placeholder="e.g. Build a 3-bedroom bungalow"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              required
+            />
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description *</label>
+              <textarea
+                placeholder="Describe the project requirements, materials needed, and timeline..."
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
+                rows={4}
+                required
+              />
+            </div>
+            <Input
+              label="Budget (Optional)"
+              type="number"
+              placeholder="Estimated budget in $"
+              value={formData.budget}
+              onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+            />
+            <Button
+              type="submit"
+              className="w-full py-6 text-lg"
+              disabled={loading}
+              isLoading={loading}
+            >
+              Post Project
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

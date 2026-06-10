@@ -6,6 +6,10 @@ import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { CartItem } from "@/types/database";
+import { verifyStockAction } from "@/app/actions/products";
+import { Button } from "@/components/ui/Button";
+import { Card, CardHeader, CardContent } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 
 export default function Checkout() {
   const { cart, clearCart } = useCart();
@@ -26,6 +30,19 @@ export default function Checkout() {
     setMessage("");
 
     try {
+      // 1. Server-side stock validation
+      const stockCheck = await verifyStockAction(
+        cart.map((item: CartItem) => ({
+          productId: item.id,
+          quantity: item.quantity || 1,
+        }))
+      );
+
+      if (!stockCheck.success) {
+        throw new Error(stockCheck.error);
+      }
+
+      // 2. Create Pending Order
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -43,6 +60,7 @@ export default function Checkout() {
 
       if (orderError) throw orderError;
 
+      // 3. Initialize Payment
       const paymentRes = await fetch('/api/payments/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -68,54 +86,62 @@ export default function Checkout() {
   };
 
   return (
-    <div className="p-8 max-w-[800px] mx-auto font-sans">
-      <h1 className="text-4xl font-extrabold text-slate-900 mb-8">Checkout</h1>
+    <div className="p-8 max-w-[800px] mx-auto space-y-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-4xl font-black text-slate-900">Checkout</h1>
+        <p className="text-gray-500 font-medium">Review your order and complete the payment.</p>
+      </div>
 
       {cart.length === 0 ? (
-        <div className="text-center p-12 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-          <p className="text-gray-500 mb-4">Your cart is empty</p>
-          <Link href="/marketplace" className="text-blue-600 font-semibold hover:underline">
-            Go to Marketplace
-          </Link>
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-800 mb-4">Order Summary</h2>
-
-          {message && (
-            <div className={`p-3 rounded-lg mb-4 text-center font-medium text-sm ${
-              message.includes("success") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-            }`}>
-              {message}
-            </div>
-          )}
-
-          <ul className="divide-y divide-gray-100 mb-6">
-            {cart.map((item: CartItem) => (
-              <li key={item.id} className="flex justify-between py-3">
-                <span className="text-gray-600">{item.name} x {item.quantity || 1}</span>
-                <span className="font-semibold text-slate-900">${(item.price * (item.quantity || 1)).toFixed(2)}</span>
-              </li>
-            ))}
-          </ul>
-
-          <div className="flex justify-between items-center pt-4 border-t-2 border-gray-100">
-            <span className="text-lg font-medium text-gray-500">Total</span>
-            <span className="text-3xl font-black text-blue-600">
-              ${totalPrice.toFixed(2)}
-            </span>
+        <Card className="p-12 text-center border-dashed border-2">
+          <div className="py-8 space-y-4">
+            <div className="text-4xl">🛒</div>
+            <p className="text-gray-500 font-medium">Your cart is empty</p>
+            <Button asChild variant="primary">
+              <Link href="/marketplace">Go to Marketplace</Link>
+            </Button>
           </div>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <h2 className="text-xl font-bold text-slate-800">Order Summary</h2>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {message && (
+              <div className={`p-3 rounded-lg text-center font-medium text-sm ${
+                message.includes("success") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+              }`}>
+                {message}
+              </div>
+            )}
 
-          <button
-            onClick={handlePurchase}
-            disabled={loading}
-            className={`w-full mt-8 py-4 rounded-xl text-white font-bold text-lg transition-all active:scale-95 ${
-              loading ? "bg-blue-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-            }`}
-          >
-            {loading ? "Processing..." : "Complete Purchase"}
-          </button>
-        </div>
+            <ul className="divide-y divide-gray-100">
+              {cart.map((item: CartItem) => (
+                <li key={item.id} className="flex justify-between py-3">
+                  <span className="text-gray-600">{item.name} x {item.quantity || 1}</span>
+                  <span className="font-semibold text-slate-900">${(item.price * (item.quantity || 1)).toFixed(2)}</span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="flex justify-between items-center pt-4 border-t-2 border-gray-100">
+              <span className="text-lg font-medium text-gray-500">Total</span>
+              <span className="text-3xl font-black text-blue-600">
+                ${totalPrice.toFixed(2)}
+              </span>
+            </div>
+
+            <Button
+              onClick={handlePurchase}
+              disabled={loading}
+              isLoading={loading}
+              className="w-full py-6 text-lg"
+            >
+              Complete Purchase
+            </Button>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

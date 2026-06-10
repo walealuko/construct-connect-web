@@ -8,6 +8,13 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import Image from "next/image";
 import { toast } from "sonner";
 import Link from "next/link";
+import { deleteProductAction } from "@/app/actions/products";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { Modal } from "@/components/ui/Modal";
 
 export default function ArtisanDashboard() {
   const userContext = useContext(UserContext);
@@ -22,6 +29,7 @@ export default function ArtisanDashboard() {
     description: "",
     imageFile: null as File | null,
   });
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, productId: "" });
 
   useEffect(() => {
     if (user) {
@@ -30,8 +38,8 @@ export default function ArtisanDashboard() {
   }, [user]);
 
   const loadArtisanData = async () => {
+    setLoading(true);
     try {
-      // 1. Profile
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
@@ -39,7 +47,6 @@ export default function ArtisanDashboard() {
         .single();
       setProfile(profileData);
 
-      // 2. Portfolio
       const { data: portfolioData } = await supabase
         .from('profiles')
         .select('portfolio')
@@ -47,7 +54,6 @@ export default function ArtisanDashboard() {
         .single();
       setPortfolio(portfolioData?.portfolio || []);
 
-      // 3. Products
       const { data: productsData } = await supabase
         .from('products')
         .select('*')
@@ -55,6 +61,27 @@ export default function ArtisanDashboard() {
       setProducts(productsData || []);
     } catch (err) {
       console.error("Error loading artisan data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!deleteModal.productId) return;
+    setLoading(true);
+    setDeleteModal({ ...deleteModal, isOpen: false });
+    try {
+      const result = await deleteProductAction(deleteModal.productId);
+      if (result.success) {
+        toast.success("Product deleted successfully");
+        loadArtisanData();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete product");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -122,127 +149,193 @@ export default function ArtisanDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Profile Section */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm h-fit">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-2xl font-bold text-blue-600">
-                {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || 'A'}
+          <Card className="h-fit">
+            <CardHeader className="flex flex-col items-start gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-2xl font-bold text-blue-600">
+                  {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || 'A'}
+                </div>
+                <div >
+                  <h3 className="text-xl font-bold text-slate-900">{profile?.full_name || "Artisan Profile"}</h3>
+                  <p className="text-sm text-gray-500">{user?.email}</p>
+                </div>
               </div>
-              <div >
-                <h3 className="text-xl font-bold text-slate-900">{profile?.full_name || "Artisan Profile"}</h3>
-                <p className="text-sm text-gray-500">{user?.email}</p>
+              <div className="w-full space-y-3">
+                <div className="flex justify-between py-2 border-b border-gray-50">
+                  <span className="text-sm text-gray-400">Location</span>
+                  <span className="text-sm font-semibold text-slate-700">{profile?.location || "Not specified"}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-50">
+                  <span className="text-sm text-gray-400">Specialty</span>
+                  <Badge variant="info">{profile?.tier}</Badge>
+                </div>
               </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b border-gray-50">
-                <span className="text-sm text-gray-400">Location</span>
-                <span className="text-sm font-semibold text-slate-700">{profile?.location || "Not specified"}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-50">
-                <span className="text-sm text-gray-400">Specialty</span>
-                <span className="text-sm font-semibold text-blue-600 uppercase">{profile?.tier}</span>
-              </div>
-            </div>
-            <Link href="/profile/edit" className="block text-center mt-6 text-xs font-bold text-blue-600 hover:underline">
-              Update My Portfolio →
-            </Link>
-          </div>
+            </CardHeader>
+            <CardFooter>
+              <Link href="/profile/edit" className="text-xs font-bold text-blue-600 hover:underline">
+                Update My Portfolio →
+              </Link>
+            </CardFooter>
+          </Card>
 
-          {/* Content Area */}
           <div className="lg:col-span-2 space-y-8">
             {/* Previous Projects Gallery */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <div className="flex justify-between items-center mb-6">
+            <Card>
+              <CardHeader className="flex justify-between items-center">
                 <h3 className="text-lg font-bold text-slate-800">Previous Projects (Gallery)</h3>
-                <label className="cursor-pointer px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all">
-                  {loading ? "Uploading..." : "Add Project"}
-                  <input type="file" accept="image/*,video/*" onChange={handlePortfolioUpload} className="hidden" />
-                </label>
-              </div>
-              {portfolio.length === 0 ? (
-                <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
-                  No project photos yet. Show off your best work!
+                <div className="relative">
+                  <Button
+                    size="sm"
+                    disabled={loading}
+                    isLoading={loading}
+                    onClick={() => document.getElementById('portfolio-upload')?.click()}
+                  >
+                    Add Project
+                  </Button>
+                  <input
+                    id="portfolio-upload"
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={handlePortfolioUpload}
+                    className="hidden"
+                  />
                 </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {portfolio.map((url, i) => (
-                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden group">
-                      <Image src={url} alt="Work" fill className="object-cover group-hover:scale-110 transition-transform" />
+              </CardHeader>
+              <CardContent>
+                {loading && portfolio.length === 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {[...Array(6)].map((_, i) => (
+                      <Skeleton key={i} className="aspect-square w-full" />
+                    ))}
+                  </div>
+                ) : portfolio.length === 0 ? (
+                  <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
+                    No project photos yet. Show off your best work!
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {portfolio.map((url, i) => (
+                      <div key={i} className="relative aspect-square rounded-xl overflow-hidden group">
+                        <Image src={url} alt="Work" fill className="object-cover group-hover:scale-110 transition-transform" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Products for Sale */}
+            <Card>
+              <CardHeader className="flex justify-between items-center">
+                <h3 className="text-lg font-bold text-slate-800">My Listed Products</h3>
+                <span className="text-xs text-gray-400">{products.length} active listings</span>
+              </CardHeader>
+              <CardContent className="space-y-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {products.map((product) => (
+                    <div key={product.id} className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex gap-3 items-center">
+                      <div className="relative w-12 h-12 flex-shrink-0">
+                        {product.image_url ? <Image src={product.image_url} alt={product.name} fill className="object-cover rounded-lg" /> : <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center text-sm">🏗️</div>}
+                      </div>
+                      <div className="flex-1 min-w-0 flex justify-between items-center">
+                        <div>
+                          <h4 className="font-bold text-slate-900 truncate text-xs">{product.name}</h4>
+                          <p className="text-blue-600 font-bold text-xs">${product.price?.toFixed(2)}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-400 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => setDeleteModal({ isOpen: true, productId: product.id })}
+                          title="Delete Product"
+                        >
+                          🗑️
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
 
-            {/* Products for Sale */}
-            <div className="bg-white p-6 rounded-2 la-xl border border-gray-100 shadow-sm">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-slate-800">My Listed Products</h3>
-                <span className="text-xs text-gray-400">{products.length} active listings</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                {products.map((product) => (
-                  <div key={product.id} className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex gap-3 items-center">
-                    <div className="relative w-12 h-12 flex-shrink-0">
-                      {product.image_url ? <Image src={product.image_url} alt={product.name} fill className="object-cover rounded-lg" /> : <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center text-sm">🏗️</div>}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-slate-900 truncate text-xs">{product.name}</h4>
-                      <p className="text-blue-600 font-bold text-xs">${product.price?.toFixed(2)}</p>
-                    </div>
+                <form onSubmit={handleProductSubmit} className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-4">
+                  <h4 className="text-sm font-bold text-slate-700 mb-2">List a New Product</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <Input
+                      placeholder="Product Name"
+                      value={productForm.name}
+                      onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                      required
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Price ($)"
+                      value={productForm.price}
+                      onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
+                      required
+                    />
                   </div>
-                ))}
-              </div>
-
-              <form onSubmit={handleProductSubmit} className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-3">
-                <h4 className="text-sm font-bold text-slate-700 mb-2">List a New Product</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <input
-                    placeholder="Product Name"
-                    value={productForm.name}
-                    onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-                    className="p-2 rounded-lg border border-gray-300 text-xs outline-none"
-                    required
-                  />
-                  <input
-                    type="number"
-                    placeholder="Price ($)"
-                    value={productForm.price}
-                    onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                    className="p-2 rounded-lg border border-gray-300 text-xs outline-none"
-                    required
-                  />
-                </div>
-                <textarea
-                  placeholder="Short description..."
-                  value={productForm.description}
-                  onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                  className="w-full p-2 rounded-lg border border-gray-300 text-xs outline-none"
-                  rows={2}
-                />
-                <div className="flex items-center gap-4">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setProductForm({ ...productForm, imageFile: e.target.files?.[0] || null })}
-                    className="text-xs text-gray-500 file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700"
-                  />
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="ml-auto px-6 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-all"
-                  >
-                    {loading ? "Listing..." : "List Product"}
-                  </button>
-                </div>
-              </form>
-            </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</label>
+                    <textarea
+                      placeholder="Short description..."
+                      value={productForm.description}
+                      onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                      className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 space-y-1.5">
+                      <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Product Image</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setProductForm({ ...productForm, imageFile: e.target.files?.[0] || null })}
+                        className="w-full text-xs text-gray-500 file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      className="mt-6"
+                      disabled={loading}
+                      isLoading={loading}
+                    >
+                      List Product
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
         <div className="flex justify-center gap-4">
-          <Link href="/messages" className="px-8 py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-all">Messages</Link>
-          <Link href="/projects" className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all">Browse Projects</Link>
+          <Button asChild variant="secondary" className="px-8 py-6 rounded-xl">
+            <Link href="/messages">Messages</Link>
+          </Button>
+          <Button asChild variant="primary" className="px-8 py-6 rounded-xl">
+            <Link href="/projects">Browse Projects</Link>
+          </Button>
         </div>
+
+        <Modal
+          isOpen={deleteModal.isOpen}
+          onClose={() => setDeleteModal({ isOpen: false, productId: "" })}
+          title="Delete Product"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Are you sure you want to delete this product? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" size="sm" onClick={() => setDeleteModal({ isOpen: false, productId: "" })}>
+                Cancel
+              </Button>
+              <Button variant="danger" size="sm" onClick={confirmDeleteProduct} disabled={loading} isLoading={loading}>
+                Delete Product
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </DashboardLayout>
   );

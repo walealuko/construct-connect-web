@@ -8,6 +8,13 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import Image from "next/image";
 import { toast } from "sonner";
 import Link from "next/link";
+import { deleteProductAction } from "@/app/actions/products";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { Modal } from "@/components/ui/Modal";
 
 export default function SellerDashboard() {
   const userContext = useContext(UserContext);
@@ -28,6 +35,7 @@ export default function SellerDashboard() {
     imageUrl: "",
   });
   const [message, setMessage] = useState("");
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, productId: "" });
 
   useEffect(() => {
     loadDashboardData();
@@ -36,7 +44,6 @@ export default function SellerDashboard() {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      // 1. Load Profile
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
@@ -44,7 +51,6 @@ export default function SellerDashboard() {
         .single();
       setProfile(profileData);
 
-      // 2. Load Products
       const { data: productsData, error: pError } = await supabase
         .from('products')
         .select('*')
@@ -54,7 +60,6 @@ export default function SellerDashboard() {
 
       const productIds = (productsData || []).map(p => p.id);
 
-      // 3. Load Orders
       if (productIds.length > 0) {
         const { data: ordersData, error: oError } = await supabase
           .from('orders')
@@ -100,6 +105,25 @@ export default function SellerDashboard() {
     }
   };
 
+  const confirmDeleteProduct = async () => {
+    if (!deleteModal.productId) return;
+    setLoading(true);
+    setDeleteModal({ ...deleteModal, isOpen: false });
+    try {
+      const result = await deleteProductAction(deleteModal.productId);
+      if (result.success) {
+        toast.success("Product deleted successfully");
+        loadDashboardData();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete product");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFormData({ ...formData, imageFile: e.target.files[0] });
@@ -139,9 +163,7 @@ export default function SellerDashboard() {
           category: formData.category,
           stock: parseInt(formData.stock || '0'),
           image_url: finalImageUrl,
-          // Note: delivery would normally be a column in the DB,
-          // assuming it's part of description or a custom field for now
-          description: `${formData.description}\nDelivery: ${formData.delivery}`
+          description: `${formData.description}\\nDelivery: ${formData.delivery}`
         });
 
       if (error) throw error;
@@ -177,111 +199,140 @@ export default function SellerDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Seller Profile */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm h-fit">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-2xl font-bold text-blue-600">
-                {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || 'S'}
+          <Card className="h-fit">
+            <CardHeader className="flex flex-col items-start gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-2xl font-bold text-blue-600">
+                  {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || 'S'}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">{profile?.full_name || "Seller Profile"}</h3>
+                  <p className="text-sm text-gray-500">{user?.email}</p>
+                </div>
               </div>
-              <div >
-                <h3 className="text-xl font-bold text-slate-900">{profile?.full_name || "Seller Profile"}</h3>
-                <p className="text-sm text-gray-500">{user?.email}</p>
+              <div className="w-full space-y-3">
+                <div className="flex justify-between py-2 border-b border-gray-50">
+                  <span className="text-sm text-gray-400">Business Name</span>
+                  <span className="text-sm font-semibold text-slate-700">{profile?.business_name || "Not specified"}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-50">
+                  <span className="text-sm text-gray-400">Location</span>
+                  <span className="text-sm font-semibold text-slate-700">{profile?.location || "Not specified"}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-50">
+                  <span className="text-sm text-gray-400">Tier</span>
+                  <Badge variant="info">{profile?.tier}</Badge>
+                </div>
               </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b border-gray-50">
-                <span className="text-sm text-gray-400">Business Name</span>
-                <span className="text-sm font-semibold text-slate-700">{profile?.business_name || "Not specified"}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-50">
-                <span className="text-sm text-gray-400">Location</span>
-                <span className="text-sm font-semibold text-slate-700">{profile?.location || "Not specified"}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-50">
-                <span className="text-sm text-gray-400">Tier</span>
-                <span className="text-sm font-semibold text-blue-600 uppercase">{profile?.tier}</span>
-              </div>
-            </div>
-            <Link href="/profile/edit" className="block text-center mt-6 text-xs font-bold text-blue-600 hover:underline">
-              Update Shop Details →
-            </Link>
-          </div>
+            </CardHeader>
+            <CardFooter>
+              <Link href="/profile/edit" className="text-xs font-bold text-blue-600 hover:underline">
+                Update Shop Details →
+              </Link>
+            </CardFooter>
+          </Card>
 
           <div className="lg:col-span-2 space-y-6">
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+              <Card className="p-4">
                 <p className="text-gray-400 text-xs font-bold uppercase">Revenue</p>
                 <p className="text-2xl font-black text-slate-900">${stats.revenue.toFixed(2)}</p>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+              </Card>
+              <Card className="p-4">
                 <p className="text-gray-400 text-xs font-bold uppercase">Orders</p>
                 <p className="text-2xl font-black text-slate-900">{stats.ordersCount}</p>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+              </Card>
+              <Card className="p-4">
                 <p className="text-gray-400 text-xs font-bold uppercase">Products</p>
                 <p className="text-2xl font-black text-slate-900">{stats.productsCount}</p>
-              </div>
+              </Card>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <div className="flex justify-between items-center mb-6">
+            <Card>
+              <CardHeader className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-slate-800">Product Gallery</h3>
                 <Link href="/messages" className="text-sm font-bold text-blue-600 hover:underline">Messages →</Link>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {products.map((product) => (
-                  <div key={product.id} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex gap-4 items-center">
-                    {product.image_url && (
-                      <Image src={product.image_url} alt={product.name} width={60} height={60} className="w-16 h-16 object-cover rounded-lg" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-slate-900 truncate text-sm">{product.name}</h4>
-                      <p className="text-blue-600 font-bold text-xs">${product.price?.toFixed(2)}</p>
-                      <p className="text-gray-400 text-[10px]">Stock: {product.stock}</p>
-                    </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {products.map((product) => (
+                      <div key={product.id} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex gap-4 items-center">
+                        {product.image_url && (
+                          <Image src={product.image_url} alt={product.name} width={60} height={60} className="w-16 h-16 object-cover rounded-lg" />
+                        )}
+                        <div className="flex-1 min-w-0 flex justify-between items-center">
+                          <div>
+                            <h4 className="font-bold text-slate-900 truncate text-sm">{product.name}</h4>
+                            <p className="text-blue-600 font-bold text-xs">${product.price?.toFixed(2)}</p>
+                            <p className="text-gray-400 text-[10px]">Stock: {product.stock}</p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-400 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => setDeleteModal({ isOpen: true, productId: product.id })}
+                            title="Delete Product"
+                          >
+                            🗑️
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">Add Product</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-4">
-                <input
+          <Card className="lg:col-span-1 h-fit">
+            <CardHeader>
+              <h3 className="text-lg font-bold text-slate-800">Add Product</h3>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <Input
                   placeholder="Product Name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
+                  required
                 />
-                <textarea
-                  placeholder="Description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                  className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
-                />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</label>
+                  <textarea
+                    placeholder="Product description..."
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={3}
+                    className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <input
+                  <Input
                     type="number"
                     placeholder="Price ($)"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
+                    required
                   />
-                  <input
+                  <Input
                     type="number"
                     placeholder="Stock"
                     value={formData.stock}
                     onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                    className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-400 uppercase">Delivery Availability</label>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Delivery Availability</label>
                   <select
                     value={formData.delivery}
                     onChange={(e) => setFormData({ ...formData, delivery: e.target.value })}
@@ -292,50 +343,60 @@ export default function SellerDashboard() {
                     <option value="pickup_only">Pickup Only</option>
                   </select>
                 </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700"
-                />
-                <button
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Product Image</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700"
+                  />
+                </div>
+                <Button
                   type="submit"
+                  className="w-full"
                   disabled={loading}
-                  className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:bg-blue-300 transition-all"
+                  isLoading={loading}
                 >
-                  {loading ? "Adding..." : "Add Product"}
-                </button>
-              </div>
-            </form>
-          </div>
+                  Add Product
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
 
           <div className="lg:col-span-2 space-y-4">
             <h3 className="text-xl font-bold text-slate-800">Recent Orders</h3>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr className="text-gray-500 uppercase text-xs font-bold tracking-wider">
-                    <th className="px-6 py-3">Buyer</th>
-                    <th className="px-6 py-3">Total</th>
-                    <th className="px-6 py-3">Status</th>
-                    <th className="px-6 py-3 text-right">Action</th>
-                  </trP>
-                  <tbody className="divide-y divide-gray-100">
-                    {orders.map((order) => (
-                      <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-slate-900 font-medium">
+            <Card>
+              <div className="overflow-x-auto">
+                <div className="grid grid-cols-4 bg-gray-50 border-b border-gray-100 text-gray-500 uppercase text-xs font-bold tracking-wider">
+                  <div className="px-6 py-3">Buyer</div>
+                  <div className="px-6 py-3">Total</div>
+                  <div className="px-6 py-3">Status</div>
+                  <div className="px-6 py-3 text-right">Action</div>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {loading ? (
+                    <div className="p-6 text-center text-gray-400">Loading orders...</div>
+                  ) : orders.length === 0 ? (
+                    <div className="p-6 text-center text-gray-400">No orders found yet.</div>
+                  ) : (
+                    orders.map((order) => (
+                      <div key={order.id} className="grid grid-cols-4 hover:bg-gray-50 transition-colors text-sm">
+                        <div className="px-6 py-4 text-slate-900 font-medium">
                           {order.profiles?.first_name ? `${order.profiles.first_name} ${order.profiles.last_name}` : "Unknown Buyer"}
-                        </td>
-                        <td className="px-6 py-4 text-slate-900 font-bold">${order.total_price?.toFixed(2)}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
-                            order.status === 'completed' ? 'bg-green-100 text-green-700' :
-                            order.status === 'shipped' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
-                          }`}>
+                        </div>
+                        <div className="px-6 py-4 text-slate-900 font-bold">${order.total_price?.toFixed(2)}</div>
+                        <div className="px-6 py-4">
+                          <Badge
+                            variant={
+                              order.status === 'completed' ? 'success' :
+                              order.status === 'shipped' ? 'info' : 'warning'
+                            }
+                          >
                             {order.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
+                          </Badge>
+                        </div>
+                        <div className="px-6 py-4 text-right">
                           <select
                             value={order.status}
                             onChange={(e) => updateOrderStatus(order.id, e.target.value)}
@@ -346,15 +407,35 @@ export default function SellerDashboard() {
                             <option value="shipped">Shipped</option>
                             <option value="delivered">Delivered</option>
                           </select>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
+            </Card>
           </div>
         </div>
+
+        <Modal
+          isOpen={deleteModal.isOpen}
+          onClose={() => setDeleteModal({ isOpen: false, productId: "" })}
+          title="Delete Product"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Are you sure you want to delete this product? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" size="sm" onClick={() => setDeleteModal({ isOpen: false, productId: "" })}>
+                Cancel
+              </Button>
+              <Button variant="danger" size="sm" onClick={confirmDeleteProduct} disabled={loading} isLoading={loading}>
+                Delete Product
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </DashboardLayout>
   );

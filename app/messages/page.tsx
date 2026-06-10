@@ -5,11 +5,20 @@ import { supabase } from "@/lib/supabase";
 import { UserContext } from "@/components/UserContext";
 import { toast } from "sonner";
 import { Message, Conversation, Profile } from "@/types/chat";
-import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { Badge } from "@/components/ui/Badge";
+import { createConversationAction } from "@/app/actions/chat";
 
 export default function ChatPage() {
   const userContext = useContext(UserContext);
   const user = userContext?.user;
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get('project');
+  const targetUserId = searchParams.get('userId');
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -19,7 +28,28 @@ export default function ChatPage() {
   useEffect(() => {
     if (!user) return;
     loadConversations();
-  }, [user]);
+
+    // If arriving from a product/project page with a target user, ensure conversation exists
+    if (targetUserId) {
+      handleInitiateChat(targetUserId, projectId);
+    }
+  }, [user, targetUserId, projectId]);
+
+  const handleInitiateChat = async (userId: string, projId?: string | null) => {
+    try {
+      const result = await createConversationAction(userId, projId || undefined);
+      if (result.success && result.conversationId) {
+        loadConversations().then(() => {
+          const conv = conversations.find(c => c.id === result.conversationId);
+          if (conv) setActiveConv(conv);
+        });
+      } else if (result.error) {
+        toast.error(result.error);
+      }
+    } catch (err: any) {
+      toast.error("Failed to start conversation");
+    }
+  };
 
   const loadConversations = async () => {
     setLoading(true);
@@ -62,7 +92,6 @@ export default function ChatPage() {
     if (activeConv) {
       loadMessages(activeConv.id);
 
-      // Setup Realtime Subscription
       const channel = supabase
         .channel(`conv-${activeConv.id}`)
         .on('postgres_changes', {
@@ -89,7 +118,6 @@ export default function ChatPage() {
     setNewMessage("");
 
     try {
-      // 1. Insert Message
       const { error: msgError } = await supabase
         .from('messages')
         .insert({
@@ -100,7 +128,6 @@ export default function ChatPage() {
 
       if (msgError) throw msgError;
 
-      // 2. Update Conversation last message
       await supabase
         .from('conversations')
         .update({
@@ -130,7 +157,11 @@ export default function ChatPage() {
 
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="p-4 text-center text-gray-400 text-sm">Loading chats...</div>
+            <div className="p-4 space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-xl" />
+              ))}
+            </div>
           ) : conversations.length === 0 ? (
             <div className="p-8 text-center text-gray-400 text-sm">
               No conversations yet. <br /> Start chatting with sellers!
@@ -172,13 +203,20 @@ export default function ChatPage() {
         {activeConv ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b border-gray-200 flex items-center gap-3 bg-white">
-              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                {getOtherParticipant(activeConv).first_name[0]}
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                  {getOtherParticipant(activeConv).first_name[0]}
+                </div>
+                <h3 className="font-bold text-slate-900">
+                  {getOtherParticipant(activeConv).first_name} {getOtherParticipant(activeConv).last_name}
+                </h3>
               </div>
-              <h3 className="font-bold text-slate-900">
-                {getOtherParticipant(activeConv).first_name} {getOtherParticipant(activeConv).last_name}
-              </h3>
+              {activeConv.project_id && (
+                <Badge variant="info" className="px-3">
+                  Project Context: {activeConv.project_id.slice(0, 8)}...
+                </Badge>
+              )}
             </div>
 
             {/* Messages Area */}
@@ -187,7 +225,7 @@ export default function ChatPage() {
                 <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-md p-3 rounded-2xl text-sm ${
                     msg.sender_id === user?.id
-                      ? "bg-blue-600 text-white rounded-tr-none"
+                      ? "bg-blue-600 text-white rounded-tr-none shadow-sm"
                       : "bg-white text-gray-800 shadow-sm border border-gray-100 rounded-tl-none"
                   }`}>
                     {msg.content}
@@ -201,27 +239,24 @@ export default function ChatPage() {
 
             {/* Message Input */}
             <form onSubmit={sendMessage} className="p-4 bg-white border-t border-gray-200 flex gap-3">
-              <input
+              <Input
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Type a message..."
-                className="flex-1 p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                className="flex-1"
               />
-              <button
-                type="submit"
-                className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all active:scale-95"
-              >
+              <Button type="submit" disabled={!newMessage.trim()}>
                 Send
-              </button>
+              </Button>
             </form>
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-center p-8">
-            <div>
-              <div className="text-6xl mb-4">💬</div>
+            <div className="max-w-xs space-y-4">
+              <div className="text-6xl">💬</div>
               <h3 className="text-xl font-bold text-slate-900">No Conversation Selected</h3>
-              <p className="text-gray-500 max-w-xs mx-auto mt-2">
-                Select a conversation from the sidebar or start a new one from a product page.
+              <p className="text-gray-500">
+                Select a conversation from the sidebar or start a new one from a product or project page.
               </p>
             </div>
           </div>
