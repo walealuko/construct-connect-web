@@ -1,18 +1,10 @@
 import Link from 'next/link';
+import Navbar from '@/components/Navbar';
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b">
-        <div className="text-xl font-bold text-blue-800">Construct Hub</div>
-        <div className="flex gap-4">
-          <Link href="/login" className="px-4 py-2 text-gray-700 hover:text-blue-800">Login</Link>
-          <Link href="/register" className="px-4 py-2 bg-blue-800 text-white rounded-lg hover:bg-blue-900">
-            Join Now
-          </Link>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Hero Section */}
       <section className="px-6 py-16 max-w-4xl mx-auto text-center">

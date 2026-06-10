@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { REDIRECT_MAP } from '@/lib/roles';
+import { REDIRECT_MAP, getRedirectPath } from '@/lib/roles';
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -30,20 +30,29 @@ export async function middleware(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-
-  // 1. Protected Routes (Require ANY logged-in user)
-  const protectedRoutes = ['/profile', '/projects/post', '/cart', '/checkout'];
-  const isProtectedRoute = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route));
-
-  if (isProtectedRoute && !user) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
-  }
-
-  // 2. Role-Based Protection
   const path = request.nextUrl.pathname;
 
+  // 1. Redirect authenticated users away from Auth pages
+  if (user && (path === '/login' || path === '/register')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('tier')
+      .eq('id', user.id)
+      .single();
+
+    const redirectPath = getRedirectPath(profile?.tier);
+    return NextResponse.redirect(new URL(redirectPath, request.url));
+  }
+
+  // 2. Protected Routes (Require ANY logged-in user)
+  const protectedRoutes = ['/profile', '/projects/post', '/cart', '/checkout'];
+  const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route));
+
+  if (isProtectedRoute && !user) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // 3. Role-Based Protection
   if (path.startsWith('/seller-dashboard') || path.startsWith('/admin-dashboard')) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -54,9 +63,7 @@ export async function middleware(request: NextRequest) {
     const role = profile?.tier;
 
     if (!user || (path.startsWith('/seller-dashboard') && role !== 'business') || (path.startsWith('/admin-dashboard') && role !== 'admin')) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      return NextResponse.redirect(url);
+      return NextResponse.redirect(new URL('/login', request.url));
     }
   }
 
@@ -65,6 +72,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|login|register|marketplace|artisans|product).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|marketplace|artisans|product).*)',
   ],
 };

@@ -34,72 +34,60 @@ const Navbar = () => {
   };
 
   return (
-    <nav style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: "0 40px",
-      height: "70px",
-      background: "#ffffff",
-      boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-      position: "sticky",
-      top: 0,
-      zIndex: 1000,
-    }}>
+    <nav className="flex justify-between items-center px-6 md:px-10 h-[70px] bg-white shadow-sm sticky top-0 z-[1000]">
       {/* Logo */}
-      <Link href="/" style={{ display: "flex", alignItems: "center", gap: "12px", textDecoration: "none" }}>
-        <img src="/logo.png" alt="Construct Hub" style={{ height: "52px" }} />
+      <Link href="/" className="flex items-center gap-3">
+        <img src="/logo.png" alt="Construct Hub" className="h-12" />
       </Link>
 
       {/* Navigation Links */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <Link href="/" style={navLink}>Home</Link>
-        <Link href="/marketplace" style={navLink}>Marketplace</Link>
-        <Link href="/artisans" style={navLink}>Artisans</Link>
-        <Link href="/cart" style={{ ...navLink, background: "#1e3a5f", color: "#fff" }}>
+      <div className="flex items-center gap-2">
+        <Link href="/" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors rounded-lg">
+          Home
+        </Link>
+        <Link href="/marketplace" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors rounded-lg">
+          Marketplace
+        </Link>
+        <Link href="/artisans" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors rounded-lg">
+          Artisans
+        </Link>
+
+        <Link
+          href="/cart"
+          className="px-4 py-2 text-sm font-bold text-white bg-slate-800 hover:bg-slate-900 transition-all rounded-lg"
+        >
           Cart ({totalItems})
         </Link>
 
         {user ? (
-          <div style={{ position: "relative" }}>
+          <div className="relative ml-2">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              style={{ ...navBtnOutline, display: "flex", alignItems: "center", gap: "8px" }}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <span style={{ color: "#6b7280", fontSize: "0.9rem" }}>Hi, {user?.email?.split('@')[0] || 'User'}</span>
-              <span style={{ fontSize: "0.7rem" }}>{menuOpen ? "▲" : "▼"}</span>
+              <span className="text-gray-500">Hi, {user?.email?.split('@')[0] || 'User'}</span>
+              <span className="text-[10px]">{menuOpen ? "▲" : "▼"}</span>
             </button>
 
             {menuOpen && (
-              <div style={{
-                position: "absolute",
-                top: "100%",
-                right: 0,
-                marginTop: "4px",
-                background: "#fff",
-                borderRadius: "8px",
-                boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-                minWidth: "180px",
-                overflow: "hidden",
-                zIndex: 1001,
-              }}>
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl py-2 z-[1001] overflow-hidden">
                 <Link
                   href={getDashboardLink()}
                   onClick={() => setMenuOpen(false)}
-                  style={{ ...dropdownItem, borderBottom: "1px solid #e5e7eb" }}
+                  className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-blue-600 transition-colors"
                 >
                   Dashboard
                 </Link>
                 <Link
                   href={`/profile/${user.id}`}
                   onClick={() => setMenuOpen(false)}
-                  style={{ ...dropdownItem, borderBottom: "1px solid #e5e7eb" }}
+                  className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-blue-600 transition-colors"
                 >
                   Profile
                 </Link>
                 <button
                   onClick={handleLogout}
-                  style={{ ...dropdownItem, background: "none", border: "none", textAlign: "left", cursor: "pointer", color: "#dc2626" }}
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                 >
                   Logout
                 </button>
@@ -107,56 +95,24 @@ const Navbar = () => {
             )}
           </div>
         ) : (
-          <>
-            <Link href="/login" style={{ ...navLink, color: "#2563eb", fontWeight: "600" }}>Sign In</Link>
-            <Link href="/register" style={navBtn}>Register</Link>
-          </>
+          <div className="flex items-center gap-2 ml-2">
+            <Link
+              href="/login"
+              className="px-4 py-2 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/register"
+              className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all rounded-lg shadow-sm"
+            >
+              Register
+            </Link>
+          </div>
         )}
       </div>
     </nav>
   );
-};
-
-const navLink = {
-  color: "#374151",
-  textDecoration: "none",
-  fontWeight: "500",
-  fontSize: "0.95rem",
-  padding: "8px 16px",
-  borderRadius: "6px",
-};
-
-const navBtn = {
-  color: "#fff",
-  textDecoration: "none",
-  fontWeight: "600",
-  fontSize: "0.95rem",
-  padding: "10px 20px",
-  borderRadius: "6px",
-  background: "linear-gradient(135deg, #2563eb 0%, #1e40af 100%)",
-  marginLeft: "8px",
-};
-
-const navBtnOutline = {
-  color: "#374151",
-  textDecoration: "none",
-  fontWeight: "500",
-  fontSize: "0.9rem",
-  padding: "8px 16px",
-  borderRadius: "6px",
-  border: "1px solid #d1d5db",
-  background: "transparent",
-  cursor: "pointer",
-  marginLeft: "8px",
-};
-
-const dropdownItem = {
-  display: "block",
-  padding: "12px 16px",
-  color: "#374151",
-  textDecoration: "none",
-  fontSize: "0.9rem",
-  fontWeight: "500",
 };
 
 export default Navbar;
