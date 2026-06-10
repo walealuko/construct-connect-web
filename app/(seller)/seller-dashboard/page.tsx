@@ -103,7 +103,7 @@ export default function SellerDashboard() {
     });
 
     if (!validation.success) {
-      const firstError = validation.error.errors[0].message;
+      const firstError = validation.error.issues[0].message;
       setMessage(firstError);
       toast.error(firstError);
       return;

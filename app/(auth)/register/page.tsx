@@ -46,7 +46,7 @@ function RegisterForm() {
     // 1. Validate with Zod
     const validation = registerSchema.safeParse(formData);
     if (!validation.success) {
-      const firstError = validation.error.errors[0].message;
+      const firstError = validation.error.issues[0].message;
       setError(firstError);
       toast.error(firstError);
       return;
