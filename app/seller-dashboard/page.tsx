@@ -8,13 +8,25 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import Image from "next/image";
 import { toast } from "sonner";
 import Link from "next/link";
-import { deleteProductAction } from "@/app/actions/products";
+import { deleteProductAction, createProductAction } from "@/app/actions/products";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Modal } from "@/components/ui/Modal";
+
+const PRODUCT_CATEGORIES = [
+  "General",
+  "Tools & Equipment",
+  "Building Materials",
+  "Heavy Machinery",
+  "Electrical & Plumbing",
+  "Architectural Services",
+  "Interior Design",
+  "HVAC",
+  "Painting & Finishing"
+];
 
 export default function SellerDashboard() {
   const userContext = useContext(UserContext);
@@ -24,18 +36,18 @@ export default function SellerDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState({ revenue: 0, ordersCount: 0, productsCount: 0 });
   const [loading, setLoading] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, productId: "" });
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     price: "",
-    category: "general",
+    category: PRODUCT_CATEGORIES[0],
     stock: "",
-    delivery: "available",
     imageFile: null as File | null,
-    imageUrl: "",
+    imagePreview: "",
   });
-  const [message, setMessage] = useState("");
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, productId: "" });
 
   useEffect(() => {
     loadDashboardData();
@@ -126,17 +138,22 @@ export default function SellerDashboard() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFormData({ ...formData, imageFile: e.target.files[0] });
+      const file = e.target.files[0];
+      setFormData({
+        ...formData,
+        imageFile: file,
+        imagePreview: URL.createObjectURL(file)
+      });
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage("");
-
     setLoading(true);
+    setIsAddModalOpen(false);
+
     try {
-      let finalImageUrl = formData.imageUrl;
+      let finalImageUrl = "";
 
       if (formData.imageFile) {
         const fileName = `${Date.now()}-${formData.imageFile.name}`;
@@ -151,37 +168,33 @@ export default function SellerDashboard() {
           .getPublicUrl(fileName);
 
         finalImageUrl = publicUrl;
+      } else {
+        throw new Error("Product image is required");
       }
 
-      const { error } = await supabase
-        .from('products')
-        .insert({
-          seller_id: user?.id,
-          name: formData.name,
-          price: parseFloat(formData.price),
-          category: formData.category,
-          stock: parseInt(formData.stock || '0'),
-          image_url: finalImageUrl,
-          description: `${formData.description}\\nDelivery: ${formData.delivery}`
-        });
+      const result = await createProductAction({
+        name: formData.name,
+        description: formData.description,
+        price: parseFloat(formData.price),
+        category: formData.category,
+        stock: parseInt(formData.stock || '0'),
+        image_url: finalImageUrl,
+      });
 
-      if (error) throw error;
+      if (!result.success) throw new Error(result.error);
 
+      toast.success("Product added successfully!");
       setFormData({
         name: "",
         description: "",
         price: "",
-        category: "general",
+        category: PRODUCT_CATEGORIES[0],
         stock: "",
-        delivery: "available",
         imageFile: null,
-        imageUrl: ""
+        imagePreview: "",
       });
-      setMessage("Product added successfully!");
-      toast.success("Product added successfully!");
       loadDashboardData();
     } catch (err: any) {
-      setMessage(err.message || "Failed to add product");
       toast.error(err.message || "Failed to add product");
     } finally {
       setLoading(false);
@@ -192,236 +205,286 @@ export default function SellerDashboard() {
     <DashboardLayout userRole="business">
       <div className="space-y-8">
         <div className="flex justify-between items-center">
-          <h2 className="text-3xl font-black text-slate-900">Seller Dashboard</h2>
-          <p className="text-gray-500 font-medium">Welcome, {user?.email?.split('@')[0]}!</p>
+          <div>
+            <h2 className="text-3xl font-black text-slate-900">Seller Dashboard</h2>
+            <p className="text-gray-500 font-medium">Manage your inventory and sales</p>
+          </div>
+          <Button
+            onClick={() => setIsAddModalOpen(true)}
+            className="px-6 py-6 text-base font-bold"
+          >
+            + Add New Product
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Seller Profile */}
-          <Card className="h-fit">
-            <CardHeader className="flex flex-col items-start gap-6">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-2xl font-bold text-blue-600">
-                  {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || 'S'}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Left Column: Stats & Profile */}
+          <div className="lg:col-span-1 space-y-6">
+            <Card className="h-fit overflow-hidden">
+              <CardHeader className="bg-slate-50 border-b border-gray-100">
+                <div className="flex flex-col items-center text-center gap-3">
+                  <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center text-3xl font-black text-white shadow-lg">
+                    {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || 'S'}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">{profile?.full_name || "Seller Profile"}</h3>
+                    <p className="text-xs text-gray-500 truncate max-w-[150px]">{user?.email}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900">{profile?.full_name || "Seller Profile"}</h3>
-                  <p className="text-sm text-gray-500">{user?.email}</p>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex justify-between py-2 text-sm">
+                  <span className="text-gray-400">Business Name</span>
+                  <span className="font-semibold text-slate-700">{profile?.business_name || "Not specified"}</span>
                 </div>
-              </div>
-              <div className="w-full space-y-3">
-                <div className="flex justify-between py-2 border-b border-gray-50">
-                  <span className="text-sm text-gray-400">Business Name</span>
-                  <span className="text-sm font-semibold text-slate-700">{profile?.business_name || "Not specified"}</span>
+                <div className="flex justify-between py-2 text-sm border-t border-gray-50">
+                  <span className="text-gray-400">Location</span>
+                  <span className="font-semibold text-slate-700">{profile?.location || "Not specified"}</span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-gray-50">
-                  <span className="text-sm text-gray-400">Location</span>
-                  <span className="text-sm font-semibold text-slate-700">{profile?.location || "Not specified"}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-gray-50">
-                  <span className="text-sm text-gray-400">Tier</span>
+                <div className="flex justify-between py-2 text-sm border-t border-gray-50">
+                  <span className="text-gray-400">Tier</span>
                   <Badge variant="info">{profile?.tier}</Badge>
                 </div>
-              </div>
-            </CardHeader>
-            <CardFooter>
-              <Link href="/profile/edit" className="text-xs font-bold text-blue-600 hover:underline">
-                Update Shop Details →
-              </Link>
-            </CardFooter>
-          </Card>
+              </CardContent>
+              <CardFooter className="bg-slate-50 border-t border-gray-100 p-3">
+                <Link href="/profile/edit" className="w-full text-center text-xs font-bold text-blue-600 hover:underline">
+                  Update Shop Details →
+                </Link>
+              </CardFooter>
+            </Card>
 
-          <div className="lg:col-span-2 space-y-6">
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="p-4">
-                <p className="text-gray-400 text-xs font-bold uppercase">Revenue</p>
-                <p className="text-2xl font-black text-slate-900">${stats.revenue.toFixed(2)}</p>
+            <div className="grid grid-cols-1 gap-4">
+              <Card className="p-4 bg-gradient-to-br from-blue-600 to-blue-700 text-white border-none shadow-md">
+                <p className="text-blue-100 text-xs font-bold uppercase tracking-wider">Total Revenue</p>
+                <p className="text-3xl font-black">${stats.revenue.toFixed(2)}</p>
               </Card>
               <Card className="p-4">
-                <p className="text-gray-400 text-xs font-bold uppercase">Orders</p>
-                <p className="text-2xl font-black text-slate-900">{stats.ordersCount}</p>
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Active Orders</p>
+                <p className="text-3xl font-black text-slate-900">{stats.ordersCount}</p>
               </Card>
               <Card className="p-4">
-                <p className="text-gray-400 text-xs font-bold uppercase">Products</p>
-                <p className="text-2xl font-black text-slate-900">{stats.productsCount}</p>
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Total Products</p>
+                <p className="text-3xl font-black text-slate-900">{stats.productsCount}</p>
               </Card>
             </div>
+          </div>
 
-            <Card>
-              <CardHeader className="flex justify-between items-center">
-                <h3 className="text-xl font-bold text-slate-800">Product Gallery</h3>
-                <Link href="/messages" className="text-sm font-bold text-blue-600 hover:underline">Messages →</Link>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {[...Array(4)].map((_, i) => (
-                      <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {products.map((product) => (
-                      <div key={product.id} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex gap-4 items-center">
-                        {product.image_url && (
-                          <Image src={product.image_url} alt={product.name} width={60} height={60} className="w-16 h-16 object-cover rounded-lg" />
-                        )}
-                        <div className="flex-1 min-w-0 flex justify-between items-center">
-                          <div>
+          {/* Right Column: Products & Orders */}
+          <div className="lg:col-span-3 space-y-8">
+            <section>
+              <div className="flex justify-between items-end mb-4">
+                <h3 className="text-xl font-bold text-slate-800">Product Inventory</h3>
+                <Link href="/messages" className="text-sm font-bold text-blue-600 hover:underline">View Messages →</Link>
+              </div>
+
+              <Card>
+                <CardContent className="p-6">
+                  {loading && products.length === 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-24 w-full rounded-xl" />
+                      ))}
+                    </div>
+                  ) : products.length === 0 ? (
+                    <div className="py-12 text-center space-y-3">
+                      <div className="text-4xl">📦</div>
+                      <p className="text-gray-400 text-sm">No products listed yet. Start by adding your first product!</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {products.map((product) => (
+                        <div key={product.id} className="bg-white p-4 rounded-xl border border-gray-200 flex gap-4 items-center group hover:border-blue-300 transition-all shadow-sm">
+                          {product.image_url ? (
+                            <Image src={product.image_url} alt={product.name} width={80} height={80} className="w-20 h-20 object-cover rounded-lg shadow-sm" />
+                          ) : (
+                            <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">No Image</div>
+                          )}
+                          <div className="flex-1 min-w-0">
                             <h4 className="font-bold text-slate-900 truncate text-sm">{product.name}</h4>
-                            <p className="text-blue-600 font-bold text-xs">${product.price?.toFixed(2)}</p>
-                            <p className="text-gray-400 text-[10px]">Stock: {product.stock}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-blue-600 font-bold text-xs">${product.price?.toFixed(2)}</p>
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5">{product.category}</Badge>
+                            </div>
+                            <p className="text-gray-400 text-[10px] mt-1">Stock: {product.stock}</p>
                           </div>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-red-400 hover:text-red-600 hover:bg-red-50"
+                            className="text-gray-300 hover:text-red-600 hover:bg-red-50 transition-colors"
                             onClick={() => setDeleteModal({ isOpen: true, productId: product.id })}
                             title="Delete Product"
                           >
                             🗑️
                           </Button>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
+
+            <section>
+              <h3 className="text-xl font-bold text-slate-800 mb-4">Recent Orders</h3>
+              <Card className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <div className="grid grid-cols-4 bg-slate-50 border-b border-gray-100 text-gray-500 uppercase text-xs font-bold tracking-wider">
+                    <div className="px-6 py-4">Buyer</div>
+                    <div className="px-6 py-4">Total</div>
+                    <div className="px-6 py-4">Status</div>
+                    <div className="px-6 py-4 text-right">Action</div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  <div className="divide-y divide-gray-100">
+                    {loading && orders.length === 0 ? (
+                      <div className="p-6 text-center text-gray-400">Loading orders...</div>
+                    ) : orders.length === 0 ? (
+                      <div className="p-6 text-center text-gray-400">No orders found yet.</div>
+                    ) : (
+                      orders.map((order) => (
+                        <div key={order.id} className="grid grid-cols-4 hover:bg-slate-50 transition-colors text-sm items-center">
+                          <div className="px-6 py-4 text-slate-900 font-medium">
+                            {order.profiles?.first_name ? `${order.profiles.first_name} ${order.profiles.last_name}` : "Unknown Buyer"}
+                          </div>
+                          <div className="px-6 py-4 text-slate-900 font-bold">${order.total_price?.toFixed(2)}</div>
+                          <div className="px-6 py-4">
+                            <Badge
+                              variant={
+                                order.status === 'completed' ? 'success' :
+                                order.status === 'shipped' ? 'info' : 'warning'
+                              }
+                            >
+                              {order.status}
+                            </Badge>
+                          </div>
+                          <div className="px-6 py-4 text-right">
+                            <select
+                              value={order.status}
+                              onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                              className="p-1 text-xs border rounded bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="completed">Completed</option>
+                              <option value="shipped">Shipped</option>
+                              <option value="delivered">Delivered</option>
+                            </select>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </Card>
+            </section>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <Card className="lg:col-span-1 h-fit">
-            <CardHeader>
-              <h3 className="text-lg font-bold text-slate-800">Add Product</h3>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <Input
-                  placeholder="Product Name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+        <Modal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          title="Add New Product"
+        >
+          <form onSubmit={handleSubmit} className="space-y-5 py-2">
+            <div className="space-y-4">
+              <Input
+                label="Product Name"
+                placeholder="e.g., Industrial Concrete Mixer"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</label>
+                <textarea
+                  placeholder="Describe the features, specifications, and condition..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={4}
+                  className="w-full p-3 rounded-xl border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600 transition-all"
                   required
                 />
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</label>
-                  <textarea
-                    placeholder="Product description..."
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={3}
-                    className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    type="number"
-                    placeholder="Price ($)"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    required
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Stock"
-                    value={formData.stock}
-                    onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Delivery Availability</label>
-                  <select
-                    value={formData.delivery}
-                    onChange={(e) => setFormData({ ...formData, delivery: e.target.value })}
-                    className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
-                  >
-                    <option value="available">Available</option>
-                    <option value="limited">Limited</option>
-                    <option value="pickup_only">Pickup Only</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Product Image</label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Price ($)"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Stock Quantity"
+                  type="number"
+                  placeholder="0"
+                  value={formData.stock}
+                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Category</label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="w-full p-3 rounded-xl border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                  required
+                >
+                  {PRODUCT_CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Product Image</label>
+                <div className="flex flex-col gap-3">
                   <input
                     type="file"
                     accept="image/*"
                     onChange={handleFileChange}
-                    className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700"
+                    className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    required
                   />
-                </div>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={loading}
-                  isLoading={loading}
-                >
-                  Add Product
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          <div className="lg:col-span-2 space-y-4">
-            <h3 className="text-xl font-bold text-slate-800">Recent Orders</h3>
-            <Card>
-              <div className="overflow-x-auto">
-                <div className="grid grid-cols-4 bg-gray-50 border-b border-gray-100 text-gray-500 uppercase text-xs font-bold tracking-wider">
-                  <div className="px-6 py-3">Buyer</div>
-                  <div className="px-6 py-3">Total</div>
-                  <div className="px-6 py-3">Status</div>
-                  <div className="px-6 py-3 text-right">Action</div>
-                </div>
-                <div className="divide-y divide-gray-100">
-                  {loading ? (
-                    <div className="p-6 text-center text-gray-400">Loading orders...</div>
-                  ) : orders.length === 0 ? (
-                    <div className="p-6 text-center text-gray-400">No orders found yet.</div>
-                  ) : (
-                    orders.map((order) => (
-                      <div key={order.id} className="grid grid-cols-4 hover:bg-gray-50 transition-colors text-sm">
-                        <div className="px-6 py-4 text-slate-900 font-medium">
-                          {order.profiles?.first_name ? `${order.profiles.first_name} ${order.profiles.last_name}` : "Unknown Buyer"}
-                        </div>
-                        <div className="px-6 py-4 text-slate-900 font-bold">${order.total_price?.toFixed(2)}</div>
-                        <div className="px-6 py-4">
-                          <Badge
-                            variant={
-                              order.status === 'completed' ? 'success' :
-                              order.status === 'shipped' ? 'info' : 'warning'
-                            }
-                          >
-                            {order.status}
-                          </Badge>
-                        </div>
-                        <div className="px-6 py-4 text-right">
-                          <select
-                            value={order.status}
-                            onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                            className="p-1 text-xs border rounded bg-white outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="completed">Completed</option>
-                            <option value="shipped">Shipped</option>
-                            <option value="delivered">Delivered</option>
-                          </select>
-                        </div>
-                      </div>
-                    ))
+                  {formData.imagePreview && (
+                    <div className="relative w-32 h-32 rounded-xl overflow-hidden border-2 border-blue-100">
+                      <Image
+                        src={formData.imagePreview}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
                   )}
                 </div>
               </div>
-            </Card>
-          </div>
-        </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                isLoading={loading}
+                className="px-8"
+              >
+                Save Product
+              </Button>
+            </div>
+          </form>
+        </Modal>
 
         <Modal
           isOpen={deleteModal.isOpen}
           onClose={() => setDeleteModal({ isOpen: false, productId: "" })}
           title="Delete Product"
         >
-          <div className="space-y-4">
+          <div className="space-y-4 py-2">
             <p className="text-sm text-slate-600">
               Are you sure you want to delete this product? This action cannot be undone.
             </p>

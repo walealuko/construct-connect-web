@@ -10,7 +10,36 @@ const ProductSchema = z.object({
   price: z.number().positive("Price must be positive"),
   category: z.string().min(1, "Category is required"),
   stock: z.number().int().nonnegative("Stock cannot be negative"),
+  image_url: z.string().url("A valid image URL is required"),
 });
+
+export async function createProductAction(formData: any) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Unauthorized to create product" };
+  }
+
+  const validated = ProductSchema.safeParse(formData);
+  if (!validated.success) {
+    return { success: false, error: validated.error.issues[0].message };
+  }
+
+  const { error } = await supabase
+    .from('products')
+    .insert({
+      seller_id: user.id,
+      ...validated.data,
+    });
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath('/seller-dashboard');
+  revalidatePath('/marketplace');
+
+  return { success: true };
+}
 
 export async function deleteProductAction(productId: string) {
   const supabase = await createClient();
