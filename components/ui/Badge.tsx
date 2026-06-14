@@ -8,7 +8,7 @@ function cn(...inputs: ClassValue[]) {
 
 interface BadgeProps {
   children: React.ReactNode;
-  variant?: "default" | "success" | "warning" | "info" | "danger";
+  variant?: "default" | "success" | "warning" | "info" | "danger" | "outline";
   className?: string;
 }
 
@@ -19,6 +19,7 @@ export const Badge = ({ children, variant = "default", className }: BadgeProps) 
     warning: "bg-yellow-100 text-yellow-700",
     info: "bg-blue-100 text-blue-700",
     danger: "bg-red-100 text-red-700",
+    outline: "border border-gray-200 text-gray-600 bg-transparent",
   };
 
   return (
