@@ -7,6 +7,9 @@ import { supabase } from '@/lib/supabase';
 import { getRedirectPath } from '@/lib/roles';
 import { toast } from 'sonner';
 import { registerSchema } from '@/lib/validations';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 const NIGERIAN_STATES = [
   "Abia", "Adamawa", "Akwa Ibom", "Amachi", "Anambra", "Bauchi", "Bayelsa", "Borno", "Cross River", "Delta",
@@ -43,7 +46,6 @@ function RegisterForm() {
     e.preventDefault();
     setError('');
 
-    // 1. Validate with Zod
     const validation = registerSchema.safeParse(formData);
     if (!validation.success) {
       const firstError = validation.error.issues[0].message;
@@ -55,7 +57,6 @@ function RegisterForm() {
     setLoading(true);
 
     try {
-      // 2. Sign up the user in Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -66,7 +67,6 @@ function RegisterForm() {
       const user = authData.user;
 
       if (user) {
-        // 3. Create a profile record in the 'profiles' table
         const { error: profileError } = await supabase
           .from('profiles')
           .upsert({
@@ -83,15 +83,11 @@ function RegisterForm() {
 
         if (profileError) throw profileError;
 
-        // 4. Update user metadata in Supabase Auth (For Middleware performance)
-        const { error: metaError } = await supabase.auth.updateUser({
+        await supabase.auth.updateUser({
           data: { tier: formData.tier }
         });
-
-        if (metaError) console.error("Meta update error:", metaError);
       }
 
-      // SUCCESS: User registered and profile created
       if (authData.session) {
         toast.success("Account created successfully!");
         const destination = getRedirectPath(formData.tier);
@@ -101,7 +97,6 @@ function RegisterForm() {
         router.push('/login?registered=true');
       }
     } catch (err: any) {
-      console.error("Registration error:", err);
       setError(err.message || 'Something went wrong. Please try again.');
       toast.error(err.message || 'Registration failed');
     } finally {
@@ -110,198 +105,176 @@ function RegisterForm() {
   };
 
   return (
-    <div className="bg-white p-8 rounded-xl shadow-sm">
-      <h1 className="text-2xl font-bold mb-2">Create your account</h1>
-      <p className="text-gray-600 mb-6">Join the construction network</p>
-
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Tier Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">I am a...</label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, tier: 'individual' })}
-              className={`p-3 border-2 rounded-lg text-center font-medium transition-colors ${
-                formData.tier === 'individual'
-                  ? 'border-blue-600 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              Individual
-            </button>
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, tier: 'business' })}
-              className={`p-3 border-2 rounded-lg text-center font-medium transition-colors ${
-                formData.tier === 'business'
-                  ? 'border-blue-600 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              Business
-            </button>
+    <Card className="w-full max-w-xl mx-auto">
+      <CardHeader className="text-center space-y-2">
+        <h1 className="text-2xl font-bold text-slate-900">Create your account</h1>
+        <p className="text-gray-500 text-sm">Join the construction network</p>
+      </CardHeader>
+      <CardContent>
+        {error && (
+          <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm font-medium">
+            {error}
           </div>
-        </div>
+        )}
 
-        {/* Business fields */}
-        {formData.tier === 'business' && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
-              <input
-                type="text"
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-3">
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">I am a...</label>
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                type="button"
+                variant={formData.tier === 'individual' ? 'primary' : 'outline'}
+                className="py-6 h-auto"
+                onClick={() => setFormData({ ...formData, tier: 'individual' })}
+              >
+                Individual
+              </Button>
+              <Button
+                type="button"
+                variant={formData.tier === 'business' ? 'primary' : 'outline'}
+                className="py-6 h-auto"
+                onClick={() => setFormData({ ...formData, tier: 'business' })}
+              >
+                Business
+              </Button>
+            </div>
+          </div>
+
+          {formData.tier === 'business' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100 space-y-0">
+              <Input
+                label="Business Name"
                 name="businessName"
                 value={formData.businessName}
                 onChange={handleChange}
                 placeholder="e.g., Chidi Hotels Ltd"
-                className="w-full"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Business Type</label>
-              <select
-                name="businessType"
-                value={formData.businessType}
-                onChange={handleChange}
-                className="w-full"
                 required
-              >
-                <option value="">Select type</option>
-                <option value="sole_proprietor">Sole Proprietor</option>
-                <option value="company">Limited Liability Company</option>
-                <option value="partnership">Partnership</option>
-              </select>
+              />
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Business Type</label>
+                <select
+                  name="businessType"
+                  value={formData.businessType}
+                  onChange={handleChange}
+                  className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
+                  required
+                >
+                  <option value="">Select type</option>
+                  <option value="sole_proprietor">Sole Proprietor</option>
+                  <option value="company">Limited Liability Company</option>
+                  <option value="partnership">Partnership</option>
+                </select>
+              </div>
             </div>
-          </>
-        )}
+          )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-            <input
-              type="text"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="First Name"
               name="firstName"
               value={formData.firstName}
               onChange={handleChange}
               placeholder="Chidi"
               required
-              className="w-full"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-            <input
-              type="text"
+            <Input
+              label="Last Name"
               name="lastName"
               value={formData.lastName}
               onChange={handleChange}
               placeholder="Okonkwo"
               required
-              className="w-full"
             />
           </div>
-        </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input
+          <Input
+            label="Email"
             type="email"
             name="email"
             value={formData.email}
             onChange={handleChange}
             placeholder="chidi@email.com"
             required
-            className="w-full"
           />
-        </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-          <input
+          <Input
+            label="Phone Number"
             type="tel"
             name="phone"
             value={formData.phone}
             onChange={handleChange}
             placeholder="08012345678"
             required
-            className="w-full"
           />
-        </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Location (State)</label>
-          <select
-            name="location"
-            value={formData.location}
-            onChange={handleChange}
-            required
-            className="w-full"
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Location (State)</label>
+            <select
+              name="location"
+              value={formData.location}
+              onChange={handleChange}
+              required
+              className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
+            >
+              <option value="">Select State</option>
+              {NIGERIAN_STATES.map(state => (
+                <option key={state} value={state}>{state}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Password"
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="At least 6 characters"
+              required
+            />
+            <Input
+              label="Confirm Password"
+              type="password"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              placeholder="Re-enter your password"
+              required
+            />
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full py-6 text-lg"
+            disabled={loading}
+            isLoading={loading}
           >
-            <option value="">Select State</option>
-            {NIGERIAN_STATES.map(state => (
-              <option key={state} value={state}>{state}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="At least 6 characters"
-            required
-            className="w-full"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-          <input
-            type="password"
-            name="confirmPassword"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            placeholder="Re-enter your password"
-            required
-            className="w-full"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-3 bg-blue-800 text-white font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-50"
-        >
-          {loading ? 'Creating account...' : 'Create Account'}
-        </button>
-      </form>
-
-      <p className="mt-6 text-center text-gray-600">
-        Already have an account?{' '}
-        <Link href="/login" className="text-blue-800 font-semibold hover:underline">Sign in</Link>
-      </p>
-    </div>
+            Create Account
+          </Button>
+        </form>
+      </CardContent>
+      <CardFooter className="text-center py-6 border-t border-gray-50">
+        <p className="text-sm text-gray-600">
+          Already have an account?{' '}
+          <Link href="/login" className="text-blue-600 font-bold hover:underline">Sign in</Link>
+        </p>
+      </CardFooter>
+    </Card>
   );
 }
 
 export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-6 py-12">
-      <div className="max-w-md mx-auto w-full">
-        <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-blue-800">Construct Hub</Link>
+      <div className="max-w-md mx-auto w-full space-y-8">
+        <div className="text-center">
+          <Link href="/" className="text-3xl font-black text-blue-800 tracking-tight">
+            Construct Hub
+          </Link>
+          <div className="h-1 w-12 bg-blue-600 mx-auto mt-2 rounded-full" />
         </div>
-        <Suspense fallback={<div>Loading registration form...</div>}>
+        <Suspense fallback={<div className="text-center py-12 text-gray-400">Loading registration form...</div>}>
           <RegisterForm />
         </Suspense>
       </div>

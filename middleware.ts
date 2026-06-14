@@ -1,13 +1,12 @@
-import { createServerClient } from '@supabase/ssr';
-import { NextResponse, type NextRequest } from 'next/server';
-import { REDIRECT_MAP, getRedirectPath } from '@/lib/roles';
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
-  });
+  })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
@@ -15,52 +14,81 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         getAll() {
-          return request.cookies.getAll();
+          return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
-          });
+          })
         },
       },
     }
-  );
+  )
 
-  const { data: { user } } = await supabase.auth.getUser();
-  const path = request.nextUrl.pathname;
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // 1. Redirect authenticated users away from Auth pages
-  if (user && (path === '/login' || path === '/register')) {
-    const role = user.user_metadata?.tier || 'individual';
-    const redirectPath = getRedirectPath(role);
-    return NextResponse.redirect(new URL(redirectPath, request.url));
-  }
+  const url = request.nextUrl.clone()
+  const path = url.pathname
 
-  // 2. Protected Routes (Require ANY logged-in user)
-  const protectedRoutes = ['/profile', '/projects/post', '/checkout'];
-  const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route));
-
-  if (isProtectedRoute && !user) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  // 3. Role-Based Protection
-  if (path.startsWith('/seller-dashboard') || path.startsWith('/admin-dashboard')) {
-    const role = user?.user_metadata?.tier;
-
-    if (!user || (path.startsWith('/seller-dashboard') && role !== 'business') || (path.startsWith('/admin-dashboard') && role !== 'admin')) {
-      return NextResponse.redirect(new URL('/login', request.url));
+  // 1. Auth Routes - If logged in, redirect away from login/register to their dashboard
+  if (path === '/login' || path === '/register') {
+    if (user) {
+      const role = user.user_metadata?.tier || 'individual'
+      // Logic to map role to path
+      const rolePaths: Record<string, string> = {
+        admin: '/admin-dashboard',
+        business: '/seller-dashboard',
+        artisan: '/artisan-dashboard',
+        individual: '/buyer-dashboard'
+      }
+      return NextResponse.redirect(new URL(rolePaths[role] || '/buyer-dashboard', request.url))
     }
   }
 
-  return response;
+  // 2. Protected Routes - Must be logged in
+  const protectedRoutes = [
+    '/seller-dashboard',
+    '/artisan-dashboard',
+    '/buyer-dashboard',
+    '/admin-dashboard',
+    '/profile/edit',
+    '/messages',
+    '/projects/post',
+    '/dashboard',
+    '/checkout'
+  ]
+  const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route))
+
+  if (isProtectedRoute && !user) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // 3. Role-Based Access Control (RBAC)
+  if (user) {
+    const role = user.user_metadata?.tier || 'individual'
+
+    if (path.startsWith('/seller-dashboard') && role !== 'business' && role !== 'admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    if (path.startsWith('/artisan-dashboard') && role !== 'artisan' && role !== 'admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    if (path.startsWith('/buyer-dashboard') && role !== 'individual' && role !== 'admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    if (path.startsWith('/admin-dashboard') && role !== 'admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
+
+  return response
 }
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|marketplace|artisans|product).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-};
+}

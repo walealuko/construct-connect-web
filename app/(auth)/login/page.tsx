@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { getRedirectPath } from '@/lib/roles';
 import { toast } from 'sonner';
-import { clearAllUserSessionsAction } from '@/app/actions/admin';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,33 +22,24 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        setError(error.message);
-        toast.error(error.message);
-      } else {
-        // Cancel previous sessions by updating session version in metadata
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await clearAllUserSessionsAction(user.id);
-        }
-
-        // Fetch user profile to determine role
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('tier')
-          .eq('id', user?.id || (await supabase.auth.getUser()).data.user?.id)
-          .single();
-
-        toast.success("Welcome back!");
-        router.push(getRedirectPath(profile?.tier));
-        router.refresh();
+      if (signInError) {
+        setError(signInError.message);
+        toast.error(signInError.message);
+        setLoading(false);
+        return;
       }
-    } catch (err) {
+
+      if (data.user) {
+        toast.success("Welcome back!");
+        router.refresh();
+        router.push('/dashboard');
+      }
+    } catch (err: any) {
       setError('Something went wrong. Please try again.');
       toast.error('Something went wrong. Please try again.');
     } finally {
@@ -56,61 +48,61 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-6">
-      <div className="max-w-md mx-auto w-full">
-        <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-blue-800">Construct Hub</Link>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-6 py-12">
+      <div className="max-w-md mx-auto w-full space-y-8">
+        <div className="text-center">
+          <Link href="/" className="text-3xl font-black text-blue-800 tracking-tight">
+            Construct Hub
+          </Link>
+          <div className="h-1 w-12 bg-blue-600 mx-auto mt-2 rounded-full" />
         </div>
 
-        <div className="bg-white p-8 rounded-xl shadow-sm">
-          <h1 className="text-2xl font-bold mb-2">Welcome back</h1>
-          <p className="text-gray-600 mb-6">Enter your details to access your account</p>
+        <Card>
+          <CardHeader className="text-center space-y-2">
+            <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
+            <p className="text-gray-500 text-sm">Enter your details to access your account</p>
+          </CardHeader>
+          <CardContent>
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm font-medium">
+                {error}
+              </div>
+            )}
 
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <Input
+                label="Email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
-                className="w-full"
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input
+              <Input
+                label="Password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="w-full"
               />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-blue-800 text-white font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-50"
-            >
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
-
-          <p className="mt-6 text-center text-gray-600">
-            Don't have an account?{' '}
-            <Link href="/register" className="text-blue-800 font-semibold hover:underline">Create one</Link>
-          </p>
-        </div>
+              <Button
+                type="submit"
+                className="w-full py-6 text-base"
+                disabled={loading}
+                isLoading={loading}
+              >
+                Sign In
+              </Button>
+            </form>
+          </CardContent>
+          <CardFooter className="flex flex-col gap-4 border-t border-gray-50 py-6 text-center">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link href="/register" className="text-blue-600 font-bold hover:underline">Create one</Link>
+            </p>
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );

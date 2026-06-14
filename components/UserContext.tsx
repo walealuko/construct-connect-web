@@ -9,6 +9,7 @@ interface UserContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 export const UserContext = createContext<UserContextType | null>(null);
@@ -95,9 +96,37 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     window.location.href = "/";
   };
 
+  const refreshUser = async () => {
+    setLoading(true);
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('tier')
+          .eq('id', authUser.id)
+          .single();
+
+        const role = profile?.tier || authUser.user_metadata?.tier || 'individual';
+
+        setUser({
+          id: authUser.id,
+          email: authUser.email!,
+          role: role as UserRole
+        });
+      } else {
+        setUser(null);
+      }
+    } catch (err) {
+      console.error("Error refreshing user:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   return (
-    <UserContext.Provider value={{ user, setUser, loading, login, logout }}>
+    <UserContext.Provider value={{ user, setUser, loading, login, logout, refreshUser }}>
       {children}
     </UserContext.Provider>
   );
