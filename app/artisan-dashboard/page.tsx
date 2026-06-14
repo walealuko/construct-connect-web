@@ -23,13 +23,16 @@ export default function ArtisanDashboard() {
   const [portfolio, setPortfolio] = useState<string[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, productId: "" });
+
   const [productForm, setProductForm] = useState({
     name: "",
     price: "",
     description: "",
     imageFile: null as File | null,
+    imagePreview: "",
   });
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, productId: "" });
 
   useEffect(() => {
     if (user) {
@@ -108,6 +111,7 @@ export default function ArtisanDashboard() {
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setIsAddModalOpen(false);
     try {
       let imageUrl = "";
       if (productForm.imageFile) {
@@ -116,6 +120,8 @@ export default function ArtisanDashboard() {
         if (uploadError) throw uploadError;
         const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
         imageUrl = publicUrl;
+      } else {
+        throw new Error("Product image is required");
       }
 
       const result = await createProductAction({
@@ -129,7 +135,7 @@ export default function ArtisanDashboard() {
 
       if (!result.success) throw new Error(result.error);
 
-      setProductForm({ name: "", price: "", description: "", imageFile: null });
+      setProductForm({ name: "", price: "", description: "", imageFile: null, imagePreview: "" });
       toast.success("Product listed!");
       loadArtisanData();
     } catch (err: any) {
@@ -139,50 +145,82 @@ export default function ArtisanDashboard() {
     }
   };
 
+  const handleProductFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setProductForm({
+        ...productForm,
+        imageFile: file,
+        imagePreview: URL.createObjectURL(file)
+      });
+    }
+  };
+
   return (
     <DashboardLayout userRole="artisan">
       <div className="space-y-8">
         <div className="flex justify-between items-center">
-          <h2 className="text-3xl font-black text-slate-900">Artisan Dashboard</h2>
-          <p className="text-gray-500 font-medium">Welcome, {user?.email?.split('@')[0]}!</p>
+          <div>
+            <h2 className="text-3xl font-black text-slate-900">Artisan Dashboard</h2>
+            <p className="text-gray-500 font-medium">Showcase your skill and services</p>
+          </div>
+          <Button
+            onClick={() => setIsAddModalOpen(true)}
+            className="px-6 py-3 text-base font-bold"
+          >
+            + List a Product
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Profile Section */}
-          <Card className="h-fit">
-            <CardHeader className="flex flex-col items-start gap-6">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-2xl font-bold text-blue-600">
-                  {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || 'A'}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Left Column: Profile & Quick Stats */}
+          <div className="lg:col-span-1 space-y-6">
+            <Card className="h-fit overflow-hidden">
+              <CardHeader className="bg-slate-50 border-b border-gray-100">
+                <div className="flex flex-col items-center text-center gap-3">
+                  <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center text-3xl font-black text-white shadow-lg">
+                    {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || 'A'}
+                  </div>
+                  <div className="mt-2">
+                    <h3 className="text-lg font-bold text-slate-900">{profile?.full_name || "Artisan Profile"}</h3>
+                    <p className="text-xs text-gray-500 truncate max-w-[150px]">{user?.email}</p>
+                  </div>
                 </div>
-                <div >
-                  <h3 className="text-xl font-bold text-slate-900">{profile?.full_name || "Artisan Profile"}</h3>
-                  <p className="text-sm text-gray-500">{user?.email}</p>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex justify-between py-2 text-sm">
+                  <span className="text-gray-400">Location</span>
+                  <span className="font-semibold text-slate-700">{profile?.location || "Not specified"}</span>
                 </div>
-              </div>
-              <div className="w-full space-y-3">
-                <div className="flex justify-between py-2 border-b border-gray-50">
-                  <span className="text-sm text-gray-400">Location</span>
-                  <span className="text-sm font-semibold text-slate-700">{profile?.location || "Not specified"}</span>
+                <div className="flex justify-between py-2 text-sm border-t border-gray-50">
+                  <span className="text-gray-400">Role</span>
+                  <Badge variant="info">{profile?.tier || "artisan"}</Badge>
                 </div>
-                <div className="flex justify-between py-2 border-b border-gray-50">
-                  <span className="text-sm text-gray-400">Specialty</span>
-                  <Badge variant="info">{profile?.tier}</Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardFooter>
-              <Link href="/profile/edit" className="text-xs font-bold text-blue-600 hover:underline">
-                Update My Portfolio →
-              </Link>
-            </CardFooter>
-          </Card>
+              </CardContent>
+              <CardFooter className="bg-slate-50 border-t border-gray-100 p-3">
+                <Link href="/profile/edit" className="w-full text-center text-xs font-bold text-blue-600 hover:underline">
+                  Update Portfolio Details →
+                </Link>
+              </CardFooter>
+            </Card>
 
-          <div className="lg:col-span-2 space-y-8">
-            {/* Previous Projects Gallery */}
-            <Card>
-              <CardHeader className="flex justify-between items-center">
-                <h3 className="text-lg font-bold text-slate-800">Previous Projects (Gallery)</h3>
+            <div className="grid grid-cols-1 gap-4">
+              <Card className="p-4 bg-gradient-to-br from-blue-600 to-blue-700 text-white border-none shadow-md">
+                <p className="text-blue-100 text-xs font-bold uppercase tracking-wider">Active Listings</p>
+                <p className="text-3xl font-black">{products.length}</p>
+              </Card>
+              <Card className="p-4">
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Portfolio Projects</p>
+                <p className="text-3xl font-black text-slate-900">{portfolio.length}</p>
+              </Card>
+            </div>
+          </div>
+
+          {/* Right Column: Portfolio & Products */}
+          <div className="lg:col-span-3 space-y-8">
+            <section>
+              <div className="flex justify-between items-end mb-4">
+                <h3 className="text-xl font-bold text-slate-800">My Portfolio Gallery</h3>
                 <div className="relative">
                   <Button
                     size="sm"
@@ -190,7 +228,7 @@ export default function ArtisanDashboard() {
                     isLoading={loading}
                     onClick={() => document.getElementById('portfolio-upload')?.click()}
                   >
-                    Add Project
+                    Add Project Image
                   </Button>
                   <input
                     id="portfolio-upload"
@@ -200,129 +238,203 @@ export default function ArtisanDashboard() {
                     className="hidden"
                   />
                 </div>
-              </CardHeader>
-              <CardContent>
-                {loading && portfolio.length === 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {[...Array(6)].map((_, i) => (
-                      <Skeleton key={i} className="aspect-square w-full" />
-                    ))}
-                  </div>
-                ) : portfolio.length === 0 ? (
-                  <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
-                    No project photos yet. Show off your best work!
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {portfolio.map((url, i) => (
-                      <div key={i} className="relative aspect-square rounded-xl overflow-hidden group">
-                        <Image src={url} alt="Work" fill className="object-cover group-hover:scale-110 transition-transform" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* Products for Sale */}
-            <Card>
-              <CardHeader className="flex justify-between items-center">
-                <h3 className="text-lg font-bold text-slate-800">My Listed Products</h3>
-                <span className="text-xs text-gray-400">{products.length} active listings</span>
-              </CardHeader>
-              <CardContent className="space-y-8">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {products.map((product) => (
-                    <div key={product.id} className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex gap-3 items-center">
-                      <div className="relative w-12 h-12 flex-shrink-0">
-                        {product.image_url ? <Image src={product.image_url} alt={product.name} fill className="object-cover rounded-lg" /> : <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center text-sm">🏗️</div>}
-                      </div>
-                      <div className="flex-1 min-w-0 flex justify-between items-center">
-                        <div>
-                          <h4 className="font-bold text-slate-900 truncate text-xs">{product.name}</h4>
-                          <p className="text-blue-600 font-bold text-xs">${product.price?.toFixed(2)}</p>
+              <Card>
+                <CardContent className="p-6">
+                  {loading && portfolio.length === 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {[...Array(6)].map((_, i) => (
+                        <Skeleton key={i} className="aspect-square w-full rounded-xl" />
+                      ))}
+                    </div>
+                  ) : portfolio.length === 0 ? (
+                    <div className="py-12 text-center space-y-3">
+                      <div className="text-4xl">🎨</div>
+                      <p className="text-gray-400 text-sm">No project photos yet. Upload images to showcase your expertise!</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {portfolio.map((url, i) => (
+                        <div key={i} className="relative aspect-square rounded-xl overflow-hidden group border border-gray-100 shadow-sm">
+                          <Image src={url} alt="Work" fill className="object-cover group-hover:scale-110 transition-transform" />
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-red-400 hover:text-red-600 hover:bg-red-50"
-                          onClick={() => setDeleteModal({ isOpen: true, productId: product.id })}
-                          title="Delete Product"
-                        >
-                          🗑️
-                        </Button>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
 
-                <form onSubmit={handleProductSubmit} className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-4">
-                  <h4 className="text-sm font-bold text-slate-700 mb-2">List a New Product</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Input
-                      placeholder="Product Name"
-                      value={productForm.name}
-                      onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-                      required
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Price ($)"
-                      value={productForm.price}
-                      onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</label>
-                    <textarea
-                      placeholder="Short description..."
-                      value={productForm.description}
-                      onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                      className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
-                      rows={2}
-                    />
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 space-y-1.5">
-                      <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Product Image</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setProductForm({ ...productForm, imageFile: e.target.files?.[0] || null })}
-                        className="w-full text-xs text-gray-500 file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700"
-                      />
+            <section>
+              <div className="flex justify-between items-end mb-4">
+                <h3 className="text-xl font-bold text-slate-800">Active Product Listings</h3>
+                <span className="text-xs text-gray-400">{products.length} listing(s)</span>
+              </div>
+              <Card>
+                <CardContent className="p-6">
+                  {loading && products.length === 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-24 w-full rounded-xl" />
+                      ))}
                     </div>
-                    <Button
-                      type="submit"
-                      className="mt-6"
-                      disabled={loading}
-                      isLoading={loading}
-                    >
-                      List Product
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
+                  ) : products.length === 0 ? (
+                    <div className="py-12 text-center space-y-3">
+                      <div className="text-4xl">📦</div>
+                      <p className="text-gray-400 text-sm">No products listed yet. Start selling your services!</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {products.map((product) => (
+                        <div key={product.id} className="bg-white p-4 rounded-xl border border-gray-200 flex gap-4 items-center group hover:border-blue-300 transition-all shadow-sm">
+                          {product.image_url ? (
+                            <Image src={product.image_url} alt={product.name} width={80} height={80} className="w-20 h-20 object-cover rounded-lg shadow-sm" />
+                          ) : (
+                            <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">No Image</div>
+                          )}
+                          <div className="flex-1 min-w-0 flex justify-between items-center">
+                            <div className="truncate">
+                              <h4 className="font-bold text-slate-900 truncate text-sm">{product.name}</h4>
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-blue-600 font-bold text-xs">${product.price?.toFixed(2)}</p>
+                                <Badge variant="outline" className="text-[10px] py-0 px-1.5">{product.category}</Badge>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-gray-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              onClick={() => setDeleteModal({ isOpen: true, productId: product.id })}
+                              title="Delete Product"
+                            >
+                              🗑️
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
           </div>
         </div>
 
-        <div className="flex justify-center gap-4">
-          <Button asChild variant="secondary" className="px-8 py-6 rounded-xl">
-            <Link href="/messages">Messages</Link>
-          </Button>
-          <Button asChild variant="primary" className="px-8 py-6 rounded-xl">
-            <Link href="/projects">Browse Projects</Link>
-          </Button>
-        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Link href="/marketplace" className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">🏗️</div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Marketplace</h3>
+            <p className="text-gray-500 text-sm">See how your products look to buyers.</p>
+            <div className="mt-4 text-blue-600 font-bold text-xs uppercase tracking-wider">Visit Market →</div>
+          </Link>
+          <Link href="/projects" className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">🛠️</div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Browse Projects</h3>
+            <p className="text-gray-500 text-sm">Find new construction projects to bid on.</p>
+            <div className="mt-4 text-blue-600 font-bold text-xs uppercase tracking-wider">Explore Projects →</div>
+          </Link>
+          <Link href="/messages" className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">💬</div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Messages</h3>
+            <p className="text-gray-500 text-sm">Reply to interested clients.</p>
+            <div className="mt-4 text-blue-600 font-bold text-xs uppercase tracking-wider">Open Chat →</div>
+          </Link>
+        </div}
+
+        <Modal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          title="List a New Product/Service"
+        >
+          <form onSubmit={handleProductSubmit} className="space-y-5 py-2">
+            <div className="space-y-4">
+              <Input
+                label="Service/Product Name"
+                placeholder="e.g., Expert Roof Installation"
+                value={productForm.name}
+                onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                required
+              />
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</label>
+                <textarea
+                  placeholder="Detail your expertise, materials used, and what is included..."
+                  value={productForm.description}
+                  onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                  rows={4}
+                  className="w-full p-3 rounded-xl border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Base Price ($)"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={productForm.price}
+                  onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Stock/Availability"
+                  type="number"
+                  placeholder="1"
+                  value={productForm.stock}
+                  onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Listing Image</label>
+                <div className="flex flex-col gap-3">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProductFileChange}
+                    className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    required
+                  />
+                  {productForm.imagePreview && (
+                    <div className="relative w-32 h-32 rounded-xl overflow-hidden border-2 border-blue-100">
+                      <Image
+                        src={productForm.imagePreview}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                isLoading={loading}
+                className="px-8"
+              >
+                List Product
+              </Button>
+            </div>
+          </form>
+        </Modal>
 
         <Modal
           isOpen={deleteModal.isOpen}
           onClose={() => setDeleteModal({ isOpen: false, productId: "" })}
           title="Delete Product"
         >
-          <div className="space-y-4">
+          <div className="space-y-4 py-2">
             <p className="text-sm text-slate-600">
               Are you sure you want to delete this product? This action cannot be undone.
             </p>
