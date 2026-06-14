@@ -30,6 +30,7 @@ export default function ArtisanDashboard() {
     name: "",
     price: "",
     description: "",
+    stock: "",
     imageFile: null as File | null,
     imagePreview: "",
   });
