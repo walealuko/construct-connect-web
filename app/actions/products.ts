@@ -26,10 +26,24 @@ export async function createProductAction(formData: any) {
     return { success: false, error: validated.error.issues[0].message };
   }
 
+  // Fetch seller's profile to get business details for the product record
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('business_name, location')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError) {
+    console.error("Error fetching seller profile:", profileError);
+    // We continue but with defaults if profile is missing
+  }
+
   const { error } = await supabase
     .from('products')
     .insert({
       seller_id: user.id,
+      seller_name: profile?.business_name || "Unknown Seller",
+      location: profile?.location || "Not specified",
       ...validated.data,
     });
 
