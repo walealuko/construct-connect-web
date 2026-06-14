@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
@@ -265,6 +265,34 @@ function RegisterForm() {
 }
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const role = session.user.user_metadata?.tier || 'individual';
+        const destination = getRedirectPath(role);
+        router.replace(destination);
+      } else {
+        setAuthLoading(false);
+      }
+    };
+    checkSession();
+  }, [router]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-6 py-12">
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-gray-500 text-sm font-medium">Verifying session...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-6 py-12">
       <div className="max-w-md mx-auto w-full space-y-8">

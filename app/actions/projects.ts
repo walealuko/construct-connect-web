@@ -46,7 +46,28 @@ export async function submitBidAction(formData: any) {
 
 export async function updateProjectStatusAction(projectId: string, status: string) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
+  if (!user) {
+    return { success: false, error: "You must be logged in to update project status" };
+  }
+
+  // 1. Verify ownership
+  const { data: project, error: fetchError } = await supabase
+    .from('projects')
+    .select('user_id')
+    .eq('id', projectId)
+    .single();
+
+  if (fetchError || !project) {
+    return { success: false, error: "Project not found" };
+  }
+
+  if (project.user_id !== user.id) {
+    return { success: false, error: "You do not have permission to update this project" };
+  }
+
+  // 2. Update status
   const { error } = await supabase
     .from('projects')
     .update({ status })
