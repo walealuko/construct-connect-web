@@ -340,7 +340,7 @@ export default function ArtisanDashboard() {
             <p className="text-gray-500 text-sm">Reply to interested clients.</p>
             <div className="mt-4 text-blue-600 font-bold text-xs uppercase tracking-wider">Open Chat →</div>
           </Link>
-        </div}
+        </div>
 
         <Modal
           isOpen={isAddModalOpen}
