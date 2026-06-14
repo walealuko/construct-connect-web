@@ -48,6 +48,16 @@ export interface Product {
   created_at: string;
 }
 
+export interface Project {
+  id: string;
+  title: string;
+  description: string;
+  budget: number | null;
+  user_id: string;
+  status: 'open' | 'in_progress' | 'completed';
+  created_at: string;
+}
+
 export interface CartItem extends Product {
   quantity: number;
 }

@@ -1,4 +1,5 @@
 import React from "react";
+import { Slot } from "@radix-ui/react-slot";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -10,10 +11,11 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
   size?: "sm" | "md" | "lg" | "icon";
   isLoading?: boolean;
+  asChild?: boolean;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "primary", size = "md", isLoading, children, ...props }, ref) => {
+  ({ className, variant = "primary", size = "md", isLoading, asChild = false, children, ...props }, ref) => {
     const variants = {
       primary: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm",
       secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200",
@@ -29,15 +31,25 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       icon: "p-2",
     };
 
+    const buttonClasses = cn(
+      "inline-flex items-center justify-center rounded-xl font-bold transition-all focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none",
+      variants[variant],
+      sizes[size],
+      className
+    );
+
+    if (asChild) {
+      return (
+        <Slot ref={ref} className={buttonClasses} {...props}>
+          {children}
+        </Slot>
+      );
+    }
+
     return (
       <button
         ref={ref}
-        className={cn(
-          "inline-flex items-center justify-center rounded-xl font-bold transition-all focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none",
-          variants[variant],
-          sizes[size],
-          className
-        )}
+        className={buttonClasses}
         disabled={isLoading || props.disabled}
         {...props}
       >

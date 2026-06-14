@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
 import { submitBidAction } from "@/app/actions/projects";
 
 interface Project {

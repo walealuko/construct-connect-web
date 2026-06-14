@@ -14,6 +14,7 @@ export interface Conversation {
   participant_ids: string[];
   last_message: string;
   last_message_at: string;
+  project_id?: string | null;
   profiles: Profile[]; // We'll join this in the query
 }
 

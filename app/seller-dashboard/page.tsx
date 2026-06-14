@@ -158,7 +158,6 @@ export default function SellerDashboard() {
         .insert({
           seller_id: user?.id,
           name: formData.name,
-          description: formData.description,
           price: parseFloat(formData.price),
           category: formData.category,
           stock: parseInt(formData.stock || '0'),

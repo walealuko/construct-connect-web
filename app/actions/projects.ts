@@ -16,7 +16,7 @@ export async function submitBidAction(formData: any) {
   // 1. Validate inputs
   const validated = BidSchema.safeParse(formData);
   if (!validated.success) {
-    return { success: false, error: validated.error.errors[0].message };
+    return { success: false, error: validated.error.issues[0].message };
   }
 
   const { data: { user } } = await supabase.auth.getUser();

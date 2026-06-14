@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Badge } from "@/components/ui/Badge";
 import { createConversationAction } from "@/app/actions/chat";
 
-export default function ChatPage() {
+function ChatContent() {
   const userContext = useContext(UserContext);
   const user = userContext?.user;
   const searchParams = useSearchParams();
@@ -29,7 +29,6 @@ export default function ChatPage() {
     if (!user) return;
     loadConversations();
 
-    // If arriving from a product/project page with a target user, ensure conversation exists
     if (targetUserId) {
       handleInitiateChat(targetUserId, projectId);
     }
@@ -39,10 +38,9 @@ export default function ChatPage() {
     try {
       const result = await createConversationAction(userId, projId || undefined);
       if (result.success && result.conversationId) {
-        loadConversations().then(() => {
-          const conv = conversations.find(c => c.id === result.conversationId);
-          if (conv) setActiveConv(conv);
-        });
+        await loadConversations();
+        const conv = conversations.find(c => c.id === result.conversationId);
+        if (conv) setActiveConv(conv);
       } else if (result.error) {
         toast.error(result.error);
       }
@@ -202,7 +200,6 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col">
         {activeConv ? (
           <>
-            {/* Chat Header */}
             <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
@@ -219,7 +216,6 @@ export default function ChatPage() {
               )}
             </div>
 
-            {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
               {messages.map(msg => (
                 <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? "justify-end" : "justify-start"}`}>
@@ -237,7 +233,6 @@ export default function ChatPage() {
               ))}
             </div>
 
-            {/* Message Input */}
             <form onSubmit={sendMessage} className="p-4 bg-white border-t border-gray-200 flex gap-3">
               <Input
                 value={newMessage}
@@ -263,5 +258,13 @@ export default function ChatPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <React.Suspense fallback={<div className="h-screen flex items-center justify-center">Loading chat...</div>}>
+      <ChatContent />
+    </React.Suspense>
   );
 }
