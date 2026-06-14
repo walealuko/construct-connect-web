@@ -8,7 +8,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import Image from "next/image";
 import { toast } from "sonner";
 import Link from "next/link";
-import { deleteProductAction } from "@/app/actions/products";
+import { deleteProductAction, createProductAction } from "@/app/actions/products";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
@@ -118,17 +118,17 @@ export default function ArtisanDashboard() {
         imageUrl = publicUrl;
       }
 
-      const { error } = await supabase.from('products').insert({
-        seller_id: user?.id,
+      const result = await createProductAction({
         name: productForm.name,
-        price: parseFloat(productForm.price),
         description: productForm.description,
-        image_url: imageUrl,
+        price: parseFloat(productForm.price),
+        category: 'artisan-service',
         stock: 1,
-        category: 'artisan-service'
+        image_url: imageUrl,
       });
 
-      if (error) throw error;
+      if (!result.success) throw new Error(result.error);
+
       setProductForm({ name: "", price: "", description: "", imageFile: null });
       toast.success("Product listed!");
       loadArtisanData();
