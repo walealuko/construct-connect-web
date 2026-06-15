@@ -114,10 +114,10 @@ export default function ArtisanDashboard() {
         .eq('id', orderId);
 
       if (error) throw error;
-      toast.success(`Order updated to ${newStatus}`);
+      toast.success(\`Order updated to \${newStatus}\`);
       loadArtisanData();
     } catch (err: any) {
-      toast.error(`Failed to update order: ${err.message}`);
+      toast.error(\`Failed to update order: \${err.message}\`);
     }
   };
 
@@ -145,7 +145,7 @@ export default function ArtisanDashboard() {
     setLoading(true);
     try {
       const file = e.target.files[0];
-      const fileName = `portfolio-${Date.now()}-${file.name}`;
+      const fileName = \`portfolio-\${Date.now()}-\${file.name}\`;
       const { error: uploadError } = await supabase.storage.from('artisan-portfolio').upload(fileName, file);
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('artisan-portfolio').getPublicUrl(fileName);
@@ -167,7 +167,7 @@ export default function ArtisanDashboard() {
     try {
       let imageUrl = "";
       if (productForm.imageFile) {
-        const fileName = `artisan-prod-${Date.now()}-${productForm.imageFile.name}`;
+        const fileName = \`artisan-prod-\${Date.now()}-\${productForm.imageFile.name}\`;
         const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, productForm.imageFile);
         if (uploadError) throw uploadError;
         const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
@@ -213,7 +213,7 @@ export default function ArtisanDashboard() {
       <DashboardLayout userRole="artisan">
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
-        </div>
+        </div}
       </DashboardLayout>
     );
   }
@@ -225,17 +225,16 @@ export default function ArtisanDashboard() {
           <div>
             <h2 className="text-3xl font-black text-slate-900">Artisan Dashboard</h2>
             <p className="text-gray-500 font-medium">Showcase your skill and services</p>
-          </div>
+          </div}
           <Button
             onClick={() => setIsAddModalOpen(true)}
             className="px-6 py-3 text-base font-bold"
           >
             + List a Product
           </Button>
-        </div>
+        </div}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left Column: Profile & Quick Stats */}
           <div className="lg:col-span-1 space-y-6">
             <Card className="h-fit overflow-hidden">
               <CardHeader className="bg-slate-50 border-b border-gray-100">
@@ -282,7 +281,6 @@ export default function ArtisanDashboard() {
             </div>
           </div>
 
-          {/* Right Column: Portfolio & Products */}
           <div className="lg:col-span-3 space-y-8">
             <section>
               <div className="flex justify-between items-end mb-4">
@@ -383,6 +381,8 @@ export default function ArtisanDashboard() {
                   )}
                 </CardContent>
               </Card>
+            </section>
+
             <section>
               <h3 className="text-xl font-bold text-slate-800 mb-4">Recent Orders</h3>
               <Card className="overflow-hidden">
@@ -402,9 +402,9 @@ export default function ArtisanDashboard() {
                       orders.map((order) => (
                         <div key={order.id} className="grid grid-cols-4 hover:bg-slate-50 transition-colors text-sm items-center">
                           <div className="px-6 py-4 text-slate-900 font-medium">
-                            {order.profiles?.first_name ? `${order.profiles.first_name} ${order.profiles.last_name}` : "Unknown Buyer"}
+                            {order.profiles?.first_name ? \`\${order.profiles.first_name} \${order.profiles.last_name}\` : "Unknown Buyer"}
                           </div>
-                          <div className="px-6 py-4 text-slate-900 font-bold">${order.total_price?.toFixed(2)}</div>
+                          <div className="px-6 py-4 text-slate-900 font-bold">\$\${order.total_price?.toFixed(2)}</div>
                           <div className="px-6 py-4">
                             <Badge
                               variant={
@@ -434,7 +434,9 @@ export default function ArtisanDashboard() {
                 </div>
               </Card>
             </section>
+          </div>
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link href="/marketplace" className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
             <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">🏗️</div>
@@ -566,4 +568,3 @@ export default function ArtisanDashboard() {
     </DashboardLayout>
   );
 }
-
