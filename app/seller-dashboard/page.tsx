@@ -30,7 +30,7 @@ const PRODUCT_CATEGORIES = [
 
 export default function SellerDashboard() {
   const userContext = useContext(UserContext);
-  const user = userContext?.user;
+  const { user, loading: authLoading } = userContext || { user: null, loading: true };
   const [profile, setProfile] = useState<Profile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -50,8 +50,10 @@ export default function SellerDashboard() {
   });
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    if (user) {
+      loadDashboardData();
+    }
+  }, [user]);
 
   const loadDashboardData = async () => {
     setLoading(true);
@@ -146,6 +148,17 @@ export default function SellerDashboard() {
       });
     }
   };
+
+  if (authLoading) {
+    return (
+      <DashboardLayout userRole="business">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
