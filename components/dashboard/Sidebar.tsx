@@ -1,10 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useContext } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { supabase } from "@/lib/supabase";
+import { UserContext } from "@/components/UserContext";
 
 interface SidebarProps {
   userRole?: string;
@@ -12,6 +12,8 @@ interface SidebarProps {
 
 export default function Sidebar({ userRole }: SidebarProps) {
   const pathname = usePathname();
+  const userContext = useContext(UserContext);
+  const logout = userContext?.logout;
 
   const roleMenu: Record<string, { name: string; href: string }[]> = {
     individual: [
@@ -76,11 +78,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
         <Button
           variant="ghost"
           className="w-full justify-start text-slate-400 hover:text-white hover:bg-slate-800 gap-2"
-          onClick={() => {
-            supabase.auth.signOut().then(() => {
-              window.location.href = "/";
-            });
-          }}
+          onClick={() => logout && logout()}
         >
           <span>Logout</span>
           <span className="text-xs opacity-50">→</span>
