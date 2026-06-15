@@ -434,7 +434,7 @@ export default function ArtisanDashboard() {
                 </div>
               </Card>
             </section>
-
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link href="/marketplace" className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
             <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">🏗️</div>
