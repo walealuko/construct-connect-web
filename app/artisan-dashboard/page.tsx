@@ -565,6 +565,7 @@ export default function ArtisanDashboard() {
           </div>
         </Modal>
       </div>
+      </div>
     </DashboardLayout>
   );
 }

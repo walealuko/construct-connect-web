@@ -513,6 +513,7 @@ export default function SellerDashboard() {
           </div>
         </Modal>
       </div>
+      </div>
     </DashboardLayout>
   );
 }
