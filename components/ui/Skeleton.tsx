@@ -15,3 +15,4 @@ export const Skeleton = ({ className }: SkeletonProps) => {
     <div className={cn("animate-pulse rounded-md bg-gray-200", className)} />
   );
 };
+

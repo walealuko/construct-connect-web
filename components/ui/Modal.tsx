@@ -55,3 +55,4 @@ export const Modal = ({ isOpen, onClose, title, children, className }: ModalProp
     </div>
   );
 };
+

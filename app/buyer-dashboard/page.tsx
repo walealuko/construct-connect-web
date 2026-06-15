@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { useState, useEffect, useContext } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -217,7 +217,7 @@ export default function BuyerDashboard() {
                       >
                         <span className="text-xs font-bold">✕</span>
                       </Button>
-                      <Link href={\`/product/\${product.id}\`} className="block space-y-2">
+                      <Link href={`/product/${product.id}`} className="block space-y-2">
                         <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
                           {product.image_url ? (
                             <Image src={product.image_url} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform" />
@@ -252,3 +252,4 @@ export default function BuyerDashboard() {
     </DashboardLayout>
   );
 }
+

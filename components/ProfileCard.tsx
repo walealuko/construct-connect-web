@@ -45,3 +45,4 @@ export default function ProfileCard({ item }: ProfileCardProps) {
     </div>
   );
 }
+

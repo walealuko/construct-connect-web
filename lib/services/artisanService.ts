@@ -18,7 +18,7 @@ export const getArtisans = async () => {
     category: profile.category || 'General',
     skills: profile.skills || [],
     rate: profile.rate || 'Contact for rate',
-    image: profile.image || '/assets/artisan-default.jpg',
+    image: profile.image || 'https://placehold.co/400x400?text=Artisan',
     location: profile.location || 'Unknown',
     bio: profile.bio || 'Professional artisan providing quality services.',
   }));
@@ -59,7 +59,7 @@ export const getArtisansByCategory = async (category: string) => {
     category: profile.category || 'General',
     skills: profile.skills || [],
     rate: profile.rate || 'Contact for rate',
-    image: profile.image || '/assets/artisan-default.jpg',
+    image: profile.image || 'https://placehold.co/400x400?text=Artisan',
     location: profile.location || 'Unknown',
     bio: profile.bio || 'Professional artisan providing quality services.',
   }));

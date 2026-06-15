@@ -87,3 +87,4 @@ export default function Sidebar({ userRole }: SidebarProps) {
     </aside>
   );
 }
+

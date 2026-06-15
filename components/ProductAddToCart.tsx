@@ -43,3 +43,4 @@ export default function ProductAddToCart({ product }: ProductAddToCartProps) {
     </div>
   );
 }
+

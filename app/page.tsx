@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import Link from 'next/link';
 import { UserContext } from '@/components/UserContext';
 import { useRouter } from 'next/navigation';
@@ -28,7 +28,7 @@ function LandingPage() {
           <Link href="/artisans" className="px-8 py-4 border-2 border-blue-800 text-blue-800 text-lg font-semibold rounded-lg hover:bg-blue-50">
             Find Artisans
           </Link>
-        </div}
+        </div>
       </section>
 
       {/* Features Section */}
@@ -40,25 +40,25 @@ function LandingPage() {
               <div className="text-3xl mb-4">🏗️</div>
               <h3 className="font-semibold text-lg mb-2">Quality Materials</h3>
               <p className="text-gray-600 text-sm">Source verified construction materials from trusted suppliers.</p>
-            </div}
+            </div>
             <div className="bg-white p-6 rounded-xl shadow-sm">
               <div className="text-3xl mb-4">🛠️</div>
               <h3 className="font-semibold text-lg mb-2">Expert Artisans</h3>
               <p className="text-gray-600 text-sm">Connect with skilled professionals for all your building needs.</p>
-            </div}
+            </div>
             <div className="bg-white p-6 rounded-xl shadow-sm">
               <div className="text-3xl mb-4">💳</div>
               <h3 className="font-semibold text-lg mb-2">Secure Payments</h3>
               <p className="text-gray-600 text-sm">Safe and transparent transactions for peace of mind.</p>
-            </div}
-          </div}
-        </div}
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Footer */}
       <footer className="px-6 py-8 border-t text-center text-gray-500 text-sm">
         <p>© 2024 Construct Hub. Building the future together.</p>
-      </footer}
+      </footer>
     </div>
   );
 }
@@ -70,7 +70,7 @@ function IndividualHub() {
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-black text-slate-900 tracking-tight">Welcome to Your Hub</h1>
           <p className="text-gray-500 text-lg font-medium">Where do you want to go today?</p>
-        </div}
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <Link href="/marketplace" className="group relative overflow-hidden rounded-3xl p-8 h-80 flex flex-col justify-end border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 bg-white">
@@ -81,8 +81,8 @@ function IndividualHub() {
               <p className="text-gray-500 max-w-xs text-sm">Buy high-quality construction materials and tools from verified business sellers.</p>
               <div className="pt-4 text-blue-600 font-bold text-sm flex items-center gap-2">
                 Explore Materials <span className="group-hover:translate-x-1 transition-transform">→</span>
-              </div}
-            </div}
+              </div>
+            </div>
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900/10 to-transparent pointer-events-none" />
           </Link>
 
@@ -95,17 +95,17 @@ function IndividualHub() {
               <div className="pt-4 text-blue-600 font-bold text-sm flex items-center gap-2">
                 Find Experts <span className="group-hover:translate-x-1 transition-transform">→</span>
               </div>
-            </div}
+            </div>
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900/10 to-transparent pointer-events-none" />
           </Link>
-        </div}
+        </div>
 
         <div className="flex justify-center pt-6">
           <Button asChild variant="outline" className="px-8 py-6 text-base font-bold rounded-2xl">
             <Link href="/buyer-dashboard">My Account & Orders →</Link>
           </Button>
-        </div}
-      </div}
+        </div>
+      </div>
     </div>
   );
 }
@@ -133,9 +133,9 @@ export default function HomePage() {
           <div className="grid grid-cols-2 gap-4">
             <Skeleton className="h-40 w-full rounded-xl" />
             <Skeleton className="h-40 w-full rounded-xl" />
-          </div}
+          </div>
           <Skeleton className="h-12 w-full rounded-xl" />
-        </div}
+        </div>
       </div>
     );
   }
@@ -148,10 +148,10 @@ export default function HomePage() {
     return <LandingPage />;
   }
 
-  // For business/artisan roles, we redirect, so we show a loading state until redirect happens
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
     </div>
   );
 }
+

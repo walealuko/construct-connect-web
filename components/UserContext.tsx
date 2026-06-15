@@ -20,32 +20,43 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // 1. Initial session check
-  const initializeAuth = async () => {
-    setLoading(true);
-    try {
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    const initializeAuth = async () => {
+      setLoading(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
 
-      if (authError) throw authError;
+        if (!session) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
 
-      if (authUser) {
-        // Use Auth Metadata as the primary source of truth for routing/role
-        const role = authUser.user_metadata?.tier as UserRole || 'individual';
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
-        setUser({
-          id: authUser.id,
-          email: authUser.email!,
-          role: role
-        });
-      } else {
-        setUser(null);
+        if (authError) throw authError;
+
+        if (authUser) {
+          const role = authUser.user_metadata?.tier as UserRole || 'individual';
+          setUser({
+            id: authUser.id,
+            email: authUser.email!,
+            role: role
+          });
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        // Silently handle missing session errors during initialization
+        if ((err as any)?.message?.includes('Auth session missing')) {
+          setUser(null);
+        } else {
+          console.error("Auth initialization error:", err);
+          setUser(null);
+        }
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Auth initialization error:", err);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
     initializeAuth();
 
@@ -99,6 +110,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const refreshUser = async () => {
     setLoading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setUser(null);
+        return;
+      }
+
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser) {
         const { data: profile } = await supabase
@@ -118,7 +135,9 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(null);
       }
     } catch (err) {
-      console.error("Error refreshing user:", err);
+      if (!(err as any)?.message?.includes('Auth session missing')) {
+        console.error("Error refreshing user:", err);
+      }
     } finally {
       setLoading(false);
     }
@@ -131,3 +150,4 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     </UserContext.Provider>
   );
 };
+

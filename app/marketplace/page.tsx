@@ -19,3 +19,4 @@ export default async function MarketplacePage() {
 
   return <MarketplaceClient initialProducts={(initialProducts as Product[]) || []} />;
 }
+

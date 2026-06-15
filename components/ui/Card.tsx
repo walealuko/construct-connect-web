@@ -30,3 +30,4 @@ export const CardContent = ({ children, className }: { children: React.ReactNode
 export const CardFooter = ({ children, className }: { children: React.ReactNode; className?: string }) => (
   <div className={cn("p-6 pt-0 mt-auto flex items-center justify-between", className)}>{children}</div>
 );
+
