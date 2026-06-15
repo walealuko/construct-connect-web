@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { getArtisans } from "@/lib/services/artisanService";
 import SellerRating from "@/components/SellerRating";
 import ReviewButton from "@/components/ReviewButton";
