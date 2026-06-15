@@ -20,43 +20,43 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // 1. Initial session check
-    const initializeAuth = async () => {
-      try {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
-          let role = authUser.user_metadata?.tier as UserRole;
+  const initializeAuth = async () => {
+    setLoading(true);
+    try {
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
-          if (!role) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('tier')
-              .eq('id', authUser.id)
-              .single();
-            role = profile?.tier as UserRole || 'individual';
-          }
+      if (authError) throw authError;
 
-          setUser({
-            id: authUser.id,
-            email: authUser.email!,
-            role: role || 'individual'
-          });
-        }
-      } catch (err) {
-        console.error("Auth initialization error:", err);
-      } finally {
-        setLoading(false);
+      if (authUser) {
+        // Use Auth Metadata as the primary source of truth for routing/role
+        const role = authUser.user_metadata?.tier as UserRole || 'individual';
+
+        setUser({
+          id: authUser.id,
+          email: authUser.email!,
+          role: role
+        });
+      } else {
+        setUser(null);
       }
-    };
+    } catch (err) {
+      console.error("Auth initialization error:", err);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
     initializeAuth();
 
     // 2. Listen for auth changes (sign-in, sign-out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
+        const role = session.user.user_metadata?.tier as UserRole || 'individual';
         setUser({
           id: session.user.id,
           email: session.user.email!,
-          role: session.user.user_metadata?.tier || 'individual'
+          role: role
         });
       } else if (event === 'SIGNED_OUT') {
         setUser(null);

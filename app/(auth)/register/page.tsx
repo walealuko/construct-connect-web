@@ -67,6 +67,7 @@ function RegisterForm() {
       const user = authData.user;
 
       if (user) {
+        // 1. Create the professional profile
         const { error: profileError } = await supabase
           .from('profiles')
           .upsert({
@@ -83,9 +84,16 @@ function RegisterForm() {
 
         if (profileError) throw profileError;
 
-        await supabase.auth.updateUser({
-          data: { tier: formData.tier }
+        // 2. CRITICAL: Sync the role to Auth Metadata
+        // This is what the middleware.ts uses to prevent redirect loops
+        const { error: metaError } = await supabase.auth.updateUser({
+          data: {
+            tier: formData.tier,
+            full_name: `${formData.firstName} ${formData.lastName}`
+          }
         });
+
+        if (metaError) throw metaError;
       }
 
       if (authData.session) {
