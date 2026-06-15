@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useContext } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { UserContext } from "@/components/UserContext";
 import { toast } from "sonner";
