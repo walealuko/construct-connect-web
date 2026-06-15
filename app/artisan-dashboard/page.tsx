@@ -26,12 +26,19 @@ export default function ArtisanDashboard() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, productId: "" });
 
-  const [productForm, setProductForm] = useState({
+  const [productForm, setProductForm] = useState<{
+    name: string;
+    price: string;
+    description: string;
+    stock: string;
+    imageFile: File | null;
+    imagePreview: string;
+  }>({
     name: "",
     price: "",
     description: "",
     stock: "",
-    imageFile: null as File | null,
+    imageFile: null,
     imagePreview: "",
   });
 
