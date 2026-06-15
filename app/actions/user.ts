@@ -25,6 +25,12 @@ export async function logProductView(productId: string) {
 
 export async function updateProfile(userId: string, updates: any) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user || user.id !== userId) {
+    return { success: false, error: "Unauthorized to update this profile" };
+  }
+
   try {
     const { error } = await supabase
       .from('profiles')

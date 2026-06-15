@@ -33,16 +33,24 @@ export default function Cart() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto font-sans">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-extrabold text-slate-900">Shopping Cart</h1>
-        <div className="relative w-16 h-16">
-          <Image
-            src="https://cdn.pixabay.com/photo/2017/08/12/15/47/construction-2639382_1280.jpg"
-            alt="Construct Meme"
-            fill
-            className="rounded-full object-cover border-2 border-blue-600 shadow-sm"
-          />
-          <span className="absolute -top-2 -right-2 text-2xl">🏗️</span>
+      <div className="flex items-center justify-between mb-8">
+        <Link
+          href="/buyer-dashboard"
+          className="text-gray-500 text-sm inline-flex items-center gap-1 hover:text-blue-600 transition-colors"
+        >
+          ← Back to Hub
+        </Link>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-extrabold text-slate-900">Shopping Cart</h1>
+          <div className="relative w-16 h-16">
+            <Image
+              src="https://cdn.pixabay.com/photo/2017/08/12/15/47/construction-2639382_1280.jpg"
+              alt="Construct Meme"
+              fill
+              className="rounded-full object-cover border-2 border-blue-600 shadow-sm"
+            />
+            <span className="absolute -top-2 -right-2 text-2xl">🏗️</span>
+          </div>
         </div>
       </div>
 

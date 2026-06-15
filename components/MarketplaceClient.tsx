@@ -89,9 +89,19 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
 
   return (
     <div className="p-8 max-w-[1100px] mx-auto">
-      <h2 className="text-3xl font-bold text-slate-900 mb-6">
-        Marketplace
-      </h2>
+      <div className="flex items-center justify-between mb-6">
+        <Link
+          href="/buyer-dashboard"
+          className="text-gray-500 text-sm inline-flex items-center gap-1 hover:text-blue-600 transition-colors"
+        >
+          ← Back to Hub
+        </Link>
+        <div className="flex-1 text-right ml-4">
+          <h2 className="text-3xl font-bold text-slate-900 inline-block">
+            Marketplace
+          </h2>
+        </div>
+      </div>
 
       <div className="flex gap-3 mb-6 flex-wrap items-center">
         <div className="flex-[2] min-w-[200px] relative flex gap-2">

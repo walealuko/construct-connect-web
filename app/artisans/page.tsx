@@ -56,13 +56,21 @@ export default function Artisans() {
 
   return (
     <div className="p-8 max-w-[1200px] mx-auto font-sans">
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-black text-slate-900 mb-2">
-          Artisan Marketplace
-        </h1>
-        <p className="text-gray-500 text-lg">
-          Find and hire verified professional artisans for your construction projects.
-        </p>
+      <div className="flex items-center justify-between mb-8">
+        <Link
+          href="/buyer-dashboard"
+          className="text-gray-500 text-sm inline-flex items-center gap-1 hover:text-blue-600 transition-colors"
+        >
+          ← Back to Hub
+        </Link>
+        <div className="text-center flex-1 -ml-10">
+          <h1 className="text-4xl font-black text-slate-900 mb-2">
+            Artisan Marketplace
+          </h1>
+          <p className="text-gray-500 text-lg">
+            Find and hire verified professional artisans for your construction projects.
+          </p>
+        </div>
       </div>
 
       <div className="flex flex-col gap-6 mb-10">

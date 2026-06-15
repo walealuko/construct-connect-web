@@ -87,9 +87,17 @@ export default function Checkout() {
 
   return (
     <div className="p-8 max-w-[800px] mx-auto space-y-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-4xl font-black text-slate-900">Checkout</h1>
-        <p className="text-gray-500 font-medium">Review your order and complete the payment.</p>
+      <div className="flex items-center justify-between mb-8">
+        <Link
+          href="/buyer-dashboard"
+          className="text-gray-500 text-sm inline-flex items-center gap-1 hover:text-blue-600 transition-colors"
+        >
+          ← Back to Hub
+        </Link>
+        <div className="flex-1 text-right">
+          <h1 className="text-4xl font-black text-slate-900 inline-block">Checkout</h1>
+          <p className="text-gray-500 font-medium text-right">Review your order and complete the payment.</p>
+        </div>
       </div>
 
       {cart.length === 0 ? (

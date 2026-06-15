@@ -85,11 +85,20 @@ export default function ProjectsPage() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-black text-slate-900">Available Projects</h1>
-          <p className="text-gray-500">Find and bid on construction projects from buyers.</p>
+      <div className="flex items-center justify-between mb-8">
+        <Link
+          href="/dashboard"
+          className="text-gray-500 text-sm inline-flex items-center gap-1 hover:text-blue-600 transition-colors"
+        >
+          ← Back to Dashboard
+        </Link>
+        <div className="flex-1 text-right ml-4">
+          <h1 className="text-3xl font-black text-slate-900 inline-block">Available Projects</h1>
+          <p className="text-gray-500 text-sm">Find and bid on construction projects from buyers.</p>
         </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="relative w-full md:w-64">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
           <Input

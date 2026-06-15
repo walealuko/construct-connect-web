@@ -149,7 +149,13 @@ function ChatContent() {
     <div className="flex h-[calc(100vh-70px)] bg-white overflow-hidden">
       {/* Sidebar */}
       <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50">
-        <div className="p-4 border-b border-gray-200 bg-white">
+        <div className="p-4 border-b border-gray-200 bg-white space-y-3">
+          <Link
+            href="/dashboard"
+            className="text-gray-500 text-xs inline-flex items-center gap-1 hover:text-blue-600 transition-colors"
+          >
+            ← Back to Dashboard
+          </Link>
           <h2 className="text-xl font-bold text-slate-900">Messages</h2>
         </div>
 
