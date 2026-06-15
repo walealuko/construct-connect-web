@@ -303,7 +303,6 @@ export default function RegisterPage() {
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-6 py-12">
         <div className="flex flex-col items-center justify-center space-y-4">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-gray-500 text-sm font-medium">Verifying session...</p>
         </div>
       </div>
     );

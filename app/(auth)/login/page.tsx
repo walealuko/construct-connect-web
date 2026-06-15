@@ -68,7 +68,6 @@ export default function LoginPage() {
       {authLoading ? (
         <div className="flex flex-col items-center justify-center space-y-4">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-gray-500 text-sm font-medium">Verifying session...</p>
         </div>
       ) : (
         <div className="max-w-md mx-auto w-full space-y-8">

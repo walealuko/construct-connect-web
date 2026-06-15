@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
-import { Product, Profile } from "@/types/database";
+import { Product, Order, Profile } from "@/types/database";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
@@ -23,6 +23,8 @@ export default function ArtisanDashboard() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [portfolio, setPortfolio] = useState<string[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [stats, setStats] = useState({ revenue: 0, ordersCount: 0, productsCount: 0 });
   const [loading, setLoading] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, productId: "" });
@@ -66,15 +68,56 @@ export default function ArtisanDashboard() {
         .single();
       setPortfolio(portfolioData?.portfolio || []);
 
-      const { data: productsData } = await supabase
+      const { data: productsData, error: pError } = await supabase
         .from('products')
         .select('*')
         .eq('seller_id', user?.id);
+      if (pError) throw pError;
       setProducts(productsData || []);
+
+      const productIds = (productsData || []).map(p => p.id);
+
+      if (productIds.length > 0) {
+        const { data: ordersData, error: oError } = await supabase
+          .from('orders')
+          .select('*, profiles(first_name, last_name)')
+          .contains('items.product_id', productIds)
+          .order('created_at', { ascending: false });
+
+        if (oError) throw oError;
+        setOrders(ordersData || []);
+
+        const totalRev = (ordersData || [])
+          .filter((o: Order) => o.status === 'completed')
+          .reduce((sum: number, o: Order) => sum + o.total_price, 0);
+
+        setStats({
+          revenue: totalRev,
+          ordersCount: (ordersData || []).length,
+          productsCount: (productsData || []).length
+        });
+      } else {
+        setStats({ revenue: 0, ordersCount: 0, productsCount: 0 });
+      }
     } catch (err) {
       console.error("Error loading artisan data:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+
+      if (error) throw error;
+      toast.success(`Order updated to ${newStatus}`);
+      loadArtisanData();
+    } catch (err: any) {
+      toast.error(`Failed to update order: ${err.message}`);
     }
   };
 
@@ -225,12 +268,16 @@ export default function ArtisanDashboard() {
 
             <div className="grid grid-cols-1 gap-4">
               <Card className="p-4 bg-gradient-to-br from-blue-600 to-blue-700 text-white border-none shadow-md">
-                <p className="text-blue-100 text-xs font-bold uppercase tracking-wider">Active Listings</p>
-                <p className="text-3xl font-black">{products.length}</p>
+                <p className="text-blue-100 text-xs font-bold uppercase tracking-wider">Total Revenue</p>
+                <p className="text-3xl font-black">${stats.revenue.toFixed(2)}</p>
               </Card>
               <Card className="p-4">
-                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Portfolio Projects</p>
-                <p className="text-3xl font-black text-slate-900">{portfolio.length}</p>
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Active Orders</p>
+                <p className="text-3xl font-black text-slate-900">{stats.ordersCount}</p>
+              </Card>
+              <Card className="p-4">
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Active Listings</p>
+                <p className="text-3xl font-black text-slate-900">{products.length}</p>
               </Card>
             </div>
           </div>
@@ -336,9 +383,57 @@ export default function ArtisanDashboard() {
                   )}
                 </CardContent>
               </Card>
+            <section>
+              <h3 className="text-xl font-bold text-slate-800 mb-4">Recent Orders</h3>
+              <Card className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <div className="grid grid-cols-4 bg-slate-50 border-b border-gray-100 text-gray-500 uppercase text-xs font-bold tracking-wider">
+                    <div className="px-6 py-4">Buyer</div>
+                    <div className="px-6 py-4">Total</div>
+                    <div className="px-6 py-4">Status</div>
+                    <div className="px-6 py-4 text-right">Action</div>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {loading && orders.length === 0 ? (
+                      <div className="p-6 text-center text-gray-400">Loading orders...</div>
+                    ) : orders.length === 0 ? (
+                      <div className="p-6 text-center text-gray-400">No orders found yet.</div>
+                    ) : (
+                      orders.map((order) => (
+                        <div key={order.id} className="grid grid-cols-4 hover:bg-slate-50 transition-colors text-sm items-center">
+                          <div className="px-6 py-4 text-slate-900 font-medium">
+                            {order.profiles?.first_name ? `${order.profiles.first_name} ${order.profiles.last_name}` : "Unknown Buyer"}
+                          </div>
+                          <div className="px-6 py-4 text-slate-900 font-bold">${order.total_price?.toFixed(2)}</div>
+                          <div className="px-6 py-4">
+                            <Badge
+                              variant={
+                                order.status === 'completed' ? 'success' :
+                                order.status === 'shipped' ? 'info' : 'warning'
+                              }
+                            >
+                              {order.status}
+                            </Badge>
+                          </div>
+                          <div className="px-6 py-4 text-right">
+                            <select
+                              value={order.status}
+                              onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                              className="p-1 text-xs border rounded bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="completed">Completed</option>
+                              <option value="shipped">Shipped</option>
+                              <option value="delivered">Delivered</option>
+                            </select>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </Card>
             </section>
-          </div>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link href="/marketplace" className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">

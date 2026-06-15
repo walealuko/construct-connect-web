@@ -50,6 +50,7 @@ export async function createProductAction(formData: any) {
   if (error) return { success: false, error: error.message };
 
   revalidatePath('/seller-dashboard');
+  revalidatePath('/artisan-dashboard');
   revalidatePath('/marketplace');
 
   return { success: true };
