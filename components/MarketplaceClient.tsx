@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import SafeImage from "@/components/ui/SafeImage";
 import { supabase } from "@/lib/supabase";
 import { useCart } from "@/components/CartContext";
 import { Product } from "@/types/database";
@@ -187,7 +188,7 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
               <div key={product.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <Link href={`/product/${product.id}`} className="block group">
                   {product.image_url ? (
-                    <Image
+                    <SafeImage
                       src={product.image_url}
                       alt={product.name}
                       width={300}

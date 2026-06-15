@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { Product } from "@/types/database";
 import Link from "next/link";
 import Image from "next/image";
+import SafeImage from "@/components/ui/SafeImage";
 import SellerRating from "@/components/SellerRating";
 import ReviewButton from "@/components/ReviewButton";
 import ProductAddToCart from "@/components/ProductAddToCart";
@@ -37,7 +38,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
         {/* Left: Image & Seller Info */}
         <div className="space-y-5">
           {p.image_url ? (
-            <Image
+            <SafeImage
               src={p.image_url}
               alt={p.name}
               width={600}

@@ -7,6 +7,7 @@ import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
 import { Profile, Order, Product } from "@/types/database";
 import Image from "next/image";
+import SafeImage from "@/components/ui/SafeImage";
 import { removeProductViewAction } from "@/app/actions/products";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -220,7 +221,7 @@ export default function BuyerDashboard() {
                       <Link href={`/product/${product.id}`} className="block space-y-2">
                         <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
                           {product.image_url ? (
-                            <Image src={product.image_url} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform" />
+                            <SafeImage src={product.image_url} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-2xl">🏗️</div>
                           )}

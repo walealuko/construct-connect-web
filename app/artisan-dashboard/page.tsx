@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { Product, Profile } from "@/types/database";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import Image from "next/image";
+import SafeImage from "@/components/ui/SafeImage";
 import { toast } from "sonner";
 import Link from "next/link";
 import { deleteProductAction, createProductAction } from "@/app/actions/products";
@@ -275,7 +276,7 @@ export default function ArtisanDashboard() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                       {portfolio.map((url, i) => (
                         <div key={i} className="relative aspect-square rounded-xl overflow-hidden group border border-gray-100 shadow-sm">
-                          <Image src={url} alt="Work" fill className="object-cover group-hover:scale-110 transition-transform" />
+                          <SafeImage src={url} alt="Work" fill className="object-cover group-hover:scale-110 transition-transform" />
                         </div>
                       ))}
                     </div>
@@ -307,7 +308,7 @@ export default function ArtisanDashboard() {
                       {products.map((product) => (
                         <div key={product.id} className="bg-white p-4 rounded-xl border border-gray-200 flex gap-4 items-center group hover:border-blue-300 transition-all shadow-sm">
                           {product.image_url ? (
-                            <Image src={product.image_url} alt={product.name} width={80} height={80} className="w-20 h-20 object-cover rounded-lg shadow-sm" />
+                            <SafeImage src={product.image_url} alt={product.name} width={80} height={80} className="w-20 h-20 object-cover rounded-lg shadow-sm" />
                           ) : (
                             <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">No Image</div>
                           )}

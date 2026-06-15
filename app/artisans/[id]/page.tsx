@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import Image from "next/image";
+import SafeImage from "@/components/ui/SafeImage";
 import Link from "next/link";
 import SellerRating from "@/components/SellerRating";
 import ReviewButton from "@/components/ReviewButton";
@@ -33,7 +34,7 @@ export default async function ArtisanProfile({ params }: { params: { id: string 
           <div className="absolute -bottom-12 left-8">
             <div className="relative w-32 h-32 rounded-2xl border-4 border-white shadow-lg overflow-hidden bg-gray-100">
               {artisan.avatar_url ? (
-                <Image src={artisan.avatar_url} alt={artisan.full_name || 'Artisan'} fill className="object-cover" />
+                <SafeImage src={artisan.avatar_url} alt={artisan.full_name || 'Artisan'} fill className="object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-4xl">🛠️</div>
               )}

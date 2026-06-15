@@ -4,6 +4,7 @@ import React from "react";
 import { useCart } from "@/components/CartContext";
 import Link from "next/link";
 import Image from "next/image";
+import SafeImage from "@/components/ui/SafeImage";
 import { CartItem } from "@/types/database";
 import MessageSellerButton from "@/components/MessageSellerButton";
 
@@ -43,7 +44,7 @@ export default function Cart() {
         <div className="flex items-center gap-4">
           <h1 className="text-3xl font-extrabold text-slate-900">Shopping Cart</h1>
           <div className="relative w-16 h-16">
-            <Image
+            <SafeImage
               src="https://cdn.pixabay.com/photo/2017/08/12/15/47/construction-2639382_1280.jpg"
               alt="Construct Meme"
               fill
@@ -64,7 +65,7 @@ export default function Cart() {
             >
               <Link href={`/product/${item.id}`} className="relative w-24 h-24 flex-shrink-0 transition-transform hover:scale-105">
                 {item.image_url ? (
-                  <Image
+                  <SafeImage
                     src={item.image_url}
                     alt={item.name}
                     fill
