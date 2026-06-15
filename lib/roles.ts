@@ -3,7 +3,7 @@ export type UserRole = 'admin' | 'business' | 'individual' | 'artisan';
 export const REDIRECT_MAP: Record<UserRole, string> = {
   admin: '/admin-dashboard',
   business: '/seller-dashboard',
-  individual: '/buyer-dashboard',
+  individual: '/',
   artisan: '/artisan-dashboard',
 };
 

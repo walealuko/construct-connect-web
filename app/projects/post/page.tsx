@@ -15,7 +15,11 @@ export default function PostProject() {
     title: "",
     description: "",
     budget: "",
+    category: "",
+    deadline: "",
+    state: "",
   });
+
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,25 +31,17 @@ export default function PostProject() {
 
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const response = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
-      if (!user) {
-        toast.error("You must be logged in to post a project");
-        setLoading(false);
-        return;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to post project");
       }
-
-      const { error } = await supabase
-        .from("projects")
-        .insert({
-          title: formData.title,
-          description: formData.description,
-          budget: formData.budget ? parseInt(formData.budget) : null,
-          user_id: user.id,
-          status: 'open'
-        });
-
-      if (error) throw error;
 
       toast.success("Project posted successfully!");
       router.push("/projects/my-projects");
@@ -96,6 +92,26 @@ export default function PostProject() {
                 placeholder="Estimated budget in $"
                 value={formData.budget}
                 onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Category"
+                  placeholder="e.g. Roofing, Plumbing"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                />
+                <Input
+                  label="Deadline (Optional)"
+                  type="date"
+                  value={formData.deadline}
+                  onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                />
+              </div>
+              <Input
+                label="State/Location"
+                placeholder="e.g. Lagos"
+                value={formData.state}
+                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
               />
               <Button
                 type="submit"

@@ -28,15 +28,26 @@ export default function SellerRating({ sellerId }: SellerRatingProps) {
 
   const loadRatingAndReviews = async () => {
     try {
+      console.log("sellerId:", sellerId);
+
       const { data, error } = await supabase
         .from('reviews')
-        .select('*')
+        .select('*, profiles:reviewer_id(first_name, last_name)')
         .eq('seller_id', sellerId)
         .order('created_at', { ascending: false });
 
+      console.log("data:", data);
+      console.log("error:", error);
+
       if (error) throw error;
 
-      const reviewsData = data as Review[] || [];
+      const reviewsData = (data as any[] || []).map(rev => ({
+        ...rev,
+        reviewer_name: rev.profiles
+          ? `${rev.profiles.first_name || ''} ${rev.profiles.last_name || ''}`.trim() || 'Anonymous'
+          : 'Unknown'
+      })) as Review[];
+
       setReviews(reviewsData);
 
       if (reviewsData.length > 0) {

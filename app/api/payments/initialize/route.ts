@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 
 export async function POST(req: Request) {
   try {
@@ -13,8 +14,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Paystack secret key is not configured' }, { status: 500 });
     }
 
+    // Determine Base URL for callback
+    const headerList = await headers();
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      headerList.get("origin") ||
+      "http://localhost:3000";
+
     // Paystack expects amount in kobo (1 Naira = 100 Kobo)
-    // Assuming amount is passed in Naira/Dollars
     const amountInKobo = Math.round(amount * 100);
 
     const response = await fetch('https://api.paystack.co/transaction/initialize', {
@@ -26,14 +33,21 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         email,
         amount: amountInKobo,
-        callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/success`,
+        callback_url: `${baseUrl}/checkout/success`,
         metadata: {
           orderId: orderId,
         },
       }),
     });
 
-    const data = await response.json();
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error("Paystack returned non-JSON response:", text);
+      return NextResponse.json({ error: 'Payment gateway returned an invalid response' }, { status: 502 });
+    }
 
     if (data.status) {
       return NextResponse.json({

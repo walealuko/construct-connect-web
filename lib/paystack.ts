@@ -20,12 +20,13 @@ export async function createSubscription(customerCode: string, planCode: string)
 }
 
 // Initialize payment for subscription
-export async function initializeTransaction(email: string, amount: number, reference: string) {
+export async function initializeTransaction(email: string, amount: number, reference: string, baseUrl?: string) {
+  const finalBaseUrl = baseUrl || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
   return await paystack.transaction.initialize({
     email,
     amount: String(amount * 100), // Convert to kobo
     reference,
-    callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/marketplace`,
+    callback_url: `${finalBaseUrl}/marketplace`,
   });
 }
 
