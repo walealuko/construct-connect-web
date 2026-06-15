@@ -30,7 +30,7 @@ function RegisterForm() {
     phone: '',
     password: '',
     confirmPassword: '',
-    tier: defaultTier as 'individual' | 'business',
+    tier: defaultTier as 'individual' | 'business' | 'artisan',
     businessType: '',
     businessName: '',
     location: '',
@@ -75,8 +75,8 @@ function RegisterForm() {
             last_name: formData.lastName,
             phone: formData.phone,
             tier: formData.tier,
-            business_type: formData.tier === 'business' ? formData.businessType : null,
-            business_name: formData.tier === 'business' ? formData.businessName : null,
+            business_type: (formData.tier === 'business' || formData.tier === 'artisan') ? formData.businessType : null,
+            business_name: (formData.tier === 'business' || formData.tier === 'artisan') ? formData.businessName : null,
             email: formData.email,
             location: formData.location,
           });
@@ -120,11 +120,11 @@ function RegisterForm() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-3">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">I am a...</label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <Button
                 type="button"
                 variant={formData.tier === 'individual' ? 'primary' : 'outline'}
-                className="py-6 h-auto"
+                className="py-6 h-auto text-xs"
                 onClick={() => setFormData({ ...formData, tier: 'individual' })}
               >
                 Individual
@@ -132,15 +132,23 @@ function RegisterForm() {
               <Button
                 type="button"
                 variant={formData.tier === 'business' ? 'primary' : 'outline'}
-                className="py-6 h-auto"
+                className="py-6 h-auto text-xs"
                 onClick={() => setFormData({ ...formData, tier: 'business' })}
               >
                 Business
               </Button>
+              <Button
+                type="button"
+                variant={formData.tier === 'artisan' ? 'primary' : 'outline'}
+                className="py-6 h-auto text-xs"
+                onClick={() => setFormData({ ...formData, tier: 'artisan' })}
+              >
+                Artisan
+              </Button>
             </div>
           </div>
 
-          {formData.tier === 'business' && (
+          {(formData.tier === 'business' || formData.tier === 'artisan') && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100 space-y-0">
               <Input
                 label="Business Name"
