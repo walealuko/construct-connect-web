@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect, useContext } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -89,7 +89,7 @@ export default function BuyerDashboard() {
           <div className="space-y-1">
             <h2 className="text-3xl font-black text-slate-900 tracking-tight">Buyer Hub</h2>
             <p className="text-gray-500 font-medium">Manage your orders and account details</p>
-          </div}
+          </div>
           <div className="flex items-center gap-3">
             <Button asChild variant="secondary" className="px-4 py-2 text-sm font-bold">
               <Link href="/cart">My Cart</Link>
@@ -108,11 +108,11 @@ export default function BuyerDashboard() {
               <div className="flex flex-col items-center text-center gap-3">
                 <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center text-3xl font-black text-white shadow-lg">
                   {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
-                </div}
+                </div>
                 <div className="mt-2">
                   <h3 className="text-lg font-bold text-slate-900">{profile?.full_name || "User Profile"}</h3>
                   <p className="text-xs text-gray-500 truncate max-w-[150px]">{user?.email}</p>
-                </div}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-4 space-y-3">
@@ -123,7 +123,7 @@ export default function BuyerDashboard() {
               <div className="flex justify-between py-2 text-sm border-t border-gray-50">
                 <span className="text-gray-400">Tier</span>
                 <Badge variant="info">{profile?.tier || "individual"}</Badge>
-              </div}
+              </div>
             </CardContent>
             <CardFooter className="bg-slate-50 border-t border-gray-100 p-3">
               <Link href="/profile/edit" className="w-full text-center text-xs font-bold text-blue-600 hover:underline">
@@ -190,7 +190,7 @@ export default function BuyerDashboard() {
           <div className="flex justify-between items-end mb-4">
             <h3 className="text-xl font-bold text-slate-800">Recently Viewed</h3>
             <span className="text-xs text-gray-400">{viewedProducts.length} items in history</span>
-          </div}
+          </div>
           <Card>
             <CardContent className="p-6">
               {loading && viewedProducts.length === 0 ? (
@@ -247,7 +247,7 @@ export default function BuyerDashboard() {
             <Button asChild variant="secondary" className="px-6 bg-indigo-100 text-indigo-700 hover:bg-indigo-200">
               <Link href="/projects/post">Post a Project</Link>
             </Button>
-        </div}
+        </div>
       </div>
     </DashboardLayout>
   );
