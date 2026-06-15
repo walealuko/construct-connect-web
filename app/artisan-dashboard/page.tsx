@@ -211,9 +211,10 @@ export default function ArtisanDashboard() {
   if (authLoading) {
     return (
       <DashboardLayout userRole="artisan">
+        ---
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
-        </div}
+        </div>
       </DashboardLayout>
     );
   }
@@ -225,14 +226,14 @@ export default function ArtisanDashboard() {
           <div>
             <h2 className="text-3xl font-black text-slate-900">Artisan Dashboard</h2>
             <p className="text-gray-500 font-medium">Showcase your skill and services</p>
-          </div}
+          </div>
           <Button
             onClick={() => setIsAddModalOpen(true)}
             className="px-6 py-3 text-base font-bold"
           >
             + List a Product
           </Button>
-        </div}
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-1 space-y-6">
