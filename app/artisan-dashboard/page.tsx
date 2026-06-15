@@ -114,10 +114,10 @@ export default function ArtisanDashboard() {
         .eq('id', orderId);
 
       if (error) throw error;
-      toast.success(\`Order updated to \${newStatus}\`);
+      toast.success(`Order updated to ${newStatus}`);
       loadArtisanData();
     } catch (err: any) {
-      toast.error(\`Failed to update order: \${err.message}\`);
+      toast.error(`Failed to update order: ${err.message}`);
     }
   };
 
@@ -145,7 +145,7 @@ export default function ArtisanDashboard() {
     setLoading(true);
     try {
       const file = e.target.files[0];
-      const fileName = \`portfolio-\${Date.now()}-\${file.name}\`;
+      const fileName = `portfolio-${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage.from('artisan-portfolio').upload(fileName, file);
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('artisan-portfolio').getPublicUrl(fileName);
@@ -167,7 +167,7 @@ export default function ArtisanDashboard() {
     try {
       let imageUrl = "";
       if (productForm.imageFile) {
-        const fileName = \`artisan-prod-\${Date.now()}-\${productForm.imageFile.name}\`;
+        const fileName = `artisan-prod-${Date.now()}-${productForm.imageFile.name}`;
         const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, productForm.imageFile);
         if (uploadError) throw uploadError;
         const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
