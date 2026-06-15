@@ -42,9 +42,9 @@ export async function middleware(request: NextRequest) {
         admin: '/admin-dashboard',
         business: '/seller-dashboard',
         artisan: '/artisan-dashboard',
-        individual: '/buyer-dashboard'
+        individual: '/'
       }
-      return NextResponse.redirect(new URL(rolePaths[role] || '/buyer-dashboard', request.url))
+      return NextResponse.redirect(new URL(rolePaths[role] || '/', request.url))
     }
   }
 

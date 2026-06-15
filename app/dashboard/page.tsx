@@ -46,7 +46,7 @@ export default function DashboardDispatcher() {
       break;
     case "individual":
     default:
-      redirect("/buyer-dashboard");
+      redirect("/");
       break;
   }
 
