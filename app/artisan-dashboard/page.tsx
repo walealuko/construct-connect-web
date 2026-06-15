@@ -143,7 +143,7 @@ export default function ArtisanDashboard() {
 
       if (!result.success) throw new Error(result.error);
 
-      setProductForm({ name: "", price: "", description: "", imageFile: null, imagePreview: "" });
+      setProductForm({ name: "", price: "", description: "", stock: "", imageFile: null, imagePreview: "" });
       toast.success("Product listed!");
       loadArtisanData();
     } catch (err: any) {
