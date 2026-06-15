@@ -28,9 +28,10 @@ const Navbar = () => {
   const getDashboardLink = () => {
     if (!user) return "/";
     switch (user.role) {
-      case "seller": return "/seller-dashboard";
+      case "business": return "/seller-dashboard";
       case "admin": return "/admin-dashboard";
-      default: return "/marketplace";
+      case "artisan": return "/artisan-dashboard";
+      default: return "/buyer-dashboard";
     }
   };
 

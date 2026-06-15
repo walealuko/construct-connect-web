@@ -53,8 +53,7 @@ export default function LoginPage() {
 
       if (data.user) {
         toast.success("Welcome back!");
-        router.refresh();
-        router.push('/dashboard');
+        router.replace('/dashboard');
       }
     } catch (err: any) {
       setError('Something went wrong. Please try again.');
