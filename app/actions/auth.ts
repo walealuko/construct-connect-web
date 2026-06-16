@@ -52,7 +52,7 @@ export async function registerUserAction(formData: any) {
 
     // 4. CRITICAL: Sync the role to Auth Metadata
     // This allows the middleware to redirect users immediately without database lookups
-    const { error: metaError } = await supabase.auth.admin.updateUserForAdmin(user.id, {
+    const { error: metaError } = await supabase.auth.admin.updateUserById(user.id, {
       user_metadata: {
         tier,
         full_name: `${firstName} ${lastName}`
