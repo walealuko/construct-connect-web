@@ -357,7 +357,11 @@ export default function SellerDashboard() {
                       orders.map((order) => (
                         <div key={order.id} className="grid grid-cols-4 hover:bg-slate-50 transition-colors text-sm items-center">
                           <div className="px-6 py-4 text-slate-900 font-medium">
-                            {order.profiles?.first_name ? `${order.profiles.first_name} ${order.profiles.last_name}` : "Unknown Buyer"}
+                            {
+                              order.profiles?.first_name
+                                ? `${order.profiles.first_name} ${order.profiles.last_name}`
+                                : "Unknown Buyer"
+                            }
                           </div>
                           <div className="px-6 py-4 text-slate-900 font-bold">${order.total_price?.toFixed(2)}</div>
                           <div className="px-6 py-4">
@@ -512,7 +516,6 @@ export default function SellerDashboard() {
             </div>
           </div>
         </Modal>
-      </div>
       </div>
     </DashboardLayout>
   );

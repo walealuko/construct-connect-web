@@ -123,10 +123,13 @@ export default function ArtisanDashboard() {
 
   const confirmDeleteProduct = async () => {
     if (!deleteModal.productId) return;
+
     setLoading(true);
     setDeleteModal({ ...deleteModal, isOpen: false });
+
     try {
       const result = await deleteProductAction(deleteModal.productId);
+
       if (result.success) {
         toast.success("Product deleted successfully");
         loadArtisanData();
@@ -197,13 +200,16 @@ export default function ArtisanDashboard() {
     }
   };
 
-  const handleProductFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProductFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+
       setProductForm({
         ...productForm,
         imageFile: file,
-        imagePreview: URL.createObjectURL(file)
+        imagePreview: URL.createObjectURL(file),
       });
     }
   };
@@ -402,9 +408,9 @@ export default function ArtisanDashboard() {
                       orders.map((order) => (
                         <div key={order.id} className="grid grid-cols-4 hover:bg-slate-50 transition-colors text-sm items-center">
                           <div className="px-6 py-4 text-slate-900 font-medium">
-                            {order.profiles?.first_name ? \`\${order.profiles.first_name} \${order.profiles.last_name}\` : "Unknown Buyer"}
+                            {order.profiles?.first_name ? `${order.profiles.first_name} ${order.profiles.last_name}` : "Unknown Buyer"}
                           </div>
-                          <div className="px-6 py-4 text-slate-900 font-bold">\$\${order.total_price?.toFixed(2)}</div>
+                          <div className="px-6 py-4 text-slate-900 font-bold">${order.total_price?.toFixed(2)}</div>
                           <div className="px-6 py-4">
                             <Badge
                               variant={
@@ -564,7 +570,6 @@ export default function ArtisanDashboard() {
             </div>
           </div>
         </Modal>
-      </div>
       </div>
     </DashboardLayout>
   );
