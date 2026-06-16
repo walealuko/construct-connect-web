@@ -9,7 +9,7 @@ import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
 import { toast } from "sonner";
 import Link from "next/link";
-import { deleteProductAction, createProductAction } from "@/app/actions/products";
+import { deleteProductAction, createProductAction, updateProductAction } from "@/app/actions/products";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
@@ -44,7 +44,9 @@ export default function SellerDashboard() {
   const [stats, setStats] = useState({ revenue: 0, ordersCount: 0, productsCount: 0 });
   const [loading, setLoading] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, productId: "" });
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const descId = useId();
   const catId = useId();
@@ -155,15 +157,38 @@ export default function SellerDashboard() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setFormData({
-        ...formData,
-        imageFile: file,
-        imagePreview: URL.createObjectURL(file)
-      });
+  const handleUpdateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    setLoading(true);
+    try {
+      const result = await updateProductAction(editingProduct.id, formData);
+      if (result.success) {
+        toast.success("Product updated successfully!");
+        setIsEditModalOpen(false);
+        loadDashboardData();
+      } else {
+        toast.error(result.error);
+      }
+    } catch (err: any) {
+      toast.error("Failed to update product");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const openEditModal = (product: Product) => {
+    setEditingProduct(product);
+    setFormData({
+      name: product.name,
+      description: product.description,
+      price: product.price.toString(),
+      category: product.category,
+      stock: product.stock.toString(),
+      imageFile: null,
+      imagePreview: product.image_url,
+    });
+    setIsEditModalOpen(true);
   };
 
   if (authLoading) {
@@ -337,15 +362,26 @@ export default function SellerDashboard() {
                             </div>
                             <p className="text-gray-400 text-[10px] mt-1">Stock: {product.stock}</p>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-gray-300 hover:text-red-600 hover:bg-red-50 transition-colors"
-                            onClick={() => setDeleteModal({ isOpen: true, productId: product.id })}
-                            title="Delete Product"
-                          >
-                            🗑️
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                              onClick={() => openEditModal(product)}
+                              title="Edit Product"
+                            >
+                              ✏️
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-gray-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              onClick={() => setDeleteModal({ isOpen: true, productId: product.id })}
+                              title="Delete Product"
+                            >
+                              🗑️
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -520,23 +556,105 @@ export default function SellerDashboard() {
         </Modal>
 
         <Modal
-          isOpen={deleteModal.isOpen}
-          onClose={() => setDeleteModal({ isOpen: false, productId: "" })}
-          title="Delete Product"
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          title="Edit Product"
         >
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-slate-600">
-              Are you sure you want to delete this product? This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" size="sm" onClick={() => setDeleteModal({ isOpen: false, productId: "" })}>
+          <form onSubmit={handleUpdateProduct} className="space-y-5 py-2">
+            <div className="space-y-4">
+              <Input
+                label="Product Name"
+                placeholder="e.g., Industrial Concrete Mixer"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+              <div className="space-y-1.5">
+                <label htmlFor={descId} className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</label>
+                <textarea
+                  id={descId}
+                  name="description"
+                  placeholder="Describe the features, specifications, and condition..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={4}
+                  className="w-full p-3 rounded-xl border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Price ($)"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Stock Quantity"
+                  type="number"
+                  placeholder="0"
+                  value={formData.stock}
+                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor={catId} className="text-xs font-bold text-gray-400 uppercase tracking-wider">Category</label>
+                <select
+                  id={catId}
+                  name="category"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="w-full p-3 rounded-xl border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                  required
+                >
+                  {PRODUCT_CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor={imgId} className="text-xs font-bold text-gray-400 uppercase tracking-wider">Product Image</label>
+                <div className="flex flex-col gap-3">
+                  <input
+                    id={imgId}
+                    name="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    required
+                  />
+                  {formData.imagePreview && (
+                    <div className="relative w-32 h-32 rounded-xl overflow-hidden border-2 border-blue-100">
+                      <Image
+                        src={formData.imagePreview}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+              <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
                 Cancel
               </Button>
-              <Button variant="danger" size="sm" onClick={confirmDeleteProduct} disabled={loading} isLoading={loading}>
-                Delete Product
+              <Button
+                type="submit"
+                disabled={loading}
+                isLoading={loading}
+                className="px-8"
+              >
+                Update Product
               </Button>
             </div>
-          </div>
+          </form>
         </Modal>
       </div>
     </DashboardLayout>

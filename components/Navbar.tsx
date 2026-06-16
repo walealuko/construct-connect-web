@@ -2,7 +2,7 @@
 
 import React, { useContext, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useCart } from "./CartContext";
 import { UserContext } from "./UserContext";
 import { CartItem } from "@/types/database";
@@ -14,6 +14,7 @@ const Navbar = () => {
   const logout = userContext?.logout;
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
 
   const totalItems = cart.reduce((sum: number, item: CartItem) => sum + (item.quantity || 1), 0);
 
@@ -44,19 +45,28 @@ const Navbar = () => {
 
       {/* Navigation Links */}
       <div className="flex items-center gap-2">
-        <Link href="/" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors rounded-lg">
+        <Link
+          href="/"
+          className={`px-4 py-2 text-sm font-medium transition-colors rounded-lg ${pathname === '/' ? 'text-blue-600 bg-blue-50 font-bold' : 'text-gray-600 hover:text-blue-600'}`}
+        >
           Home
         </Link>
-        <Link href="/marketplace" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors rounded-lg">
+        <Link
+          href="/marketplace"
+          className={`px-4 py-2 text-sm font-medium transition-colors rounded-lg ${pathname.startsWith('/marketplace') || pathname.startsWith('/product') ? 'text-blue-600 bg-blue-50 font-bold' : 'text-gray-600 hover:text-blue-600'}`}
+        >
           Marketplace
         </Link>
-        <Link href="/artisans" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors rounded-lg">
+        <Link
+          href="/artisans"
+          className={`px-4 py-2 text-sm font-medium transition-colors rounded-lg ${pathname.startsWith('/artisans') ? 'text-blue-600 bg-blue-50 font-bold' : 'text-gray-600 hover:text-blue-600'}`}
+        >
           Artisans
         </Link>
 
         <Link
           href="/dashboard"
-          className="px-4 py-2 text-sm font-bold text-white bg-slate-800 hover:bg-slate-900 transition-all rounded-lg"
+          className={`px-4 py-2 text-sm font-bold transition-all rounded-lg ${pathname.includes('dashboard') ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-800 text-white hover:bg-slate-900'}`}
         >
           Dashboard
         </Link>

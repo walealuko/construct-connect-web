@@ -107,6 +107,45 @@ export async function removeProductViewAction(productId: string) {
   return { success: true };
 }
 
+export async function updateProductAction(productId: string, formData: any) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Unauthorized to update product" };
+  }
+
+  const { data: product } = await supabase
+    .from('products')
+    .select('seller_id')
+    .eq('id', productId)
+    .single();
+
+  if (!product || product.seller_id !== user.id) {
+    return { success: false, error: "Unauthorized to update this product" };
+  }
+
+  const validated = ProductSchema.safeParse(formData);
+  if (!validated.success) {
+    return { success: false, error: validated.error.issues[0].message };
+  }
+
+  const { error } = await supabase
+    .from('products')
+    .update({
+      ...validated.data,
+    })
+    .eq('id', productId);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath('/seller-dashboard');
+  revalidatePath('/artisan-dashboard');
+  revalidatePath('/marketplace');
+
+  return { success: true };
+}
+
 export async function verifyStockAction(items: { productId: string; quantity: number }[]) {
   const supabase = await createClient();
 

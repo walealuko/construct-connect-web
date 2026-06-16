@@ -3,6 +3,8 @@
 import React from "react";
 import Sidebar from "./Sidebar";
 import Navbar from "@/components/Navbar";
+import Breadcrumbs from "@/components/Breadcrumbs";
+import { ScrollToTop } from "@/components/ui/ScrollToTop";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -15,8 +17,12 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       <Sidebar userRole={userRole} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar />
-        <main className="p-6 flex-1 overflow-auto">
-          {children}
+        <main className="p-6 flex-1 overflow-auto relative">
+          <div className="max-w-7xl mx-auto">
+            <Breadcrumbs />
+            {children}
+          </div>
+          <ScrollToTop />
         </main>
       </div>
     </div>
