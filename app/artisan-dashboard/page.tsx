@@ -148,6 +148,26 @@ export default function ArtisanDashboard() {
     }
   };
 
+  const handlePortfolioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
+    setLoading(true);
+    try {
+      const file = e.target.files[0];
+      const fileName = `portfolio-${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from('artisan-portfolio').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('artisan-portfolio').getPublicUrl(fileName);
+      const currentPortfolio = [...portfolio, publicUrl];
+      await supabase.from('profiles').update({ portfolio: currentPortfolio }).eq('id', user?.id);
+      setPortfolio(currentPortfolio);
+      toast.success("Portfolio project uploaded!");
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleUpdateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
