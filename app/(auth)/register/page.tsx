@@ -10,6 +10,7 @@ import { registerSchema } from '@/lib/validations';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { registerUserAction } from '@/app/actions/auth';
 
 const NIGERIAN_STATES = [
   "Abia", "Adamawa", "Akwa Ibom", "Amachi", "Anambra", "Bauchi", "Bayelsa", "Borno", "Cross River", "Delta",
@@ -46,59 +47,18 @@ function RegisterForm() {
     e.preventDefault();
     setError('');
 
-    const validation = registerSchema.safeParse(formData);
-    if (!validation.success) {
-      const firstError = validation.error.issues[0].message;
-      setError(firstError);
-      toast.error(firstError);
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-      });
+      const result = await registerUserAction(formData);
 
-      if (authError) throw authError;
-
-      const user = authData.user;
-
-      if (user) {
-        // 1. Create the professional profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: user.id,
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            phone: formData.phone,
-            tier: formData.tier,
-            business_type: (formData.tier === 'business' || formData.tier === 'artisan') ? formData.businessType : null,
-            business_name: (formData.tier === 'business' || formData.tier === 'artisan') ? formData.businessName : null,
-            email: formData.email,
-            location: formData.location,
-          });
-
-        if (profileError) throw profileError;
-
-        // 2. CRITICAL: Sync the role to Auth Metadata
-        // This is what the middleware.ts uses to prevent redirect loops
-        const { error: metaError } = await supabase.auth.updateUser({
-          data: {
-            tier: formData.tier,
-            full_name: `${formData.firstName} ${formData.lastName}`
-          }
-        });
-
-        if (metaError) throw metaError;
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
-      if (authData.session) {
+      if (result.session) {
         toast.success("Account created successfully!");
-        const destination = getRedirectPath(formData.tier);
+        const destination = getRedirectPath(result.tier);
         window.location.href = destination;
       } else {
         toast.info("Please verify your email to continue.");

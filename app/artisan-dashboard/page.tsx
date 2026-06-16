@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useId } from "react";
 import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
 import { Product, Order, Profile } from "@/types/database";
@@ -28,6 +28,9 @@ export default function ArtisanDashboard() {
   const [loading, setLoading] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, productId: "" });
+
+  const descId = useId();
+  const imgId = useId();
 
   const [productForm, setProductForm] = useState<{
     name: string;
@@ -480,8 +483,10 @@ export default function ArtisanDashboard() {
               />
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</label>
+                <label htmlFor={descId} className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</label>
                 <textarea
+                  id={descId}
+                  name="description"
                   placeholder="Detail your expertise, materials used, and what is included..."
                   value={productForm.description}
                   onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
@@ -512,9 +517,11 @@ export default function ArtisanDashboard() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Listing Image</label>
+                <label htmlFor={imgId} className="text-xs font-bold text-gray-400 uppercase tracking-wider">Listing Image</label>
                 <div className="flex flex-col gap-3">
                   <input
+                    id={imgId}
+                    name="image"
                     type="file"
                     accept="image/*"
                     onChange={handleProductFileChange}

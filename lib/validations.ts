@@ -8,7 +8,7 @@ export const registerSchema = z.object({
   phone: z.string().min(10, 'Phone number must be at least 10 digits'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   confirmPassword: z.string(),
-  tier: z.enum(['individual', 'business']),
+  tier: z.enum(['individual', 'business', 'artisan']),
   businessName: z.string().optional(),
   businessType: z.string().optional(),
   location: z.string().min(1, 'Location is required'),

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useId } from "react";
 import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
 import { Product, Order, Profile } from "@/types/database";
@@ -32,6 +32,12 @@ const PRODUCT_CATEGORIES = [
 export default function SellerDashboard() {
   const userContext = useContext(UserContext);
   const { user, loading: authLoading } = userContext || { user: null, loading: true };
+
+  console.log("--- Seller Dashboard Auth Check ---");
+  console.log("User:", user);
+  console.log("Auth Loading:", authLoading);
+  console.log("-----------------------------------");
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -39,6 +45,10 @@ export default function SellerDashboard() {
   const [loading, setLoading] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, productId: "" });
+
+  const descId = useId();
+  const catId = useId();
+  const imgId = useId();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -70,6 +80,12 @@ export default function SellerDashboard() {
         .from('products')
         .select('*')
         .eq('seller_id', user?.id);
+
+      console.log("sellerId:", user?.id);
+      console.log("Query seller:", user?.id);
+      console.log("Products returned:", productsData?.length);
+      console.log(productsData);
+
       if (pError) throw pError;
       setProducts(productsData || []);
 
@@ -412,8 +428,10 @@ export default function SellerDashboard() {
               />
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</label>
+                <label htmlFor={descId} className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</label>
                 <textarea
+                  id={descId}
+                  name="description"
                   placeholder="Describe the features, specifications, and condition..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -444,8 +462,10 @@ export default function SellerDashboard() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Category</label>
+                <label htmlFor={catId} className="text-xs font-bold text-gray-400 uppercase tracking-wider">Category</label>
                 <select
+                  id={catId}
+                  name="category"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   className="w-full p-3 rounded-xl border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600 transition-all"
@@ -458,9 +478,11 @@ export default function SellerDashboard() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Product Image</label>
+                <label htmlFor={imgId} className="text-xs font-bold text-gray-400 uppercase tracking-wider">Product Image</label>
                 <div className="flex flex-col gap-3">
                   <input
+                    id={imgId}
+                    name="image"
                     type="file"
                     accept="image/*"
                     onChange={handleFileChange}

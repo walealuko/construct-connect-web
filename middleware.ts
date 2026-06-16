@@ -29,22 +29,23 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-
   const url = request.nextUrl.clone()
   const path = url.pathname
 
-  // 1. Auth Routes - If logged in, redirect away from login/register to their dashboard
+  const rolePaths: Record<string, string> = {
+    admin: '/admin-dashboard',
+    business: '/seller-dashboard',
+    artisan: '/artisan-dashboard',
+    individual: '/',
+  }
+
+  const userRole = user?.user_metadata?.tier || 'individual'
+  const correctPath = rolePaths[userRole] || '/'
+
+  // 1. Auth Routes - If logged in, redirect away from login/register
   if (path === '/login' || path === '/register') {
     if (user) {
-      const role = user.user_metadata?.tier || 'individual'
-      // Logic to map role to path
-      const rolePaths: Record<string, string> = {
-        admin: '/admin-dashboard',
-        business: '/seller-dashboard',
-        artisan: '/artisan-dashboard',
-        individual: '/'
-      }
-      return NextResponse.redirect(new URL(rolePaths[role] || '/', request.url))
+      return NextResponse.redirect(new URL(correctPath, request.url))
     }
   }
 
@@ -68,19 +69,23 @@ export async function middleware(request: NextRequest) {
 
   // 3. Role-Based Access Control (RBAC)
   if (user) {
-    const role = user.user_metadata?.tier || 'individual'
+    // Redirect from the generic /dashboard to the role-specific path
+    if (path === '/dashboard') {
+      return NextResponse.redirect(new URL(correctPath, request.url))
+    }
 
-    if (path.startsWith('/seller-dashboard') && role !== 'business' && role !== 'admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+    // Prevent users from accessing other role dashboards
+    if (path.startsWith('/seller-dashboard') && userRole !== 'business' && userRole !== 'admin') {
+      return NextResponse.redirect(new URL(correctPath, request.url))
     }
-    if (path.startsWith('/artisan-dashboard') && role !== 'artisan' && role !== 'admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+    if (path.startsWith('/artisan-dashboard') && userRole !== 'artisan' && userRole !== 'admin') {
+      return NextResponse.redirect(new URL(correctPath, request.url))
     }
-    if (path.startsWith('/buyer-dashboard') && role !== 'individual' && role !== 'admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+    if (path.startsWith('/buyer-dashboard') && userRole !== 'individual' && userRole !== 'admin') {
+      return NextResponse.redirect(new URL(correctPath, request.url))
     }
-    if (path.startsWith('/admin-dashboard') && role !== 'admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+    if (path.startsWith('/admin-dashboard') && userRole !== 'admin') {
+      return NextResponse.redirect(new URL(correctPath, request.url))
     }
   }
 

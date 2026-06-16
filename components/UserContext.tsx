@@ -22,21 +22,34 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     // 1. Initial session check
     const initializeAuth = async () => {
       setLoading(true);
+      console.log("[Auth] Initializing authentication...");
+
+      // Create a timeout promise to prevent hanging
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Auth initialization timed out")), 5000)
+      );
+
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const sessionPromise = supabase.auth.getSession();
+        const result = await Promise.race([sessionPromise, timeout]) as any;
+        const { data: { session } } = result;
 
         if (!session) {
+          console.log("[Auth] No session found.");
           setUser(null);
           setLoading(false);
           return;
         }
 
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        const userPromise = supabase.auth.getUser();
+        const userResult = await Promise.race([userPromise, timeout]) as any;
+        const { data: { user: authUser }, error: authError } = userResult;
 
         if (authError) throw authError;
 
         if (authUser) {
           const role = authUser.user_metadata?.tier as UserRole || 'individual';
+          console.log(`[Auth] User found: ${authUser.email} with role: ${role}`);
           setUser({
             id: authUser.id,
             email: authUser.email!,
@@ -46,15 +59,20 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(null);
         }
       } catch (err) {
-        // Silently handle missing session errors during initialization
-        if ((err as any)?.message?.includes('Auth session missing')) {
-          setUser(null);
-        } else {
-          console.error("Auth initialization error:", err);
+        console.error("[Auth] Initialization error:", err);
+
+        // If the token is expired or invalid, explicitly sign out to clear stale session
+        if (err instanceof Error && (err.message.includes('token is expired') || err.message.includes('invalid JWT'))) {
+          console.log("[Auth] Expired session detected. Clearing session...");
+          await supabase.auth.signOut();
+        }
+
+        if (!(err instanceof Error) || !err.message.includes('Auth session missing')) {
           setUser(null);
         }
       } finally {
         setLoading(false);
+        console.log("[Auth] Initialization complete.");
       }
     };
 
@@ -69,7 +87,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
           email: session.user.email!,
           role: role
         });
-      } else if (event === 'SIGNED_OUT') {
+      } else if (event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'PASSWORD_RECOVERY') {
         setUser(null);
       }
     });
