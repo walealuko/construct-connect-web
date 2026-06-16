@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { createClient as createClientAdmin } from "@supabase/supabase-js";
+import { revalidatePath } from "next/cache";
 
 export async function logProductView(productId: string) {
   const supabase = await createClient();
@@ -32,12 +34,46 @@ export async function updateProfile(userId: string, updates: any) {
   }
 
   try {
-    const { error } = await supabase
+    // 1. Update the profiles table
+    const { error: profileError } = await supabase
       .from('profiles')
       .update(updates)
       .eq('id', userId);
 
-    if (error) throw error;
+    if (profileError) throw profileError;
+
+    // 2. Sync full_name to Auth Metadata if name changed
+    if (updates.first_name || updates.last_name) {
+      // Get current values to construct full name
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', userId)
+        .single();
+
+      const fullName = `${profileData?.first_name || ''} ${profileData?.last_name || ''}`.trim();
+
+      // Initialize admin client with service role key
+      const adminSupabase = createClientAdmin(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      const { error: metaError } = await adminSupabase.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          full_name: fullName
+        }
+      });
+
+      if (metaError) {
+        console.error("Failed to sync full_name to auth metadata:", metaError.message);
+        // We don't throw here because the profile update succeeded
+      }
+    }
+
+    revalidatePath('/profile/edit');
+    revalidatePath('/seller-dashboard');
+    revalidatePath('/artisan-dashboard');
+
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };
