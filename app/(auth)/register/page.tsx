@@ -152,6 +152,7 @@ function RegisterForm() {
               onChange={handleChange}
               placeholder="Chidi"
               required
+              autoComplete="given-name"
             />
             <Input
               label="Last Name"
@@ -160,6 +161,7 @@ function RegisterForm() {
               onChange={handleChange}
               placeholder="Okonkwo"
               required
+              autoComplete="family-name"
             />
           </div>
 
@@ -171,6 +173,7 @@ function RegisterForm() {
             onChange={handleChange}
             placeholder="chidi@email.com"
             required
+            autoComplete="email"
           />
 
           <Input
@@ -181,6 +184,7 @@ function RegisterForm() {
             onChange={handleChange}
             placeholder="08012345678"
             required
+            autoComplete="tel"
           />
 
           <div className="space-y-1.5">
@@ -208,6 +212,7 @@ function RegisterForm() {
               onChange={handleChange}
               placeholder="At least 6 characters"
               required
+              autoComplete="new-password"
             />
             <Input
               label="Confirm Password"
@@ -217,6 +222,7 @@ function RegisterForm() {
               onChange={handleChange}
               placeholder="Re-enter your password"
               required
+              autoComplete="new-password"
             />
           </div>
 

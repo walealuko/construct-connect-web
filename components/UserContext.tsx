@@ -63,8 +63,17 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
         // If the token is expired or invalid, explicitly sign out to clear stale session
         if (err instanceof Error && (err.message.includes('token is expired') || err.message.includes('invalid JWT'))) {
-          console.log("[Auth] Expired session detected. Clearing session...");
-          await supabase.auth.signOut();
+          console.log("[Auth] Expired session detected. Clearing local session...");
+
+          // We wrap signOut in a try-catch because if the token is already expired,
+          // the server-side logout call will return a 403. We just want to clear local storage.
+          supabase.auth.signOut().catch(logoutErr => {
+            if (logoutErr instanceof Error && logoutErr.message.includes('403')) {
+              console.log("[Auth] Server logout failed as expected for expired token. Local cleanup complete.");
+            } else {
+              console.error("[Auth] Unexpected logout error:", logoutErr);
+            }
+          });
         }
 
         if (!(err instanceof Error) || !err.message.includes('Auth session missing')) {
@@ -127,14 +136,26 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshUser = async () => {
     setLoading(true);
+
+    // Create a timeout promise to prevent hanging during refresh
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("User refresh timed out")), 5000)
+    );
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const sessionPromise = supabase.auth.getSession();
+      const sessionResult = await Promise.race([sessionPromise, timeout]) as any;
+      const { data: { session } } = sessionResult;
+
       if (!session) {
         setUser(null);
         return;
       }
 
-      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const userPromise = supabase.auth.getUser();
+      const userResult = await Promise.race([userPromise, timeout]) as any;
+      const { data: { user: authUser } } = userResult;
+
       if (authUser) {
         const { data: profile } = await supabase
           .from('profiles')
