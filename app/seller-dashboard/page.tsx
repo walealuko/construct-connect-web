@@ -186,7 +186,7 @@ export default function SellerDashboard() {
       category: product.category,
       stock: product.stock.toString(),
       imageFile: null,
-      imagePreview: product.image_url,
+      imagePreview: product.image_url || "",
     });
     setIsEditModalOpen(true);
   };
