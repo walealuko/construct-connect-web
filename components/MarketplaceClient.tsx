@@ -9,6 +9,7 @@ import { useCart } from "@/components/CartContext";
 import { Product } from "@/types/database";
 import { toast } from "sonner";
 import ProductSkeleton from "./ProductSkeleton";
+import { resolveImageUrl } from "@/lib/storage";
 
 const CATEGORIES = [
   { value: "all", label: "All Categories" },
@@ -189,7 +190,7 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
                 <Link href={`/product/${product.id}`} className="block group">
                   {product.image_url ? (
                     <SafeImage
-                      src={product.image_url}
+                      src={resolveImageUrl(product.image_url, 'product-images')}
                       alt={product.name}
                       width={300}
                       height={144}

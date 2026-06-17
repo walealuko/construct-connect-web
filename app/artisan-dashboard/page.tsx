@@ -16,6 +16,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Modal } from "@/components/ui/Modal";
+import { resolveImageUrl } from "@/lib/storage";
 
 export default function ArtisanDashboard() {
   const userContext = useContext(UserContext);
@@ -156,8 +157,8 @@ export default function ArtisanDashboard() {
       const fileName = `portfolio-${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage.from('artisan-portfolio').upload(fileName, file);
       if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage.from('artisan-portfolio').getPublicUrl(fileName);
-      const currentPortfolio = [...portfolio, publicUrl];
+      // Store only the file path; the resolver builds the public URL at render time.
+      const currentPortfolio = [...portfolio, fileName];
       await supabase.from('profiles').update({ portfolio: currentPortfolio }).eq('id', user?.id);
       setPortfolio(currentPortfolio);
       toast.success("Portfolio project uploaded!");
@@ -211,8 +212,8 @@ export default function ArtisanDashboard() {
         const fileName = `artisan-prod-${Date.now()}-${productForm.imageFile.name}`;
         const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, productForm.imageFile);
         if (uploadError) throw uploadError;
-        const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
-        imageUrl = publicUrl;
+        // Store only the file path; the resolver builds the public URL at render time.
+        imageUrl = fileName;
       } else {
         throw new Error("Product image is required");
       }
@@ -365,7 +366,7 @@ export default function ArtisanDashboard() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                       {portfolio.map((url, i) => (
                         <div key={i} className="relative aspect-square rounded-xl overflow-hidden group border border-gray-100 shadow-sm">
-                          <SafeImage src={url} alt="Work" fill className="object-cover group-hover:scale-110 transition-transform" />
+                          <SafeImage src={resolveImageUrl(url, 'artisan-portfolio')} alt="Work" fill className="object-cover group-hover:scale-110 transition-transform" />
                         </div>
                       ))}
                     </div>
@@ -397,7 +398,7 @@ export default function ArtisanDashboard() {
                       {products.map((product) => (
                         <div key={product.id} className="bg-white p-4 rounded-xl border border-gray-200 flex gap-4 items-center group hover:border-blue-300 transition-all shadow-sm">
                           {product.image_url ? (
-                            <SafeImage src={product.image_url} alt={product.name} width={80} height={80} className="w-20 h-20 object-cover rounded-lg shadow-sm" />
+                            <SafeImage src={resolveImageUrl(product.image_url, 'product-images')} alt={product.name} width={80} height={80} className="w-20 h-20 object-cover rounded-lg shadow-sm" />
                           ) : (
                             <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">No Image</div>
                           )}

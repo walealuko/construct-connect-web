@@ -14,3 +14,4 @@ yarn-error.log*
 .claude
 .env
 .env.local
+tsconfig.tsbuildinfo

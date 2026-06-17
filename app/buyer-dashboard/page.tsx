@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { resolveImageUrl } from "@/lib/storage";
 
 export default function BuyerDashboard() {
   const userContext = useContext(UserContext);
@@ -221,7 +222,7 @@ export default function BuyerDashboard() {
                       <Link href={`/product/${product.id}`} className="block space-y-2">
                         <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
                           {product.image_url ? (
-                            <SafeImage src={product.image_url} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform" />
+                            <SafeImage src={resolveImageUrl(product.image_url, 'product-images')} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-2xl">🏗️</div>
                           )}

@@ -16,6 +16,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Modal } from "@/components/ui/Modal";
+import { resolveImageUrl } from "@/lib/storage";
 
 const PRODUCT_CATEGORIES = [
   "General",
@@ -78,11 +79,11 @@ export default function SellerDashboard() {
       } else {
         setProfile(profileData);
 
-        // Update the form state with registration data as defaults
+        // Sync registration data to form state as defaults
         setFormData(prev => ({
           ...prev,
-          // Syncing profile data to form state for convenience in modals
-          // Note: We keep existing imageFile/Preview for the current upload process
+          name: profileData.full_name || "",
+          description: profileData.bio || "",
         }));
       }
 
@@ -255,11 +256,8 @@ export default function SellerDashboard() {
 
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('product-images')
-          .getPublicUrl(fileName);
-
-        finalImageUrl = publicUrl;
+        // Store only the file path; the resolver builds the public URL at render time.
+        finalImageUrl = fileName;
       } else {
         throw new Error("Product image is required");
       }
@@ -408,7 +406,7 @@ export default function SellerDashboard() {
                       {products.map((product) => (
                         <div key={product.id} className="bg-white p-4 rounded-xl border border-gray-200 flex gap-4 items-center group hover:border-blue-300 transition-all shadow-sm">
                           {product.image_url ? (
-                            <SafeImage src={product.image_url} alt={product.name} width={80} height={80} className="w-20 h-20 object-cover rounded-lg shadow-sm" />
+                            <SafeImage src={resolveImageUrl(product.image_url, 'product-images')} alt={product.name} width={80} height={80} className="w-20 h-20 object-cover rounded-lg shadow-sm" />
                           ) : (
                             <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">No Image</div>
                           )}

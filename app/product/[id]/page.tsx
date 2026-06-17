@@ -9,6 +9,7 @@ import ProductAddToCart from "@/components/ProductAddToCart";
 import MessageSellerButton from "@/components/MessageSellerButton";
 import { UserContext } from "@/components/UserContext";
 import { useContext } from "react";
+import { resolveImageUrl } from "@/lib/storage";
 
 export default async function ProductPage({ params }: { params: { id: string } }) {
   const { id } = params;
@@ -39,7 +40,7 @@ export default async function ProductPage({ params }: { params: { id: string } }
         <div className="space-y-5">
           {p.image_url ? (
             <SafeImage
-              src={p.image_url}
+              src={resolveImageUrl(p.image_url, 'product-images')}
               alt={p.name}
               width={600}
               height={420}

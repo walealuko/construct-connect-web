@@ -7,6 +7,7 @@ import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
 import { CartItem } from "@/types/database";
 import MessageSellerButton from "@/components/MessageSellerButton";
+import { resolveImageUrl } from "@/lib/storage";
 
 export default function Cart() {
   const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
@@ -66,7 +67,7 @@ export default function Cart() {
               <Link href={`/product/${item.id}`} className="relative w-24 h-24 flex-shrink-0 transition-transform hover:scale-105">
                 {item.image_url ? (
                   <SafeImage
-                    src={item.image_url}
+                    src={resolveImageUrl(item.image_url, 'product-images')}
                     alt={item.name}
                     fill
                     className="object-cover rounded-xl"

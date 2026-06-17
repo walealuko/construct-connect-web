@@ -8,6 +8,7 @@ import SafeImage from "@/components/ui/SafeImage";
 import { Profile, Product, Order } from "@/types/database";
 import { updateUserRoleAction } from "@/app/actions/admin";
 import { toast } from "sonner";
+import { resolveImageUrl } from "@/lib/storage";
 
 interface Review {
   id: string;
@@ -283,7 +284,7 @@ export default function AdminDashboard() {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       {p.image_url && (
-                        <SafeImage src={p.image_url} alt={p.name} width={32} height={32} className="rounded-md" />
+                        <SafeImage src={resolveImageUrl(p.image_url, 'product-images')} alt={p.name} width={32} height={32} className="rounded-md" />
                       )}
                       <span className="text-slate-900 font-medium truncate max-w-[150px]">{p.name}</span>
                     </div>
