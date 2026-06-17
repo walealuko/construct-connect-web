@@ -77,6 +77,13 @@ export default function SellerDashboard() {
         toast.error("Could not load profile information");
       } else {
         setProfile(profileData);
+
+        // Update the form state with registration data as defaults
+        setFormData(prev => ({
+          ...prev,
+          // Syncing profile data to form state for convenience in modals
+          // Note: We keep existing imageFile/Preview for the current upload process
+        }));
       }
 
       const { data: productsData, error: pError } = await supabase
@@ -84,8 +91,12 @@ export default function SellerDashboard() {
         .select('*')
         .eq('seller_id', user?.id);
 
-      if (pError) throw pError;
-      setProducts(productsData || []);
+      if (pError) {
+        console.error("Error fetching products:", pError);
+        toast.error("Could not load product listings");
+      } else {
+        setProducts(productsData || []);
+      }
 
       const productIds = (productsData || []).map(p => p.id);
 
@@ -96,24 +107,27 @@ export default function SellerDashboard() {
           .contains('items.product_id', productIds)
           .order('created_at', { ascending: false });
 
-        if (oError) throw oError;
-        setOrders(ordersData || []);
+        if (oError) {
+          console.error("Error fetching orders:", oError);
+        } else {
+          setOrders(ordersData || []);
 
-        const totalRev = (ordersData || [])
-          .filter((o: Order) => o.status === 'completed')
-          .reduce((sum: number, o: Order) => sum + o.total_price, 0);
+          const totalRev = (ordersData || [])
+            .filter((o: Order) => o.status === 'completed')
+            .reduce((sum: number, o: Order) => sum + o.total_price, 0);
 
-        setStats({
-          revenue: totalRev,
-          ordersCount: (ordersData || []).length,
-          productsCount: (productsData || []).length
-        });
+          setStats({
+            revenue: totalRev,
+            ordersCount: (ordersData || []).length,
+            productsCount: (productsData || []).length
+          });
+        }
       } else {
         setStats({ revenue: 0, ordersCount: 0, productsCount: 0 });
       }
     } catch (err: any) {
-      console.error("Failed to load dashboard data:", err);
-      toast.error("Failed to load dashboard data");
+      console.error("General dashboard load error:", err);
+      toast.error("An unexpected error occurred while loading your dashboard");
     } finally {
       setLoading(false);
     }
