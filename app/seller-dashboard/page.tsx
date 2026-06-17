@@ -33,11 +33,6 @@ export default function SellerDashboard() {
   const userContext = useContext(UserContext);
   const { user, loading: authLoading } = userContext || { user: null, loading: true };
 
-  console.log("--- Seller Dashboard Auth Check ---");
-  console.log("User:", user);
-  console.log("Auth Loading:", authLoading);
-  console.log("-----------------------------------");
-
   const [profile, setProfile] = useState<Profile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -82,11 +77,6 @@ export default function SellerDashboard() {
         .from('products')
         .select('*')
         .eq('seller_id', user?.id);
-
-      console.log("sellerId:", user?.id);
-      console.log("Query seller:", user?.id);
-      console.log("Products returned:", productsData?.length);
-      console.log(productsData);
 
       if (pError) throw pError;
       setProducts(productsData || []);
@@ -191,6 +181,20 @@ export default function SellerDashboard() {
     setIsEditModalOpen(true);
   };
 
+  const handleFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+
+      setFormData({
+        ...formData,
+        imageFile: file,
+        imagePreview: URL.createObjectURL(file),
+      });
+    }
+  };
+
   if (authLoading) {
     return (
       <DashboardLayout userRole="business">
@@ -266,7 +270,7 @@ export default function SellerDashboard() {
           </div>
           <Button
             onClick={() => setIsAddModalOpen(true)}
-            className="px-6 py-6 text-base font-bold"
+            className="px-6 py-3 text-base font-bold"
           >
             + Add New Product
           </Button>
