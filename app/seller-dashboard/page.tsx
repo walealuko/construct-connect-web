@@ -66,12 +66,18 @@ export default function SellerDashboard() {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user?.id)
         .single();
-      setProfile(profileData);
+
+      if (profileError) {
+        console.error("Error fetching profile:", profileError);
+        toast.error("Could not load profile information");
+      } else {
+        setProfile(profileData);
+      }
 
       const { data: productsData, error: pError } = await supabase
         .from('products')
@@ -184,14 +190,27 @@ export default function SellerDashboard() {
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-      setFormData({
-        ...formData,
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload a valid image file");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size must be less than 5MB");
+      return;
+    }
+
+    try {
+      setFormData((prev) => ({
+        ...prev,
         imageFile: file,
         imagePreview: URL.createObjectURL(file),
-      });
+      }));
+    } catch (err) {
+      toast.error("Failed to generate image preview");
     }
   };
 
@@ -263,14 +282,28 @@ export default function SellerDashboard() {
   return (
     <DashboardLayout userRole="business">
       <div className="space-y-8">
+        {!profile && (
+          <div className="p-4 bg-blue-600 rounded-2xl text-white flex justify-between items-center shadow-lg animate-in fade-in slide-in-from-top-2 duration-500">
+            <div className="flex gap-3 items-center">
+              <div className="p-2 bg-white/20 rounded-lg text-xl">📋</div>
+              <div>
+                <p className="font-bold">Profile Incomplete</p>
+                <p className="text-blue-100 text-xs">Your business details are missing. Complete your profile to attract more buyers.</p>
+              </div>
+            </div>
+            <Link href="/profile/edit" className="px-4 py-2 bg-white text-blue-600 text-xs font-bold rounded-xl hover:bg-blue-50 transition-colors">
+              Complete Now →
+            </Link>
+          </div>
+        )}
         <div className="flex justify-between items-center">
-          <div>
+          <div className="space-y-1">
             <h2 className="text-3xl font-black text-slate-900">Seller Dashboard</h2>
             <p className="text-gray-500 font-medium">Manage your inventory and sales</p>
           </div>
           <Button
             onClick={() => setIsAddModalOpen(true)}
-            className="px-6 py-3 text-base font-bold"
+            className="px-6 py-3 text-base font-bold shadow-sm hover:shadow-md transition-all active:scale-95"
           >
             + Add New Product
           </Button>
@@ -279,19 +312,26 @@ export default function SellerDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left Column: Stats & Profile */}
           <div className="lg:col-span-1 space-y-6">
-            <Card className="h-fit overflow-hidden">
+            <Card className="h-fit overflow-hidden border-2 border-blue-100 shadow-sm">
               <CardHeader className="bg-slate-50 border-b border-gray-100">
                 <div className="flex flex-col items-center text-center gap-3">
                   <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center text-3xl font-black text-white shadow-lg">
                     {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || 'S'}
                   </div>
-                  <div>
+                  <div className="mt-2">
                     <h3 className="text-lg font-bold text-slate-900">{profile?.full_name || "Seller Profile"}</h3>
                     <p className="text-xs text-gray-500 truncate max-w-[150px]">{user?.email}</p>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="p-4 space-y-3">
+                {!profile?.business_name && (
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-amber-700 font-medium">
+                      ⚠️ Your business profile is incomplete. Please add your business name and location to look more professional.
+                    </p>
+                  </div>
+                )}
                 <div className="flex justify-between py-2 text-sm">
                   <span className="text-gray-400">Business Name</span>
                   <span className="font-semibold text-slate-700">{profile?.business_name || "Not specified"}</span>
@@ -302,7 +342,7 @@ export default function SellerDashboard() {
                 </div>
                 <div className="flex justify-between py-2 text-sm border-t border-gray-50">
                   <span className="text-gray-400">Tier</span>
-                  <Badge variant="info">{profile?.tier}</Badge>
+                  <Badge variant="info">{profile?.tier || "business"}</Badge>
                 </div>
               </CardContent>
               <CardFooter className="bg-slate-50 border-t border-gray-100 p-3">
