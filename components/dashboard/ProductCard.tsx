@@ -1,0 +1,69 @@
+"use client";
+
+import { Product } from "@/types/database";
+import SafeImage from "@/components/ui/SafeImage";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { resolveImageUrl } from "@/lib/storage";
+
+interface ProductCardProps {
+  product: Product;
+  onEdit: (product: Product) => void;
+  onDelete: (productId: string) => void;
+}
+
+/**
+ * One row in the product inventory grid.
+ * Pure presentation; the parent owns the edit/delete handlers.
+ */
+export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
+  return (
+    <div className="bg-white p-4 rounded-xl border border-gray-200 flex gap-4 items-center group hover:border-blue-300 transition-all shadow-sm">
+      {product.image_url ? (
+        <SafeImage
+          src={resolveImageUrl(product.image_url, "product-images")}
+          alt={product.name}
+          width={80}
+          height={80}
+          className="w-20 h-20 object-cover rounded-lg shadow-sm"
+        />
+      ) : (
+        <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">
+          No Image
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <h4 className="font-bold text-slate-900 truncate text-sm">{product.name}</h4>
+        <div className="flex items-center gap-2 mt-1">
+          <p className="text-blue-600 font-bold text-xs">${product.price?.toFixed(2)}</p>
+          {product.category && (
+            <Badge variant="outline" className="text-[10px] py-0 px-1.5">
+              {product.category}
+            </Badge>
+          )}
+        </div>
+        <p className="text-gray-400 text-[10px] mt-1">Stock: {product.stock}</p>
+      </div>
+      <div className="flex gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+          onClick={() => onEdit(product)}
+          title="Edit Product"
+        >
+          ✏️
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-gray-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+          onClick={() => onDelete(product.id)}
+          title="Delete Product"
+        >
+          🗑️
+        </Button>
+      </div>
+    </div>
+  );
+}

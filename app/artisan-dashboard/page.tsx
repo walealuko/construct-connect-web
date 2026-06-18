@@ -1,298 +1,53 @@
 "use client";
 
-import React, { useState, useEffect, useContext, useId } from "react";
+import React, { useContext, useRef, useState } from "react";
 import { UserContext } from "@/components/UserContext";
-import { supabase } from "@/lib/supabase";
-import { Product, Order, Profile } from "@/types/database";
+import { Product } from "@/types/database";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import Image from "next/image";
-import SafeImage from "@/components/ui/SafeImage";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent } from "@/components/ui/Card";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { toast } from "sonner";
 import Link from "next/link";
-import { deleteProductAction, createProductAction, updateProductAction } from "@/app/actions/products";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-import { Skeleton } from "@/components/ui/Skeleton";
-import { Modal } from "@/components/ui/Modal";
-import { resolveImageUrl } from "@/lib/storage";
+import {
+  createProductAction,
+  deleteProductAction,
+  updateProductAction,
+} from "@/app/actions/products";
+import { supabase } from "@/lib/supabase";
+
+import { useDashboardData } from "@/components/dashboard/useDashboardData";
+import { ProfileCard } from "@/components/dashboard/ProfileCard";
+import { StatsCards } from "@/components/dashboard/StatsCards";
+import { ProductCard } from "@/components/dashboard/ProductCard";
+import { ProductFormModal } from "@/components/dashboard/ProductFormModal";
+import { ConfirmDeleteModal } from "@/components/dashboard/ConfirmDeleteModal";
+import { OrdersTable } from "@/components/dashboard/OrdersTable";
+import { PortfolioGallery } from "@/components/dashboard/PortfolioGallery";
 
 export default function ArtisanDashboard() {
   const userContext = useContext(UserContext);
   const { user, loading: authLoading } = userContext || { user: null, loading: true };
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [portfolio, setPortfolio] = useState<string[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [stats, setStats] = useState({ revenue: 0, ordersCount: 0, productsCount: 0 });
-  const [loading, setLoading] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, productId: "" });
+
+  const {
+    profile,
+    products,
+    orders,
+    portfolio,
+    stats,
+    loading,
+    refresh,
+    updateOrderStatus,
+    addPortfolioItem,
+    removePortfolioItem,
+  } = useDashboardData();
+
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-
-  const descId = useId();
-  const imgId = useId();
-
-  const [productForm, setProductForm] = useState<{
-    name: string;
-    price: string;
-    description: string;
-    stock: string;
-    imageFile: File | null;
-    imagePreview: string;
-  }>({
-    name: "",
-    price: "",
-    description: "",
-    stock: "",
-    imageFile: null,
-    imagePreview: "",
-  });
-
-  useEffect(() => {
-    if (user) {
-      loadArtisanData();
-    }
-  }, [user]);
-
-  const loadArtisanData = async () => {
-    setLoading(true);
-    try {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .maybeSingle();
-      setProfile(profileData);
-
-      // portfolio column doesn't exist on the schema; just initialize empty.
-      // (handlePortfolioUpload warns the user when persistence is unavailable.)
-      setPortfolio([]);
-
-      const { data: productsData, error: pError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('seller_id', user?.id);
-      if (pError) throw pError;
-      setProducts(productsData || []);
-
-      const productIds = (productsData || []).map(p => p.id);
-
-      if (productIds.length > 0) {
-        // Join through order_items to find orders containing this artisan's products.
-        // PostgREST sometimes types the embedded `orders!inner(...)` row as an
-        // object and sometimes as a single-element array; normalise both.
-        const { data: rows, error: oError } = await supabase
-          .from('order_items')
-          .select('order_id, orders!inner(id, buyer_id, status, created_at, profiles:buyer_id(first_name, last_name))')
-          .in('product_id', productIds)
-          .order('created_at', { ascending: false, referencedTable: 'orders' });
-
-        if (oError) {
-          console.error("Error fetching orders:", oError);
-          setOrders([]);
-        } else {
-          const seen = new Set<string>();
-          const ordersData: Order[] = [];
-          for (const r of rows || []) {
-            // The embed can come back as either a single object (one-to-one)
-            // or a single-element array depending on the join type the
-            // client infers. Accept both.
-            const raw = (r as any).orders;
-            const orderObj = Array.isArray(raw) ? raw[0] : raw;
-            if (!orderObj || seen.has(orderObj.id)) continue;
-            seen.add(orderObj.id);
-            ordersData.push(orderObj as Order);
-          }
-          setOrders(ordersData);
-          setStats({
-            revenue: 0,
-            ordersCount: ordersData.length,
-            productsCount: (productsData || []).length,
-          });
-        }
-      } else {
-        setStats({ revenue: 0, ordersCount: 0, productsCount: 0 });
-      }
-    } catch (err) {
-      console.error("Error loading artisan data:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', orderId);
-
-      if (error) throw error;
-      toast.success(`Order updated to ${newStatus}`);
-      loadArtisanData();
-    } catch (err: any) {
-      toast.error(`Failed to update order: ${err.message}`);
-    }
-  };
-
-  const confirmDeleteProduct = async () => {
-    if (!deleteModal.productId) return;
-
-    setLoading(true);
-    setDeleteModal({ ...deleteModal, isOpen: false });
-
-    try {
-      const result = await deleteProductAction(deleteModal.productId);
-
-      if (result.success) {
-        toast.success("Product deleted successfully");
-        loadArtisanData();
-      } else {
-        throw new Error(result.error);
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete product");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePortfolioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.[0]) return;
-    setLoading(true);
-    try {
-      const file = e.target.files[0];
-      const fileName = `portfolio-${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage.from('artisan-portfolio').upload(fileName, file, { upsert: true });
-      if (uploadError) {
-        const hint = uploadError.message?.includes('row-level security')
-          ? ' Check the RLS policies on the artisan-portfolio bucket.'
-          : '';
-        throw new Error(`Upload failed: ${uploadError.message}${hint}`);
-      }
-      // Persist the file path on the profile. If a `portfolio` column
-      // exists we use it; otherwise we fall back to client state only
-      // (and the file remains accessible via the bucket URL).
-      const currentPortfolio = [...portfolio, fileName];
-      const { error: dbError } = await supabase
-        .from('profiles')
-        .update({ portfolio: currentPortfolio })
-        .eq('id', user?.id);
-
-      if (dbError && dbError.message?.includes("portfolio")) {
-        // Column doesn't exist on the schema — show the file locally only.
-        toast.warning("File uploaded, but portfolio persistence is not configured on this schema.");
-      } else if (dbError) {
-        throw dbError;
-      }
-      setPortfolio(currentPortfolio);
-      toast.success("Portfolio project uploaded!");
-    } catch (err: any) {
-      toast.error(err.message || "Upload failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUpdateProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingProduct) return;
-    setLoading(true);
-    try {
-      const newPath = productForm.imageFile ? productForm.imagePreview : "";
-      const result = await updateProductAction(editingProduct.id, {
-        name: productForm.name,
-        description: productForm.description,
-        price: productForm.price,
-        category: 'artisan-service',
-        stock: productForm.stock,
-        image_url: newPath,
-      });
-      if (result.success) {
-        toast.success("Product updated successfully!");
-        setIsEditModalOpen(false);
-        loadArtisanData();
-      } else {
-        toast.error(result.error);
-      }
-    } catch (err: any) {
-      toast.error("Failed to update product");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const openEditModal = (product: Product) => {
-    setEditingProduct(product);
-    setProductForm({
-      name: product.name,
-      price: product.price.toString(),
-      description: product.description,
-      stock: product.stock.toString(),
-      imageFile: null,
-      imagePreview: resolveImageUrl(product.image_url, 'product-images'),
-    });
-    setIsEditModalOpen(true);
-  };
-
-  const handleProductSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setIsAddModalOpen(false);
-    try {
-      let imageUrl = "";
-      if (productForm.imageFile) {
-        const fileName = `artisan-prod-${Date.now()}-${productForm.imageFile.name}`;
-        const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, productForm.imageFile, { upsert: true });
-        if (uploadError) {
-          const hint = uploadError.message?.includes('row-level security')
-            ? ' Check the RLS policies on the product-images bucket.'
-            : '';
-          throw new Error(`Image upload failed: ${uploadError.message}${hint}`);
-        }
-        // Store only the file path; the resolver builds the public URL at render time.
-        imageUrl = fileName;
-      } else {
-        throw new Error("Product image is required");
-      }
-
-      const result = await createProductAction({
-        name: productForm.name,
-        description: productForm.description,
-        price: parseFloat(productForm.price),
-        category: 'artisan-service',
-        stock: 1,
-        image_url: imageUrl,
-      });
-
-      if (!result.success) throw new Error(result.error);
-
-      setProductForm({ name: "", price: "", description: "", stock: "", imageFile: null, imagePreview: "" });
-      toast.success("Product listed!");
-      loadArtisanData();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to list product");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleProductFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-
-      setProductForm({
-        ...productForm,
-        imageFile: file,
-        imagePreview: URL.createObjectURL(file),
-      });
-    }
-  };
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
+  const portfolioInputRef = useRef<HTMLInputElement>(null);
 
   if (authLoading) {
     return (
@@ -304,6 +59,90 @@ export default function ArtisanDashboard() {
     );
   }
 
+  const handleCreate = async (data: {
+    name: string;
+    description: string;
+    price: number;
+    category: string;
+    stock: number;
+    image_url: string;
+  }) => {
+    // For artisans, the action's category picker is bypassed and we always
+    // tag the listing as 'artisan-service'. The form modal passes the
+    // fixedCategory prop, so the value here is already correct.
+    const result = await createProductAction(data);
+    if (!result.success) throw new Error(result.error);
+    toast.success("Product listed!");
+    setIsAddOpen(false);
+    refresh();
+  };
+
+  const handleUpdate = async (data: {
+    name: string;
+    description: string;
+    price: number;
+    category: string;
+    stock: number;
+    image_url: string;
+  }) => {
+    if (!editingProduct) return;
+    const result = await updateProductAction(editingProduct.id, data);
+    if (!result.success) throw new Error(result.error);
+    toast.success("Product updated successfully!");
+    setEditingProduct(null);
+    refresh();
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingId) return;
+    setDeleting(true);
+    try {
+      const result = await deleteProductAction(deletingId);
+      if (!result.success) throw new Error(result.error);
+      toast.success("Product deleted successfully");
+      setDeletingId(null);
+      refresh();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete product");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handlePortfolioSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Reset the input so the same file can be picked again later.
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+      toast.error("Please upload an image or video file");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File must be less than 10MB");
+      return;
+    }
+    setUploadingPortfolio(true);
+    try {
+      const fileName = `portfolio-${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("artisan-portfolio")
+        .upload(fileName, file, { upsert: true });
+      if (uploadError) {
+        const hint = uploadError.message?.includes("row-level security")
+          ? " Check the RLS policies on the artisan-portfolio bucket."
+          : "";
+        throw new Error(`Upload failed: ${uploadError.message}${hint}`);
+      }
+      await addPortfolioItem(fileName);
+      toast.success("Portfolio project uploaded!");
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploadingPortfolio(false);
+    }
+  };
+
   return (
     <DashboardLayout userRole="artisan">
       <div className="space-y-8">
@@ -313,7 +152,7 @@ export default function ArtisanDashboard() {
             <p className="text-gray-500 font-medium">Showcase your skill and services</p>
           </div>
           <Button
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => setIsAddOpen(true)}
             className="px-6 py-3 text-base font-bold"
           >
             + List a Product
@@ -322,98 +161,47 @@ export default function ArtisanDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-1 space-y-6">
-            <Card className="h-fit overflow-hidden">
-              <CardHeader className="bg-slate-50 border-b border-gray-100">
-                <div className="flex flex-col items-center text-center gap-3">
-                  <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center text-3xl font-black text-white shadow-lg">
-                    {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || 'A'}
-                  </div>
-                  <div className="mt-2">
-                    <h3 className="text-lg font-bold text-slate-900">{profile?.full_name || "Artisan Profile"}</h3>
-                    <p className="text-xs text-gray-500 truncate max-w-[150px]">{user?.email}</p>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                <div className="flex justify-between py-2 text-sm">
-                  <span className="text-gray-400">Location</span>
-                  <span className="font-semibold text-slate-700">{profile?.location || "Not specified"}</span>
-                </div>
-                <div className="flex justify-between py-2 text-sm border-t border-gray-50">
-                  <span className="text-gray-400">Role</span>
-                  <Badge variant="info">{profile?.tier || "artisan"}</Badge>
-                </div>
-              </CardContent>
-              <CardFooter className="bg-slate-50 border-t border-gray-100 p-3">
-                <Link href="/profile/edit" className="w-full text-center text-xs font-bold text-blue-600 hover:underline">
-                  Update Portfolio Details →
-                </Link>
-              </CardFooter>
-            </Card>
-
-            <div className="grid grid-cols-1 gap-4">
-              <Card className="p-4 bg-gradient-to-br from-blue-600 to-blue-700 text-white border-none shadow-md">
-                <p className="text-blue-100 text-xs font-bold uppercase tracking-wider">Total Revenue</p>
-                <p className="text-3xl font-black">${stats.revenue.toFixed(2)}</p>
-              </Card>
-              <Card className="p-4">
-                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Active Orders</p>
-                <p className="text-3xl font-black text-slate-900">{stats.ordersCount}</p>
-              </Card>
-              <Card className="p-4">
-                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Active Listings</p>
-                <p className="text-3xl font-black text-slate-900">{products.length}</p>
-              </Card>
-            </div>
+            <ProfileCard profile={profile} user={user} variant="artisan" />
+            <StatsCards
+              revenue={stats.revenue}
+              ordersCount={stats.ordersCount}
+              productsCount={stats.productsCount}
+              productsLabel="Active Listings"
+            />
           </div>
 
           <div className="lg:col-span-3 space-y-8">
             <section>
               <div className="flex justify-between items-end mb-4">
                 <h3 className="text-xl font-bold text-slate-800">My Portfolio Gallery</h3>
-                <div className="relative">
-                  <Button
-                    size="sm"
-                    disabled={loading}
-                    isLoading={loading}
-                    onClick={() => document.getElementById('portfolio-upload')?.click()}
-                  >
-                    Add Project Image
-                  </Button>
-                  <input
-                    id="portfolio-upload"
-                    type="file"
-                    accept="image/*,video/*"
-                    onChange={handlePortfolioUpload}
-                    className="hidden"
-                  />
-                </div>
               </div>
-
-              <Card>
-                <CardContent className="p-6">
-                  {loading && portfolio.length === 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                      {[...Array(6)].map((_, i) => (
-                        <Skeleton key={i} className="aspect-square w-full rounded-xl" />
-                      ))}
-                    </div>
-                  ) : portfolio.length === 0 ? (
-                    <div className="py-12 text-center space-y-3">
-                      <div className="text-4xl">🎨</div>
-                      <p className="text-gray-400 text-sm">No project photos yet. Upload images to showcase your expertise!</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                      {portfolio.map((url, i) => (
-                        <div key={i} className="relative aspect-square rounded-xl overflow-hidden group border border-gray-100 shadow-sm">
-                          <SafeImage src={resolveImageUrl(url, 'artisan-portfolio')} alt="Work" fill className="object-cover group-hover:scale-110 transition-transform" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <PortfolioGallery
+                items={portfolio}
+                loading={loading}
+                onAdd={() => portfolioInputRef.current?.click()}
+                onRemove={async (path) => {
+                  if (!user?.id) return;
+                  try {
+                    await removePortfolioItem(path);
+                    // Best-effort: also remove the file from the bucket.
+                    await supabase.storage.from("artisan-portfolio").remove([path]);
+                    toast.success("Removed");
+                  } catch (err: any) {
+                    toast.error(err.message || "Failed to remove");
+                  }
+                }}
+                addLabel="Add Project Image"
+              />
+              <input
+                ref={portfolioInputRef}
+                type="file"
+                accept="image/*,video/*"
+                onChange={handlePortfolioSelected}
+                className="hidden"
+              />
+              {uploadingPortfolio && (
+                <p className="text-xs text-blue-600 mt-2">Uploading…</p>
+              )}
             </section>
 
             <section>
@@ -432,47 +220,19 @@ export default function ArtisanDashboard() {
                   ) : products.length === 0 ? (
                     <div className="py-12 text-center space-y-3">
                       <div className="text-4xl">📦</div>
-                      <p className="text-gray-400 text-sm">No products listed yet. Start selling your services!</p>
+                      <p className="text-gray-400 text-sm">
+                        No products listed yet. Start selling your services!
+                      </p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {products.map((product) => (
-                        <div key={product.id} className="bg-white p-4 rounded-xl border border-gray-200 flex gap-4 items-center group hover:border-blue-300 transition-all shadow-sm">
-                          {product.image_url ? (
-                            <SafeImage src={resolveImageUrl(product.image_url, 'product-images')} alt={product.name} width={80} height={80} className="w-20 h-20 object-cover rounded-lg shadow-sm" />
-                          ) : (
-                            <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">No Image</div>
-                          )}
-                          <div className="flex-1 min-w-0 flex justify-between items-center">
-                            <div className="truncate">
-                              <h4 className="font-bold text-slate-900 truncate text-sm">{product.name}</h4>
-                              <div className="flex items-center gap-2 mt-1">
-                                <p className="text-blue-600 font-bold text-xs">${product.price?.toFixed(2)}</p>
-                                <Badge variant="outline" className="text-[10px] py-0 px-1.5">{product.category}</Badge>
-                              </div>
-                            </div>
-                            <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                                onClick={() => openEditModal(product)}
-                                title="Edit Product"
-                              >
-                                ✏️
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-gray-300 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                onClick={() => setDeleteModal({ isOpen: true, productId: product.id })}
-                                title="Delete Product"
-                              >
-                                🗑️
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
+                        <ProductCard
+                          key={product.id}
+                          product={product}
+                          onEdit={setEditingProduct}
+                          onDelete={setDeletingId}
+                        />
                       ))}
                     </div>
                   )}
@@ -482,277 +242,78 @@ export default function ArtisanDashboard() {
 
             <section>
               <h3 className="text-xl font-bold text-slate-800 mb-4">Recent Orders</h3>
-              <Card className="overflow-hidden">
-                <div className="overflow-x-auto">
-                  <div className="grid grid-cols-4 bg-slate-50 border-b border-gray-100 text-gray-500 uppercase text-xs font-bold tracking-wider">
-                    <div className="px-6 py-4">Buyer</div>
-                    <div className="px-6 py-4">Date</div>
-                    <div className="px-6 py-4">Status</div>
-                    <div className="px-6 py-4 text-right">Action</div>
-                  </div>
-                  <div className="divide-y divide-gray-100">
-                    {loading && orders.length === 0 ? (
-                      <div className="p-6 text-center text-gray-400">Loading orders...</div>
-                    ) : orders.length === 0 ? (
-                      <div className="p-6 text-center text-gray-400">No orders found yet.</div>
-                    ) : (
-                      orders.map((order) => (
-                        <div key={order.id} className="grid grid-cols-4 hover:bg-slate-50 transition-colors text-sm items-center">
-                          <div className="px-6 py-4 text-slate-900 font-medium">
-                            {order.profiles?.first_name ? `${order.profiles.first_name} ${order.profiles.last_name}` : "Unknown Buyer"}
-                          </div>
-                          <div className="px-6 py-4 text-slate-500 text-xs">
-                            {new Date(order.created_at).toLocaleDateString()}
-                          </div>
-                          <div className="px-6 py-4">
-                            <Badge
-                              variant={
-                                order.status === 'completed' ? 'success' :
-                                order.status === 'shipped' ? 'info' : 'warning'
-                              }
-                            >
-                              {order.status}
-                            </Badge>
-                          </div>
-                          <div className="px-6 py-4 text-right">
-                            <select
-                              value={order.status}
-                              onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                              className="p-1 text-xs border rounded bg-white outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="completed">Completed</option>
-                              <option value="shipped">Shipped</option>
-                              <option value="delivered">Delivered</option>
-                            </select>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </Card>
+              <OrdersTable
+                orders={orders}
+                loading={loading}
+                onStatusChange={updateOrderStatus}
+              />
             </section>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Link href="/marketplace" className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+          <Link
+            href="/marketplace"
+            className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
+          >
             <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">🏗️</div>
             <h3 className="text-xl font-bold text-slate-900 mb-2">Marketplace</h3>
             <p className="text-gray-500 text-sm">See how your products look to buyers.</p>
-            <div className="mt-4 text-blue-600 font-bold text-xs uppercase tracking-wider">Visit Market →</div>
+            <div className="mt-4 text-blue-600 font-bold text-xs uppercase tracking-wider">
+              Visit Market →
+            </div>
           </Link>
-          <Link href="/projects" className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+          <Link
+            href="/projects"
+            className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
+          >
             <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">🛠️</div>
             <h3 className="text-xl font-bold text-slate-900 mb-2">Browse Projects</h3>
             <p className="text-gray-500 text-sm">Find new construction projects to bid on.</p>
-            <div className="mt-4 text-blue-600 font-bold text-xs uppercase tracking-wider">Explore Projects →</div>
+            <div className="mt-4 text-blue-600 font-bold text-xs uppercase tracking-wider">
+              Explore Projects →
+            </div>
           </Link>
-          <Link href="/messages" className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+          <Link
+            href="/messages"
+            className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
+          >
             <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">💬</div>
             <h3 className="text-xl font-bold text-slate-900 mb-2">Messages</h3>
             <p className="text-gray-500 text-sm">Reply to interested clients.</p>
-            <div className="mt-4 text-blue-600 font-bold text-xs uppercase tracking-wider">Open Chat →</div>
+            <div className="mt-4 text-blue-600 font-bold text-xs uppercase tracking-wider">
+              Open Chat →
+            </div>
           </Link>
         </div>
 
-        <Modal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          title="List a New Product/Service"
-        >
-          <form onSubmit={handleProductSubmit} className="space-y-5 py-2">
-            <div className="space-y-4">
-              <Input
-                label="Service/Product Name"
-                placeholder="e.g., Expert Roof Installation"
-                value={productForm.name}
-                onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-                required
-              />
+        <ProductFormModal
+          isOpen={isAddOpen}
+          mode="add"
+          fixedCategory="artisan-service"
+          onClose={() => setIsAddOpen(false)}
+          onSubmit={handleCreate}
+        />
 
-              <div className="space-y-1.5">
-                <label htmlFor={descId} className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</label>
-                <textarea
-                  id={descId}
-                  name="description"
-                  placeholder="Detail your expertise, materials used, and what is included..."
-                  value={productForm.description}
-                  onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                  rows={4}
-                  className="w-full p-3 rounded-xl border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-                  required
-                />
-              </div>
+        <ProductFormModal
+          isOpen={!!editingProduct}
+          mode="edit"
+          product={editingProduct}
+          fixedCategory="artisan-service"
+          onClose={() => setEditingProduct(null)}
+          onSubmit={handleUpdate}
+          submitLabel="Update Listing"
+        />
 
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Base Price ($)"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={productForm.price}
-                  onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                  required
-                />
-                <Input
-                  label="Stock/Availability"
-                  type="number"
-                  placeholder="1"
-                  value={productForm.stock}
-                  onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor={imgId} className="text-xs font-bold text-gray-400 uppercase tracking-wider">Listing Image</label>
-                <div className="flex flex-col gap-3">
-                  <input
-                    id={imgId}
-                    name="image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleProductFileChange}
-                    className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                    required
-                  />
-                  {productForm.imagePreview && (
-                    <div className="relative w-32 h-32 rounded-xl overflow-hidden border-2 border-blue-100">
-                      <Image
-                        src={productForm.imagePreview}
-                        alt="Preview"
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={loading}
-                isLoading={loading}
-                className="px-8"
-              >
-                List Product
-              </Button>
-            </div>
-          </form>
-        </Modal>
-
-        <Modal
-          isOpen={deleteModal.isOpen}
-          onClose={() => setDeleteModal({ isOpen: false, productId: "" })}
-          title="Delete Product"
-        >
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-slate-600">
-              Are you sure you want to delete this product? This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" size="sm" onClick={() => setDeleteModal({ isOpen: false, productId: "" })}>
-                Cancel
-              </Button>
-              <Button variant="danger" size="sm" onClick={confirmDeleteProduct} disabled={loading} isLoading={loading}>
-                Delete Product
-              </Button>
-            </div>
-          </div>
-        </Modal>
-
-        <Modal
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          title="Edit Product Listing"
-        >
-          <form onSubmit={handleUpdateProduct} className="space-y-5 py-2">
-            <div className="space-y-4">
-              <Input
-                label="Service/Product Name"
-                placeholder="e.g., Expert Roof Installation"
-                value={productForm.name}
-                onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-                required
-              />
-              <div className="space-y-1.5">
-                <label htmlFor={descId} className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</label>
-                <textarea
-                  id={descId}
-                  name="description"
-                  placeholder="Detail your expertise, materials used, and what is included..."
-                  value={productForm.description}
-                  onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                  rows={4}
-                  className="w-full p-3 rounded-xl border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Base Price ($)"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={productForm.price}
-                  onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                  required
-                />
-                <Input
-                  label="Stock/Availability"
-                  type="number"
-                  placeholder="1"
-                  value={productForm.stock}
-                  onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor={imgId} className="text-xs font-bold text-gray-400 uppercase tracking-wider">Listing Image</label>
-                <div className="flex flex-col gap-3">
-                  <input
-                    id={imgId}
-                    name="image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleProductFileChange}
-                    className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
-                  {productForm.imagePreview && (
-                    <div className="relative w-32 h-32 rounded-xl overflow-hidden border-2 border-blue-100">
-                      <Image
-                        src={productForm.imagePreview}
-                        alt="Preview"
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-              <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={loading}
-                isLoading={loading}
-                className="px-8"
-              >
-                Update Listing
-              </Button>
-            </div>
-          </form>
-        </Modal>
+        <ConfirmDeleteModal
+          isOpen={!!deletingId}
+          loading={deleting}
+          onCancel={() => setDeletingId(null)}
+          onConfirm={confirmDelete}
+          title="Delete Listing"
+          message="Are you sure you want to delete this listing? This action cannot be undone."
+          confirmLabel="Delete Listing"
+        />
       </div>
     </DashboardLayout>
   );
