@@ -1,5 +1,3 @@
-import { supabase } from './supabase';
-
 export type ImageBucket = 'product-images' | 'artisan-portfolio';
 
 export function isAbsoluteUrl(value: string): boolean {
