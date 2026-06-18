@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext, useMemo, useRef, useState } from "react";
 import { UserContext } from "@/components/UserContext";
 import { Product } from "@/types/database";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Pagination } from "@/components/ui/Pagination";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
@@ -40,7 +41,21 @@ export default function ArtisanDashboard() {
     updateOrderStatus,
     addPortfolioItem,
     removePortfolioItem,
+    productPage,
+    productPageCount,
+    productCount,
+    productPageSize,
+    setProductPage,
+    orderPage,
+    orderPageCount,
+    orderPageSize,
+    setOrderPage,
   } = useDashboardData();
+
+  const pagedOrders = useMemo(() => {
+    const start = (orderPage - 1) * orderPageSize;
+    return orders.slice(start, start + orderPageSize);
+  }, [orders, orderPage, orderPageSize]);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -67,14 +82,12 @@ export default function ArtisanDashboard() {
     stock: number;
     image_url: string;
   }) => {
-    // For artisans, the action's category picker is bypassed and we always
-    // tag the listing as 'artisan-service'. The form modal passes the
-    // fixedCategory prop, so the value here is already correct.
     const result = await createProductAction(data);
     if (!result.success) throw new Error(result.error);
     toast.success("Product listed!");
     setIsAddOpen(false);
-    refresh();
+    if (productPage !== 1) setProductPage(1);
+    else refresh();
   };
 
   const handleUpdate = async (data: {
@@ -111,7 +124,6 @@ export default function ArtisanDashboard() {
 
   const handlePortfolioSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    // Reset the input so the same file can be picked again later.
     e.target.value = "";
     if (!file) return;
     if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
@@ -183,7 +195,6 @@ export default function ArtisanDashboard() {
                   if (!user?.id) return;
                   try {
                     await removePortfolioItem(path);
-                    // Best-effort: also remove the file from the bucket.
                     await supabase.storage.from("artisan-portfolio").remove([path]);
                     toast.success("Removed");
                   } catch (err: any) {
@@ -207,7 +218,7 @@ export default function ArtisanDashboard() {
             <section>
               <div className="flex justify-between items-end mb-4">
                 <h3 className="text-xl font-bold text-slate-800">Active Product Listings</h3>
-                <span className="text-xs text-gray-400">{products.length} listing(s)</span>
+                <span className="text-xs text-gray-400">{productCount} listing(s)</span>
               </div>
               <Card>
                 <CardContent className="p-6">
@@ -225,16 +236,26 @@ export default function ArtisanDashboard() {
                       </p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {products.map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          onEdit={setEditingProduct}
-                          onDelete={setDeletingId}
-                        />
-                      ))}
-                    </div>
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {products.map((product) => (
+                          <ProductCard
+                            key={product.id}
+                            product={product}
+                            onEdit={setEditingProduct}
+                            onDelete={setDeletingId}
+                          />
+                        ))}
+                      </div>
+                      <Pagination
+                        page={productPage}
+                        pageCount={productPageCount}
+                        totalCount={productCount}
+                        pageSize={productPageSize}
+                        onPageChange={setProductPage}
+                        loading={loading}
+                      />
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -243,10 +264,19 @@ export default function ArtisanDashboard() {
             <section>
               <h3 className="text-xl font-bold text-slate-800 mb-4">Recent Orders</h3>
               <OrdersTable
-                orders={orders}
-                loading={loading}
+                orders={pagedOrders}
+                loading={loading && orders.length === 0}
                 onStatusChange={updateOrderStatus}
               />
+              <div className="mt-2">
+                <Pagination
+                  page={orderPage}
+                  pageCount={orderPageCount}
+                  totalCount={orders.length}
+                  pageSize={orderPageSize}
+                  onPageChange={setOrderPage}
+                />
+              </div>
             </section>
           </div>
         </div>

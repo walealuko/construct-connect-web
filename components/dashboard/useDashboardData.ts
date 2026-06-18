@@ -22,12 +22,29 @@ interface UseDashboardDataResult {
   loading: boolean;
   initialLoadDone: boolean;
 
+  // Product pagination (server-side)
+  productPage: number;
+  productPageCount: number;
+  productCount: number;
+  productPageSize: number;
+  setProductPage: (page: number) => void;
+
+  // Order pagination (client-side, bounded)
+  orderPage: number;
+  orderPageCount: number;
+  orderPageSize: number;
+  setOrderPage: (page: number) => void;
+
   // Mutators
   refresh: () => Promise<void>;
   updateOrderStatus: (orderId: string, newStatus: string) => Promise<void>;
   addPortfolioItem: (path: string) => Promise<void>;
   removePortfolioItem: (path: string) => Promise<void>;
 }
+
+const PRODUCT_PAGE_SIZE = 10;
+const ORDER_PAGE_SIZE = 8;
+const ORDER_HARD_CAP = 500; // server-side limit before dedupe/paginate
 
 /**
  * Single source of truth for both seller and artisan dashboards.
@@ -37,6 +54,11 @@ interface UseDashboardDataResult {
  *
  * Order status updates are applied locally first (optimistic) and rolled
  * back on error — no full reload required.
+ *
+ * Product pagination is server-side (range + exact count). Order pagination
+ * is client-side: we cap the order_items fetch at ORDER_HARD_CAP rows,
+ * dedupe by order_id, then slice in the UI. That covers a high-traffic
+ * seller without changing the existing query shape.
  */
 export function useDashboardData(): UseDashboardDataResult {
   const userContext = useContext(UserContext);
@@ -54,6 +76,19 @@ export function useDashboardData(): UseDashboardDataResult {
   const [loading, setLoading] = useState(false);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
+  // Product pagination.
+  const [productPage, setProductPage] = useState(1);
+  const [productCount, setProductCount] = useState(0);
+
+  // Cached list of every product id for this user — used for the orders
+  // query so it doesn't refetch on every product-page change. Re-keyed by
+  // productCount, which changes whenever the user creates or deletes a
+  // product. Refresh() resets the cache.
+  const [allProductIds, setAllProductIds] = useState<string[]>([]);
+
+  // Order pagination.
+  const [orderPage, setOrderPage] = useState(1);
+
   const load = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
@@ -66,28 +101,61 @@ export function useDashboardData(): UseDashboardDataResult {
         .maybeSingle();
       setProfile(profileData as Profile | null);
 
-      // 2. Portfolio: only present for artisans, but the column is on every
-      //    profile row (default '{}'). Read once, keep in state.
+      // 2. Portfolio from profile row (default '{}').
       if (profileData && Array.isArray((profileData as Profile).portfolio)) {
         setPortfolio(((profileData as Profile).portfolio as string[]) ?? []);
       } else {
         setPortfolio([]);
       }
 
-      // 3. Products owned by this user.
-      const { data: productsData, error: pError } = await supabase
+      // 3a. The full product id list — small (just uuids), used for the
+      //     orders join. Cached across page changes.
+      const { data: idsData } = await supabase
         .from("products")
-        .select("*")
+        .select("id")
         .eq("seller_id", user.id);
+      const freshIds = (idsData || []).map((p: { id: string }) => p.id);
+      setAllProductIds(freshIds);
+
+      // 3b. Products: server-side range + exact count for pagination.
+      const productFrom = (productPage - 1) * PRODUCT_PAGE_SIZE;
+      const productTo = productFrom + PRODUCT_PAGE_SIZE - 1;
+      const { data: productsData, count: productTotal, error: pError } =
+        await supabase
+          .from("products")
+          .select("*", { count: "exact" })
+          .eq("seller_id", user.id)
+          .order("created_at", { ascending: false })
+          .range(productFrom, productTo);
+
       if (pError) throw pError;
       const productList = (productsData || []) as Product[];
       setProducts(productList);
+      setProductCount(productTotal ?? 0);
+
+      // 4. Orders: join via order_items using the full id list (cached above).
+      if (freshIds.length === 0) {
+        setOrders([]);
+        setStats({
+          revenue: 0,
+          ordersCount: 0,
+          productsCount: productTotal ?? 0,
+        });
+        return;
+      }
 
       // 4. Orders: join via order_items, embed buyer profile, dedupe.
-      const productIds = productList.map((p) => p.id);
-      if (productIds.length === 0) {
+      //    Hard-cap the fetch — order_items rows can be far more than
+      //    distinct orders because one order contains many items. The
+      //    .range() here bounds the network response; the client paginates
+      //    the deduped list.
+      if (freshIds.length === 0) {
         setOrders([]);
-        setStats({ revenue: 0, ordersCount: 0, productsCount: productList.length });
+        setStats({
+          revenue: 0,
+          ordersCount: 0,
+          productsCount: productTotal ?? 0,
+        });
         return;
       }
 
@@ -96,21 +164,23 @@ export function useDashboardData(): UseDashboardDataResult {
         .select(
           "order_id, price_at_purchase, quantity, orders!inner(id, buyer_id, status, created_at, profiles:buyer_id(first_name, last_name))"
         )
-        .in("product_id", productIds)
+        .in("product_id", freshIds)
+        .range(0, ORDER_HARD_CAP - 1)
         .order("created_at", { ascending: false, referencedTable: "orders" });
 
       if (oError) {
         console.error("Error fetching orders:", oError);
         setOrders([]);
-        setStats({ revenue: 0, ordersCount: 0, productsCount: productList.length });
+        setStats({
+          revenue: 0,
+          ordersCount: 0,
+          productsCount: productTotal ?? 0,
+        });
         return;
       }
 
-      // Dedupe by order id, normalise embedded shape.
       const seen = new Set<string>();
       const ordersData: Order[] = [];
-      // Track which rows are completed and on which order, so we can sum
-      // revenue on the same pass without a second round-trip.
       const revenueByOrder = new Map<string, number>();
       for (const r of (rows || []) as any[]) {
         const raw = r.orders;
@@ -120,19 +190,24 @@ export function useDashboardData(): UseDashboardDataResult {
           seen.add(orderObj.id);
           ordersData.push(orderObj as Order);
         }
-        // Always add to the per-order total — completed orders will
-        // sum it; non-completed will ignore it.
         if (orderObj.status === "completed") {
-          const lineTotal = Number(r.price_at_purchase || 0) * Number(r.quantity || 0);
-          revenueByOrder.set(orderObj.id, (revenueByOrder.get(orderObj.id) || 0) + lineTotal);
+          const lineTotal =
+            Number(r.price_at_purchase || 0) * Number(r.quantity || 0);
+          revenueByOrder.set(
+            orderObj.id,
+            (revenueByOrder.get(orderObj.id) || 0) + lineTotal
+          );
         }
       }
       setOrders(ordersData);
-      const revenue = Array.from(revenueByOrder.values()).reduce((a, b) => a + b, 0);
+      const revenue = Array.from(revenueByOrder.values()).reduce(
+        (a, b) => a + b,
+        0
+      );
       setStats({
         revenue,
         ordersCount: ordersData.length,
-        productsCount: productList.length,
+        productsCount: productTotal ?? 0,
       });
     } catch (err) {
       console.error("Dashboard load error:", err);
@@ -141,7 +216,7 @@ export function useDashboardData(): UseDashboardDataResult {
       setLoading(false);
       setInitialLoadDone(true);
     }
-  }, [user?.id]);
+  }, [user?.id, productPage]);
 
   useEffect(() => {
     if (user?.id) load();
@@ -149,18 +224,17 @@ export function useDashboardData(): UseDashboardDataResult {
 
   const updateOrderStatus = useCallback(
     async (orderId: string, newStatus: string) => {
-      // Optimistic update — apply locally first, rollback on error.
       const previous = orders;
       const previousStatusById = new Map(orders.map((o) => [o.id, o.status]));
       setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: newStatus as Order["status"] } : o))
+        prev.map((o) =>
+          o.id === orderId ? { ...o, status: newStatus as Order["status"] } : o
+        )
       );
 
-      // If the order moves INTO or OUT OF completed, recompute revenue.
       const movingToCompleted = newStatus === "completed";
       const wasCompleted = previousStatusById.get(orderId) === "completed";
       if (movingToCompleted !== wasCompleted) {
-        // Fetch the line items for this order to add/remove its contribution.
         const { data: items } = await supabase
           .from("order_items")
           .select("price_at_purchase, quantity")
@@ -181,10 +255,8 @@ export function useDashboardData(): UseDashboardDataResult {
         .update({ status: newStatus })
         .eq("id", orderId);
       if (error) {
-        // Rollback.
         setOrders(previous);
         toast.error(`Failed to update order: ${error.message}`);
-        // Reload to recover correct revenue.
         load();
         return;
       }
@@ -197,13 +269,13 @@ export function useDashboardData(): UseDashboardDataResult {
     async (path: string) => {
       if (!user?.id) return;
       const next = [...portfolio, path];
-      setPortfolio(next); // optimistic
+      setPortfolio(next);
       const { error } = await supabase
         .from("profiles")
         .update({ portfolio: next })
         .eq("id", user.id);
       if (error) {
-        setPortfolio(portfolio); // rollback
+        setPortfolio(portfolio);
         throw error;
       }
     },
@@ -215,18 +287,21 @@ export function useDashboardData(): UseDashboardDataResult {
       if (!user?.id) return;
       const previous = portfolio;
       const next = portfolio.filter((p) => p !== path);
-      setPortfolio(next); // optimistic
+      setPortfolio(next);
       const { error } = await supabase
         .from("profiles")
         .update({ portfolio: next })
         .eq("id", user.id);
       if (error) {
-        setPortfolio(previous); // rollback
+        setPortfolio(previous);
         throw error;
       }
     },
     [portfolio, user?.id]
   );
+
+  const productPageCount = Math.max(1, Math.ceil(productCount / PRODUCT_PAGE_SIZE));
+  const orderPageCount = Math.max(1, Math.ceil(orders.length / ORDER_PAGE_SIZE));
 
   return {
     profile,
@@ -236,6 +311,15 @@ export function useDashboardData(): UseDashboardDataResult {
     stats,
     loading,
     initialLoadDone,
+    productPage,
+    productPageCount,
+    productCount,
+    productPageSize: PRODUCT_PAGE_SIZE,
+    setProductPage,
+    orderPage,
+    orderPageCount,
+    orderPageSize: ORDER_PAGE_SIZE,
+    setOrderPage,
     refresh: load,
     updateOrderStatus,
     addPortfolioItem,

@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useContext, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import { UserContext } from "@/components/UserContext";
 import { Product } from "@/types/database";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Pagination } from "@/components/ui/Pagination";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
@@ -36,7 +37,22 @@ export default function SellerDashboard() {
     loading,
     refresh,
     updateOrderStatus,
+    productPage,
+    productPageCount,
+    productCount,
+    productPageSize,
+    setProductPage,
+    orderPage,
+    orderPageCount,
+    orderPageSize,
+    setOrderPage,
   } = useDashboardData();
+
+  // Client-side slice of the orders list for the current page.
+  const pagedOrders = useMemo(() => {
+    const start = (orderPage - 1) * orderPageSize;
+    return orders.slice(start, start + orderPageSize);
+  }, [orders, orderPage, orderPageSize]);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -65,7 +81,9 @@ export default function SellerDashboard() {
     if (!result.success) throw new Error(result.error);
     toast.success("Product added successfully!");
     setIsAddOpen(false);
-    refresh();
+    // After adding, jump to page 1 so the new product is visible.
+    if (productPage !== 1) setProductPage(1);
+    else refresh();
   };
 
   const handleUpdate = async (data: {
@@ -153,16 +171,26 @@ export default function SellerDashboard() {
                       </p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {products.map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          onEdit={setEditingProduct}
-                          onDelete={setDeletingId}
-                        />
-                      ))}
-                    </div>
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {products.map((product) => (
+                          <ProductCard
+                            key={product.id}
+                            product={product}
+                            onEdit={setEditingProduct}
+                            onDelete={setDeletingId}
+                          />
+                        ))}
+                      </div>
+                      <Pagination
+                        page={productPage}
+                        pageCount={productPageCount}
+                        totalCount={productCount}
+                        pageSize={productPageSize}
+                        onPageChange={setProductPage}
+                        loading={loading}
+                      />
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -171,10 +199,19 @@ export default function SellerDashboard() {
             <section>
               <h3 className="text-xl font-bold text-slate-800 mb-4">Recent Orders</h3>
               <OrdersTable
-                orders={orders}
-                loading={loading}
+                orders={pagedOrders}
+                loading={loading && orders.length === 0}
                 onStatusChange={updateOrderStatus}
               />
+              <div className="mt-2">
+                <Pagination
+                  page={orderPage}
+                  pageCount={orderPageCount}
+                  totalCount={orders.length}
+                  pageSize={orderPageSize}
+                  onPageChange={setOrderPage}
+                />
+              </div>
             </section>
           </div>
         </div>
