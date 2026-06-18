@@ -78,7 +78,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
         <Button
           variant="ghost"
           className="w-full justify-start text-slate-400 hover:text-white hover:bg-slate-800 gap-2"
-          onClick={() => logout && logout()}
+          onClick={() => logout && logout({ redirectTo: "/login" })}
         >
           <span>Logout</span>
           <span className="text-xs opacity-50">→</span>

@@ -1,16 +1,27 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect, useCallback } from "react";
 import { User } from "@/types/database";
 import { supabase } from "@/lib/supabase";
 import { UserRole } from "@/lib/roles";
+import { toast } from "sonner";
+import AuthIdleTimer from "@/components/AuthIdleTimer";
+
+interface LogoutOptions {
+  /** Where to send the user after sign-out. Default: '/login'. */
+  redirectTo?: string;
+  /** When true, show a toast explaining the auto-logout. */
+  reason?: "manual" | "idle";
+}
 
 interface UserContextType {
   user: User | null;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => Promise<void>;
+  logout: (opts?: LogoutOptions) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
+
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 export const UserContext = createContext<UserContextType | null>(null);
 
@@ -128,11 +139,25 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const logout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    window.location.href = "/";
-  };
+  const logout = useCallback(async (opts: LogoutOptions = {}) => {
+    const dest = opts.redirectTo ?? "/login";
+    try {
+      // Best-effort server-side sign-out. If the network call fails
+      // (offline, expired token, etc.) we still clear local state and
+      // redirect — the user shouldn't be stuck on a "logging out..." spinner.
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.warn("[Auth] signOut failed (continuing):", e);
+    } finally {
+      setUser(null);
+      if (opts.reason === "idle") {
+        toast.message("You were signed out due to inactivity.");
+      }
+      // Hard navigation so middleware runs cleanly with no stale cookie.
+      // `assign` and `href=` are equivalent; assign is the explicit form.
+      window.location.assign(dest);
+    }
+  }, []);
 
   const refreshUser = async () => {
     setLoading(true);
@@ -186,6 +211,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <UserContext.Provider value={{ user, setUser, loading, login, logout, refreshUser }}>
       {children}
+      {user ? (
+        <AuthIdleTimer
+          idleMs={IDLE_TIMEOUT_MS}
+          onTimeout={() => logout({ redirectTo: "/login", reason: "idle" })}
+        />
+      ) : null}
     </UserContext.Provider>
   );
 };

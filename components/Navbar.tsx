@@ -19,11 +19,12 @@ const Navbar = () => {
   const totalItems = cart.reduce((sum: number, item: CartItem) => sum + (item.quantity || 1), 0);
 
   const handleLogout = () => {
-    if (logout) {
-      logout();
-    }
     setMenuOpen(false);
-    router.push("/");
+    if (logout) {
+      // Context owns the navigation. Don't push here — it would race
+      // with the hard nav that logout() performs after signOut resolves.
+      logout({ redirectTo: "/" });
+    }
   };
 
   const getDashboardLink = () => {
