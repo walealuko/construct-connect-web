@@ -42,25 +42,33 @@ export default function Checkout() {
         throw new Error(stockCheck.error);
       }
 
-      // 2. Create Pending Order
+      // 2. Create the order. The DB has a separate order_items table — we
+      //    create the order row first, then attach the line items.
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           buyer_id: user.id,
-          total_price: totalPrice,
           status: 'pending',
-          items: cart.map((item: CartItem) => ({
-            product_id: item.id,
-            quantity: item.quantity,
-            price: item.price
-          }))
         })
         .select()
         .single();
 
       if (orderError) throw orderError;
 
-      // 3. Initialize Payment
+      // 3. Insert each line item into order_items with the snapshotted price.
+      const lineItems = cart.map((item: CartItem) => ({
+        order_id: order.id,
+        product_id: item.id,
+        quantity: item.quantity || 1,
+        price_at_purchase: item.price,
+      }));
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(lineItems);
+
+      if (itemsError) throw itemsError;
+
+      // 4. Initialize Payment
       const paymentRes = await fetch('/api/payments/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

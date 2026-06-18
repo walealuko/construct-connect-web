@@ -34,11 +34,11 @@ export async function updateProfile(userId: string, updates: any) {
   }
 
   try {
-    // 1. Update the profiles table
+    // 1. Upsert the profiles table. New users may not have a row yet, so
+    //    update() would silently no-op for them.
     const { error: profileError } = await supabase
       .from('profiles')
-      .update(updates)
-      .eq('id', userId);
+      .upsert({ id: userId, ...updates }, { onConflict: 'id' });
 
     if (profileError) throw profileError;
 

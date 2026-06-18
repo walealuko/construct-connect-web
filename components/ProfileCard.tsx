@@ -14,7 +14,10 @@ export default function ProfileCard({ item }: ProfileCardProps) {
   // Handle both Product and Order types
   const isOrder = 'status' in item;
   const title = isOrder ? `Order #${(item as Order).id?.slice(-6) || 'N/A'}` : (item as Product).name;
-  const price = isOrder ? (item as Order).total_price : (item as Product).price;
+  // The orders table doesn't store total_price — that's computed on the
+  // pages that need it by joining order_items. Here we just hide price
+  // for orders and show it for products.
+  const price = isOrder ? null : (item as Product).price;
   const description = isOrder ? `Status: ${(item as Order).status}` : (item as Product).description;
   const imageUrl = (item as any).imageUrl || "https://via.placeholder.com/150?text=Item";
 
@@ -32,7 +35,9 @@ export default function ProfileCard({ item }: ProfileCardProps) {
             {description}
           </p>
           <div className="flex justify-between items-center">
-            <span className="font-bold text-blue-600 text-lg">${price?.toFixed(2)}</span>
+            {price != null && (
+              <span className="font-bold text-blue-600 text-lg">${price.toFixed(2)}</span>
+            )}
             <Link
               href={isOrder ? `/orders/${(item as Order).id}` : `/product/${(item as Product).id}`}
               className="text-sm text-blue-600 no-underline font-semibold hover:underline"

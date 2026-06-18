@@ -53,18 +53,43 @@ function ChatContent() {
   const loadConversations = async () => {
     setLoading(true);
     try {
+      // The `participant_ids` column is a uuid[] — PostgREST can't auto-embed
+      // an array relation. Fetch the conversations, then fetch the
+      // participants separately and stitch them in.
       const { data, error } = await supabase
         .from('conversations')
-        .select(`
-          *,
-          profiles:participant_ids (
-            id, first_name, last_name, avatar_url
-          )
-        `)
+        .select('*')
         .order('last_message_at', { ascending: false });
 
       if (error) throw error;
-      setConversations(data || []);
+
+      // Collect every unique participant id across all conversations.
+      const idSet = new Set<string>();
+      for (const c of data || []) {
+        for (const pid of c.participant_ids || []) idSet.add(pid);
+      }
+      const ids = Array.from(idSet);
+
+      let profileById: Record<string, Profile> = {};
+      if (ids.length > 0) {
+        const { data: profiles, error: pError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, avatar_url')
+          .in('id', ids);
+        if (pError) {
+          console.error("Failed to load conversation participants:", pError);
+        } else {
+          for (const p of profiles || []) profileById[p.id] = p as Profile;
+        }
+      }
+
+      const enriched = (data || []).map(c => ({
+        ...c,
+        profiles: (c.participant_ids || [])
+          .map((pid: string) => profileById[pid])
+          .filter(Boolean),
+      }));
+      setConversations(enriched as Conversation[]);
     } catch (err: any) {
       toast.error("Failed to load conversations");
     } finally {

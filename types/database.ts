@@ -64,17 +64,15 @@ export interface CartItem extends Product {
 
 export interface OrderItem {
   product_id: string;
+  order_id: string;
   quantity: number;
-  price: number;
 }
 
 export interface Order {
   id: string;
-  user_id: string;
-  total_price: number;
+  buyer_id: string;
   status: 'pending' | 'completed' | 'cancelled' | 'shipped' | 'delivered';
   created_at: string;
-  items: OrderItem[];
   profiles?: {
     first_name: string | null;
     last_name: string | null;

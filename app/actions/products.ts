@@ -4,14 +4,18 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+// Schema accepts a bare storage path OR a full URL.
+// The dashboard stores bare paths now, but legacy rows may have full URLs.
 const ProductSchema = z.object({
   name: z.string().min(1, "Product name is required"),
   description: z.string().min(1, "Description is required"),
-  price: z.number().positive("Price must be positive"),
+  price: z.coerce.number().positive("Price must be positive"),
   category: z.string().min(1, "Category is required"),
-  stock: z.number().int().nonnegative("Stock cannot be negative"),
-  image_url: z.string().url("A valid image URL is required"),
+  stock: z.coerce.number().int().nonnegative("Stock cannot be negative"),
+  image_url: z.string().min(1, "Image is required"),
 });
+
+export type ProductInput = z.infer<typeof ProductSchema>;
 
 export async function createProductAction(formData: any) {
   const supabase = await createClient();
@@ -31,11 +35,10 @@ export async function createProductAction(formData: any) {
     .from('profiles')
     .select('business_name, location')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
   if (profileError) {
     console.error("Error fetching seller profile:", profileError);
-    // We continue but with defaults if profile is missing
   }
 
   const { error } = await supabase
@@ -47,7 +50,10 @@ export async function createProductAction(formData: any) {
       ...validated.data,
     });
 
-  if (error) return { success: false, error: error.message };
+  if (error) {
+    console.error("createProductAction insert error:", error);
+    return { success: false, error: error.message };
+  }
 
   revalidatePath('/seller-dashboard');
   revalidatePath('/artisan-dashboard');
@@ -61,7 +67,7 @@ export async function deleteProductAction(productId: string) {
 
   const { data: product } = await supabase
     .from('products')
-    .select('seller_id')
+    .select('seller_id, image_url')
     .eq('id', productId)
     .single();
 
@@ -80,6 +86,15 @@ export async function deleteProductAction(productId: string) {
     .eq('id', productId);
 
   if (error) return { success: false, error: error.message };
+
+  // Best-effort: remove the image from storage so the bucket doesn't leak.
+  // image_url may be a bare path (new uploads) or a full URL (legacy).
+  if (product.image_url) {
+    const path = extractStoragePath(product.image_url, 'product-images');
+    if (path) {
+      await supabase.storage.from('product-images').remove([path]);
+    }
+  }
 
   revalidatePath('/seller-dashboard');
   revalidatePath('/artisan-dashboard');
@@ -117,7 +132,7 @@ export async function updateProductAction(productId: string, formData: any) {
 
   const { data: product } = await supabase
     .from('products')
-    .select('seller_id')
+    .select('seller_id, image_url')
     .eq('id', productId)
     .single();
 
@@ -125,7 +140,15 @@ export async function updateProductAction(productId: string, formData: any) {
     return { success: false, error: "Unauthorized to update this product" };
   }
 
-  const validated = ProductSchema.safeParse(formData);
+  // The dashboard may pass a partial form (e.g. description-only edit with
+  // no new image). We validate what was sent, but if image_url is empty
+  // we keep the existing one.
+  const candidate = { ...formData };
+  if (!candidate.image_url || candidate.image_url === '') {
+    candidate.image_url = product.image_url || '';
+  }
+
+  const validated = ProductSchema.safeParse(candidate);
   if (!validated.success) {
     return { success: false, error: validated.error.issues[0].message };
   }
@@ -133,11 +156,19 @@ export async function updateProductAction(productId: string, formData: any) {
   const { error } = await supabase
     .from('products')
     .update({
-      ...validated.data,
+      name: validated.data.name,
+      description: validated.data.description,
+      price: validated.data.price,
+      category: validated.data.category,
+      stock: validated.data.stock,
+      image_url: validated.data.image_url,
     })
     .eq('id', productId);
 
-  if (error) return { success: false, error: error.message };
+  if (error) {
+    console.error("updateProductAction error:", error);
+    return { success: false, error: error.message };
+  }
 
   revalidatePath('/seller-dashboard');
   revalidatePath('/artisan-dashboard');
@@ -166,4 +197,23 @@ export async function verifyStockAction(items: { productId: string; quantity: nu
   }
 
   return { success: true };
+}
+
+/**
+ * Extract a storage path from either a bare path or a full Supabase Storage URL.
+ * Returns null if the URL belongs to a different bucket or isn't a Supabase URL.
+ */
+function extractStoragePath(value: string, bucket: string): string | null {
+  if (!value) return null;
+  // Already a bare path
+  if (!/^https?:\/\//i.test(value)) return value;
+
+  try {
+    const url = new URL(value);
+    // Match /storage/v1/object/(public|sign)/<bucket>/<path>
+    const m = url.pathname.match(new RegExp(`/storage/v1/object/(?:public|sign)/${bucket}/(.+)$`));
+    return m ? m[1] : null;
+  } catch {
+    return null;
+  }
 }

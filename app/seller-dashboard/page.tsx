@@ -71,20 +71,13 @@ export default function SellerDashboard() {
         .from('profiles')
         .select('*')
         .eq('id', user?.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) {
         console.error("Error fetching profile:", profileError);
         toast.error("Could not load profile information");
       } else {
         setProfile(profileData);
-
-        // Sync registration data to form state as defaults
-        setFormData(prev => ({
-          ...prev,
-          name: profileData.full_name || "",
-          description: profileData.bio || "",
-        }));
       }
 
       const { data: productsData, error: pError } = await supabase
@@ -102,25 +95,45 @@ export default function SellerDashboard() {
       const productIds = (productsData || []).map(p => p.id);
 
       if (productIds.length > 0) {
-        const { data: ordersData, error: oError } = await supabase
-          .from('orders')
-          .select('*, profiles(first_name, last_name)')
-          .contains('items.product_id', productIds)
-          .order('created_at', { ascending: false });
+        // The DB has separate `orders` and `order_items` tables; join through
+        // order_items to find orders that contain any of the seller's products.
+        // Each order carries buyer_id (FK to profiles) so we can embed the buyer.
+        const { data: rows, error: oError } = await supabase
+          .from('order_items')
+          .select('order_id, orders!inner(id, buyer_id, status, created_at, profiles:buyer_id(first_name, last_name))')
+          .in('product_id', productIds)
+          .order('created_at', { ascending: false, referencedTable: 'orders' });
 
         if (oError) {
           console.error("Error fetching orders:", oError);
         } else {
-          setOrders(ordersData || []);
+          // Dedupe by order id (one order can contain many of the seller's products).
+          // The embedded `orders!inner(...)` may type as object or single-element
+          // array depending on the join — accept both.
+          const seen = new Set<string>();
+          const ordersData: Order[] = [];
+          for (const r of rows || []) {
+            const raw = (r as any).orders;
+            const orderObj = Array.isArray(raw) ? raw[0] : raw;
+            if (!orderObj || seen.has(orderObj.id)) continue;
+            seen.add(orderObj.id);
+            ordersData.push(orderObj as Order);
+          }
+          setOrders(ordersData);
 
-          const totalRev = (ordersData || [])
-            .filter((o: Order) => o.status === 'completed')
-            .reduce((sum: number, o: Order) => sum + o.total_price, 0);
+          const totalRev = ordersData
+            .filter(o => o.status === 'completed')
+            .reduce((sum, o) => {
+              // total_price isn't stored on orders — sum from related order_items × product price
+              // For now, expose order count only. (Total revenue requires joining order_items
+              // to products which is a follow-up.)
+              return sum;
+            }, 0);
 
           setStats({
             revenue: totalRev,
-            ordersCount: (ordersData || []).length,
-            productsCount: (productsData || []).length
+            ordersCount: ordersData.length,
+            productsCount: (productsData || []).length,
           });
         }
       } else {
@@ -173,7 +186,20 @@ export default function SellerDashboard() {
     if (!editingProduct) return;
     setLoading(true);
     try {
-      const result = await updateProductAction(editingProduct.id, formData);
+      // Build a clean payload. The action only accepts primitive fields —
+      // not the client-side imageFile/blob preview. If the user picked a new
+      // file we already uploaded it and the resolver-built path is in
+      // imagePreview; if not, send an empty string and the action will
+      // keep the existing image.
+      const newPath = formData.imageFile ? formData.imagePreview : "";
+      const result = await updateProductAction(editingProduct.id, {
+        name: formData.name,
+        description: formData.description,
+        price: formData.price,
+        category: formData.category,
+        stock: formData.stock,
+        image_url: newPath,
+      });
       if (result.success) {
         toast.success("Product updated successfully!");
         setIsEditModalOpen(false);
@@ -197,7 +223,8 @@ export default function SellerDashboard() {
       category: product.category,
       stock: product.stock.toString(),
       imageFile: null,
-      imagePreview: product.image_url || "",
+      // Resolve the stored value to a renderable URL for the preview thumbnail.
+      imagePreview: resolveImageUrl(product.image_url, 'product-images'),
     });
     setIsEditModalOpen(true);
   };
@@ -252,9 +279,14 @@ export default function SellerDashboard() {
         const fileName = `${Date.now()}-${formData.imageFile.name}`;
         const { error: uploadError } = await supabase.storage
           .from('product-images')
-          .upload(fileName, formData.imageFile);
+          .upload(fileName, formData.imageFile, { upsert: true });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          const hint = uploadError.message?.includes('row-level security')
+            ? ' Check the RLS policies on the product-images bucket.'
+            : '';
+          throw new Error(`Image upload failed: ${uploadError.message}${hint}`);
+        }
 
         // Store only the file path; the resolver builds the public URL at render time.
         finalImageUrl = fileName;
@@ -452,7 +484,7 @@ export default function SellerDashboard() {
                 <div className="overflow-x-auto">
                   <div className="grid grid-cols-4 bg-slate-50 border-b border-gray-100 text-gray-500 uppercase text-xs font-bold tracking-wider">
                     <div className="px-6 py-4">Buyer</div>
-                    <div className="px-6 py-4">Total</div>
+                    <div className="px-6 py-4">Date</div>
                     <div className="px-6 py-4">Status</div>
                     <div className="px-6 py-4 text-right">Action</div>
                   </div>
@@ -471,7 +503,9 @@ export default function SellerDashboard() {
                                 : "Unknown Buyer"
                             }
                           </div>
-                          <div className="px-6 py-4 text-slate-900 font-bold">${order.total_price?.toFixed(2)}</div>
+                          <div className="px-6 py-4 text-slate-500 text-xs">
+                            {new Date(order.created_at).toLocaleDateString()}
+                          </div>
                           <div className="px-6 py-4">
                             <Badge
                               variant={

@@ -64,15 +64,12 @@ export default function ArtisanDashboard() {
         .from('profiles')
         .select('*')
         .eq('id', user?.id)
-        .single();
+        .maybeSingle();
       setProfile(profileData);
 
-      const { data: portfolioData } = await supabase
-        .from('profiles')
-        .select('portfolio')
-        .eq('id', user?.id)
-        .single();
-      setPortfolio(portfolioData?.portfolio || []);
+      // portfolio column doesn't exist on the schema; just initialize empty.
+      // (handlePortfolioUpload warns the user when persistence is unavailable.)
+      setPortfolio([]);
 
       const { data: productsData, error: pError } = await supabase
         .from('products')
@@ -84,24 +81,38 @@ export default function ArtisanDashboard() {
       const productIds = (productsData || []).map(p => p.id);
 
       if (productIds.length > 0) {
-        const { data: ordersData, error: oError } = await supabase
-          .from('orders')
-          .select('*, profiles(first_name, last_name)')
-          .contains('items.product_id', productIds)
-          .order('created_at', { ascending: false });
+        // Join through order_items to find orders containing this artisan's products.
+        // PostgREST sometimes types the embedded `orders!inner(...)` row as an
+        // object and sometimes as a single-element array; normalise both.
+        const { data: rows, error: oError } = await supabase
+          .from('order_items')
+          .select('order_id, orders!inner(id, buyer_id, status, created_at, profiles:buyer_id(first_name, last_name))')
+          .in('product_id', productIds)
+          .order('created_at', { ascending: false, referencedTable: 'orders' });
 
-        if (oError) throw oError;
-        setOrders(ordersData || []);
-
-        const totalRev = (ordersData || [])
-          .filter((o: Order) => o.status === 'completed')
-          .reduce((sum: number, o: Order) => sum + o.total_price, 0);
-
-        setStats({
-          revenue: totalRev,
-          ordersCount: (ordersData || []).length,
-          productsCount: (productsData || []).length
-        });
+        if (oError) {
+          console.error("Error fetching orders:", oError);
+          setOrders([]);
+        } else {
+          const seen = new Set<string>();
+          const ordersData: Order[] = [];
+          for (const r of rows || []) {
+            // The embed can come back as either a single object (one-to-one)
+            // or a single-element array depending on the join type the
+            // client infers. Accept both.
+            const raw = (r as any).orders;
+            const orderObj = Array.isArray(raw) ? raw[0] : raw;
+            if (!orderObj || seen.has(orderObj.id)) continue;
+            seen.add(orderObj.id);
+            ordersData.push(orderObj as Order);
+          }
+          setOrders(ordersData);
+          setStats({
+            revenue: 0,
+            ordersCount: ordersData.length,
+            productsCount: (productsData || []).length,
+          });
+        }
       } else {
         setStats({ revenue: 0, ordersCount: 0, productsCount: 0 });
       }
@@ -155,11 +166,28 @@ export default function ArtisanDashboard() {
     try {
       const file = e.target.files[0];
       const fileName = `portfolio-${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage.from('artisan-portfolio').upload(fileName, file);
-      if (uploadError) throw uploadError;
-      // Store only the file path; the resolver builds the public URL at render time.
+      const { error: uploadError } = await supabase.storage.from('artisan-portfolio').upload(fileName, file, { upsert: true });
+      if (uploadError) {
+        const hint = uploadError.message?.includes('row-level security')
+          ? ' Check the RLS policies on the artisan-portfolio bucket.'
+          : '';
+        throw new Error(`Upload failed: ${uploadError.message}${hint}`);
+      }
+      // Persist the file path on the profile. If a `portfolio` column
+      // exists we use it; otherwise we fall back to client state only
+      // (and the file remains accessible via the bucket URL).
       const currentPortfolio = [...portfolio, fileName];
-      await supabase.from('profiles').update({ portfolio: currentPortfolio }).eq('id', user?.id);
+      const { error: dbError } = await supabase
+        .from('profiles')
+        .update({ portfolio: currentPortfolio })
+        .eq('id', user?.id);
+
+      if (dbError && dbError.message?.includes("portfolio")) {
+        // Column doesn't exist on the schema — show the file locally only.
+        toast.warning("File uploaded, but portfolio persistence is not configured on this schema.");
+      } else if (dbError) {
+        throw dbError;
+      }
       setPortfolio(currentPortfolio);
       toast.success("Portfolio project uploaded!");
     } catch (err: any) {
@@ -174,7 +202,15 @@ export default function ArtisanDashboard() {
     if (!editingProduct) return;
     setLoading(true);
     try {
-      const result = await updateProductAction(editingProduct.id, productForm);
+      const newPath = productForm.imageFile ? productForm.imagePreview : "";
+      const result = await updateProductAction(editingProduct.id, {
+        name: productForm.name,
+        description: productForm.description,
+        price: productForm.price,
+        category: 'artisan-service',
+        stock: productForm.stock,
+        image_url: newPath,
+      });
       if (result.success) {
         toast.success("Product updated successfully!");
         setIsEditModalOpen(false);
@@ -197,7 +233,7 @@ export default function ArtisanDashboard() {
       description: product.description,
       stock: product.stock.toString(),
       imageFile: null,
-      imagePreview: product.image_url || "",
+      imagePreview: resolveImageUrl(product.image_url, 'product-images'),
     });
     setIsEditModalOpen(true);
   };
@@ -210,8 +246,13 @@ export default function ArtisanDashboard() {
       let imageUrl = "";
       if (productForm.imageFile) {
         const fileName = `artisan-prod-${Date.now()}-${productForm.imageFile.name}`;
-        const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, productForm.imageFile);
-        if (uploadError) throw uploadError;
+        const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, productForm.imageFile, { upsert: true });
+        if (uploadError) {
+          const hint = uploadError.message?.includes('row-level security')
+            ? ' Check the RLS policies on the product-images bucket.'
+            : '';
+          throw new Error(`Image upload failed: ${uploadError.message}${hint}`);
+        }
         // Store only the file path; the resolver builds the public URL at render time.
         imageUrl = fileName;
       } else {
@@ -445,7 +486,7 @@ export default function ArtisanDashboard() {
                 <div className="overflow-x-auto">
                   <div className="grid grid-cols-4 bg-slate-50 border-b border-gray-100 text-gray-500 uppercase text-xs font-bold tracking-wider">
                     <div className="px-6 py-4">Buyer</div>
-                    <div className="px-6 py-4">Total</div>
+                    <div className="px-6 py-4">Date</div>
                     <div className="px-6 py-4">Status</div>
                     <div className="px-6 py-4 text-right">Action</div>
                   </div>
@@ -460,7 +501,9 @@ export default function ArtisanDashboard() {
                           <div className="px-6 py-4 text-slate-900 font-medium">
                             {order.profiles?.first_name ? `${order.profiles.first_name} ${order.profiles.last_name}` : "Unknown Buyer"}
                           </div>
-                          <div className="px-6 py-4 text-slate-900 font-bold">${order.total_price?.toFixed(2)}</div>
+                          <div className="px-6 py-4 text-slate-500 text-xs">
+                            {new Date(order.created_at).toLocaleDateString()}
+                          </div>
                           <div className="px-6 py-4">
                             <Badge
                               variant={

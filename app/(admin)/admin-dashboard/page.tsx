@@ -5,7 +5,7 @@ import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
-import { Profile, Product, Order } from "@/types/database";
+import { Profile, Product } from "@/types/database";
 import { updateUserRoleAction } from "@/app/actions/admin";
 import { toast } from "sonner";
 import { resolveImageUrl } from "@/lib/storage";
@@ -51,23 +51,38 @@ export default function AdminDashboard() {
   const loadOverview = async () => {
     setLoading(true);
     try {
-      const [usersRes, productsRes, ordersRes] = await Promise.all([
+      const [usersRes, productsRes, ordersRes, itemsRes] = await Promise.all([
         supabase.from('profiles').select('*'),
         supabase.from('products').select('*'),
-        supabase.from('orders').select('total_price'),
+        // Only need the id+status; we join via order_items to get prices.
+        supabase.from('orders').select('id, status'),
+        supabase.from('order_items').select('order_id, price_at_purchase, quantity'),
       ]);
 
       if (usersRes.error) throw usersRes.error;
       if (productsRes.error) throw productsRes.error;
       if (ordersRes.error) throw ordersRes.error;
+      if (itemsRes.error) throw itemsRes.error;
 
       const allUsers = usersRes.data || [];
       setUsers(allUsers);
       setProducts(productsRes.data || []);
 
-      const totalRevenue = (ordersRes.data as Order[] || [])
-        .filter((o) => o.status === 'completed')
-        .reduce((sum: number, o) => sum + o.total_price, 0);
+      // Sum revenue for orders marked completed. Price lives on order_items,
+      // not orders, so we compute it here instead of trusting a denormalised
+      // column that doesn't exist in this schema.
+      const completedOrderIds = new Set(
+        (ordersRes.data || [])
+          .filter((o) => o.status === 'completed')
+          .map((o) => o.id)
+      );
+      const totalRevenue = (itemsRes.data || [])
+        .filter((it) => completedOrderIds.has(it.order_id))
+        .reduce(
+          (sum: number, it: any) =>
+            sum + Number(it.price_at_purchase || 0) * Number(it.quantity || 0),
+          0
+        );
 
       setStats({
         users: allUsers.length,
