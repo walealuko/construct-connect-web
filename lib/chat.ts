@@ -1,26 +1,19 @@
 import { supabase } from "@/lib/supabase";
 
 export async function startConversation(userId: string, currentUserId: string) {
-  // 1. Check if conversation already exists
-  const { data: existingConv, error: fetchError } = await supabase
+  // 1. Check if a conversation already exists between these two users.
+  //    .contains() matches the participant_ids uuid[] column regardless of
+  //    element ordering, which .eq() cannot.
+  const { data: existing, error: fetchError } = await supabase
     .from('conversations')
     .select('id')
-    .eq('participant_ids', [userId, currentUserId]) // Note: Postgres array ordering might matter
-    .single();
+    .contains('participant_ids', [currentUserId, userId])
+    .maybeSingle();
 
-  if (!existingConv) {
-    const { data: reversedConv } = await supabase
-      .from('conversations')
-      .select('id')
-      .eq('participant_ids', [currentUserId, userId])
-      .single();
+  if (fetchError) throw fetchError;
+  if (existing) return existing;
 
-    if (reversedConv) return reversedConv;
-  } else {
-    return existingConv;
-  }
-
-  // 2. Create new conversation if not found
+  // 2. Create new conversation if none exists.
   const { data: newConv, error: createError } = await supabase
     .from('conversations')
     .insert({

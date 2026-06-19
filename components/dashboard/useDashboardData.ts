@@ -270,10 +270,11 @@ export function useDashboardData(): UseDashboardDataResult {
       if (!user?.id) return;
       const next = [...portfolio, path];
       setPortfolio(next);
+      // upsert so this also works the first time (profile row exists but
+      // `portfolio` column not yet written to).
       const { error } = await supabase
         .from("profiles")
-        .update({ portfolio: next })
-        .eq("id", user.id);
+        .upsert({ id: user.id, portfolio: next }, { onConflict: "id" });
       if (error) {
         setPortfolio(portfolio);
         throw error;
@@ -290,8 +291,7 @@ export function useDashboardData(): UseDashboardDataResult {
       setPortfolio(next);
       const { error } = await supabase
         .from("profiles")
-        .update({ portfolio: next })
-        .eq("id", user.id);
+        .upsert({ id: user.id, portfolio: next }, { onConflict: "id" });
       if (error) {
         setPortfolio(previous);
         throw error;

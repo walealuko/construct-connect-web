@@ -51,17 +51,19 @@ export async function GET(req: Request) {
 
     if (updateOrderError) throw updateOrderError;
 
-    // 4. Update Product Stock
-    const { data: order, error: fetchOrderError } = await supabaseAdmin
-      .from('orders')
-      .select('items')
-      .eq('id', orderId)
-      .single();
+    // 4. Decrement product stock using the order_items table (the live
+    //    schema keeps items in their own table — `orders.items` does not
+    //    exist). Read each product's current stock, then update by
+    //    quantity purchased.
+    const { data: orderItems, error: itemsError } = await supabaseAdmin
+      .from('order_items')
+      .select('product_id, quantity')
+      .eq('order_id', orderId);
 
-    if (fetchOrderError) throw fetchOrderError;
+    if (itemsError) throw itemsError;
 
-    const items = order?.items || [];
-    for (const item of items) {
+    for (const item of orderItems || []) {
+      if (!item.product_id || !item.quantity) continue;
       const { data: product } = await supabaseAdmin
         .from('products')
         .select('stock')
@@ -71,7 +73,7 @@ export async function GET(req: Request) {
       if (product) {
         await supabaseAdmin
           .from('products')
-          .update({ stock: (product.stock || 0) - item.quantity })
+          .update({ stock: Math.max(0, (product.stock || 0) - item.quantity) })
           .eq('id', item.product_id);
       }
     }

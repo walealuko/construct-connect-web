@@ -18,7 +18,7 @@ export default function ReviewButton({ sellerId, sellerName }: ReviewButtonProps
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  if (!user || user.role !== "buyer") return null;
+  if (!user || user.role !== "individual") return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
