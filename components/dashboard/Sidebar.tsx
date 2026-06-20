@@ -25,13 +25,11 @@ export default function Sidebar({ userRole }: SidebarProps) {
     ],
     business: [
       { name: "Shop Dashboard", href: "/seller-dashboard" },
-      { name: "Marketplace", href: "/marketplace" },
       { name: "Messages", href: "/messages" },
       { name: "Profile", href: "/profile/edit" },
     ],
     artisan: [
       { name: "Artisan Dashboard", href: "/artisan-dashboard" },
-      { name: "Browse Projects", href: "/projects" },
       { name: "Messages", href: "/messages" },
       { name: "Profile", href: "/profile/edit" },
     ],
