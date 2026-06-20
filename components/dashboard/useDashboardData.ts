@@ -32,6 +32,9 @@ interface UseDashboardDataResult {
   // Order pagination (client-side, bounded)
   orderPage: number;
   orderPageCount: number;
+  // Total distinct orders across the user's products. Capped server-side at
+  // ORDER_HARD_CAP rows; the cap is surfaced in the UI ("showing up to 500").
+  orderCount: number;
   orderPageSize: number;
   setOrderPage: (page: number) => void;
 
@@ -88,6 +91,11 @@ export function useDashboardData(): UseDashboardDataResult {
 
   // Order pagination.
   const [orderPage, setOrderPage] = useState(1);
+  // Server-side distinct-order count, surfaced as `orderCount` for the
+  // dashboard's pagination total. Capped at ORDER_HARD_CAP because we
+  // can't reliably dedupe counts the way we dedupe rows; we report the
+  // raw order_items row count as a conservative upper bound.
+  const [orderCount, setOrderCount] = useState(0);
 
   const load = useCallback(async () => {
     if (!user?.id) return;
@@ -133,31 +141,26 @@ export function useDashboardData(): UseDashboardDataResult {
       setProducts(productList);
       setProductCount(productTotal ?? 0);
 
-      // 4. Orders: join via order_items using the full id list (cached above).
-      if (freshIds.length === 0) {
-        setOrders([]);
-        setStats({
-          revenue: 0,
-          ordersCount: 0,
-          productsCount: productTotal ?? 0,
-        });
-        return;
-      }
-
       // 4. Orders: join via order_items, embed buyer profile, dedupe.
       //    Hard-cap the fetch — order_items rows can be far more than
       //    distinct orders because one order contains many items. The
       //    .range() here bounds the network response; the client paginates
       //    the deduped list.
-      if (freshIds.length === 0) {
-        setOrders([]);
-        setStats({
-          revenue: 0,
-          ordersCount: 0,
-          productsCount: productTotal ?? 0,
-        });
-        return;
+      //
+      //    We also issue a `head: true` count query against the same
+      //    filter so the dashboard can show the real total (not just the
+      //    capped slice length). The count is on order_items rows, so it
+      //    is an upper bound on distinct orders — close enough for the
+      //    "showing X orders" label.
+      const { count: orderTotal, error: countError } = await supabase
+        .from("order_items")
+        .select("order_id", { count: "exact", head: true })
+        .in("product_id", freshIds);
+
+      if (countError) {
+        console.error("Error counting orders:", countError);
       }
+      setOrderCount(orderTotal ?? 0);
 
       const { data: rows, error: oError } = await supabase
         .from("order_items")
@@ -318,6 +321,7 @@ export function useDashboardData(): UseDashboardDataResult {
     setProductPage,
     orderPage,
     orderPageCount,
+    orderCount,
     orderPageSize: ORDER_PAGE_SIZE,
     setOrderPage,
     refresh: load,

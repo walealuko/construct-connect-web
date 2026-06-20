@@ -44,6 +44,7 @@ export default function SellerDashboard() {
     setProductPage,
     orderPage,
     orderPageCount,
+    orderCount,
     orderPageSize,
     setOrderPage,
   } = useDashboardData();
@@ -78,12 +79,17 @@ export default function SellerDashboard() {
     image_url: string;
   }) => {
     const result = await createProductAction(data);
-    if (!result.success) throw new Error(result.error);
+    if (!result.success) {
+      // Surface the failure inline instead of throwing — the modal doesn't
+      // need to catch, and a thrown error here would trip the React error
+      // boundary. Always jump to page 1 so the new product is visible.
+      toast.error(result.error || "Failed to add product");
+      return;
+    }
     toast.success("Product added successfully!");
     setIsAddOpen(false);
-    // After adding, jump to page 1 so the new product is visible.
     if (productPage !== 1) setProductPage(1);
-    else refresh();
+    refresh();
   };
 
   const handleUpdate = async (data: {
@@ -130,6 +136,7 @@ export default function SellerDashboard() {
           </div>
           <Button
             onClick={() => setIsAddOpen(true)}
+            aria-label="Add new product"
             className="px-6 py-3 text-base font-bold shadow-sm hover:shadow-md transition-all active:scale-95"
           >
             + Add New Product
@@ -207,7 +214,7 @@ export default function SellerDashboard() {
                 <Pagination
                   page={orderPage}
                   pageCount={orderPageCount}
-                  totalCount={orders.length}
+                  totalCount={orderCount}
                   pageSize={orderPageSize}
                   onPageChange={setOrderPage}
                 />

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Product } from "@/types/database";
 import SafeImage from "@/components/ui/SafeImage";
 import { Badge } from "@/components/ui/Badge";
@@ -15,24 +16,29 @@ interface ProductCardProps {
 /**
  * One row in the product inventory grid.
  * Pure presentation; the parent owns the edit/delete handlers.
+ *
+ * Image + name link to the public product page; edit/delete buttons are
+ * kept outside the link so their onClick handlers don't bubble.
  */
 export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
   return (
     <div className="bg-white p-4 rounded-xl border border-gray-200 flex gap-4 items-center group hover:border-blue-300 transition-all shadow-sm">
-      {product.image_url ? (
-        <SafeImage
-          src={resolveImageUrl(product.image_url, "product-images")}
-          alt={product.name}
-          width={80}
-          height={80}
-          className="w-20 h-20 object-cover rounded-lg shadow-sm"
-        />
-      ) : (
-        <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">
-          No Image
-        </div>
-      )}
-      <div className="flex-1 min-w-0">
+      <Link href={`/product/${product.id}`} className="shrink-0" aria-label={`View ${product.name}`}>
+        {product.image_url ? (
+          <SafeImage
+            src={resolveImageUrl(product.image_url, "product-images")}
+            alt={product.name}
+            width={80}
+            height={80}
+            className="w-20 h-20 object-cover rounded-lg shadow-sm"
+          />
+        ) : (
+          <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">
+            No Image
+          </div>
+        )}
+      </Link>
+      <Link href={`/product/${product.id}`} className="flex-1 min-w-0 hover:text-blue-700">
         <h4 className="font-bold text-slate-900 truncate text-sm">{product.name}</h4>
         <div className="flex items-center gap-2 mt-1">
           <p className="text-blue-600 font-bold text-xs">${product.price?.toFixed(2)}</p>
@@ -43,14 +49,18 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
           )}
         </div>
         <p className="text-gray-400 text-[10px] mt-1">Stock: {product.stock}</p>
-      </div>
+      </Link>
       <div className="flex gap-1">
         <Button
           variant="ghost"
           size="icon"
           className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-          onClick={() => onEdit(product)}
+          onClick={(e) => {
+            e.preventDefault();
+            onEdit(product);
+          }}
           title="Edit Product"
+          aria-label="Edit product"
         >
           ✏️
         </Button>
@@ -58,8 +68,12 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
           variant="ghost"
           size="icon"
           className="text-gray-300 hover:text-red-600 hover:bg-red-50 transition-colors"
-          onClick={() => onDelete(product.id)}
+          onClick={(e) => {
+            e.preventDefault();
+            onDelete(product.id);
+          }}
           title="Delete Product"
+          aria-label="Delete product"
         >
           🗑️
         </Button>

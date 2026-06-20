@@ -85,12 +85,18 @@ export function ProfileCard({ profile, user, variant }: ProfileCardProps) {
           <Badge variant="info">{profile?.tier || (variant === "seller" ? "business" : "artisan")}</Badge>
         </div>
       </CardContent>
-      <CardFooter className="bg-slate-50 border-t border-gray-100 p-3">
+      <CardFooter className="bg-slate-50 border-t border-gray-100 p-3 flex gap-2">
+        <Link
+          href={`/profile/${user?.id ?? ""}`}
+          className="flex-1 text-center text-xs font-bold text-blue-600 hover:underline"
+        >
+          {variant === "seller" ? "View Shop" : "View Portfolio"} →
+        </Link>
         <Link
           href="/profile/edit"
-          className="w-full text-center text-xs font-bold text-blue-600 hover:underline"
+          className="flex-1 text-center text-xs font-bold text-slate-600 hover:underline"
         >
-          {variant === "seller" ? "Update Shop Details →" : "Update Portfolio Details →"}
+          Edit Details →
         </Link>
       </CardFooter>
     </Card>

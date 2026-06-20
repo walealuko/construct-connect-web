@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Order } from "@/types/database";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -40,6 +42,7 @@ function buyerName(order: Order): string {
 }
 
 export function OrdersTable({ orders, loading, onStatusChange, emptyMessage = "No orders found yet." }: OrdersTableProps) {
+  const router = useRouter();
   return (
     <Card className="overflow-hidden">
       <div className="overflow-x-auto">
@@ -62,9 +65,26 @@ export function OrdersTable({ orders, loading, onStatusChange, emptyMessage = "N
             orders.map((order) => (
               <div
                 key={order.id}
-                className="grid grid-cols-4 hover:bg-slate-50 transition-colors text-sm items-center"
+                onClick={() => router.push(`/orders/${order.id}`)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    router.push(`/orders/${order.id}`);
+                  }
+                }}
+                className="grid grid-cols-4 hover:bg-slate-50 transition-colors text-sm items-center cursor-pointer"
               >
-                <div className="px-6 py-4 text-slate-900 font-medium">{buyerName(order)}</div>
+                <div className="px-6 py-4 text-slate-900 font-medium">
+                  <Link
+                    href={`/profile/${order.buyer_id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="hover:text-blue-600 hover:underline"
+                  >
+                    {buyerName(order)}
+                  </Link>
+                </div>
                 <div className="px-6 py-4 text-slate-500 text-xs">
                   {new Date(order.created_at).toLocaleDateString()}
                 </div>
@@ -74,7 +94,11 @@ export function OrdersTable({ orders, loading, onStatusChange, emptyMessage = "N
                 <div className="px-6 py-4 text-right">
                   <select
                     value={order.status}
-                    onChange={(e) => onStatusChange(order.id, e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      onStatusChange(order.id, e.target.value);
+                    }}
                     className="p-1 text-xs border rounded bg-white outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {STATUS_OPTIONS.map((s) => (
