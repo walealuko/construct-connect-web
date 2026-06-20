@@ -46,3 +46,72 @@ export async function createConversationAction(participantId: string, projectId?
   revalidatePath('/messages');
   return { success: true, conversationId: newConv.id };
 }
+
+/**
+ * Delete a single message from a conversation. Either participant of
+ * the conversation can delete any message in it (not just the
+ * sender). The actual delete is enforced at the RLS layer — this
+ * action exists to (1) keep the conversation in a valid state (we
+ * roll the conversation's last_message / last_message_at forward to
+ * the most recent surviving message, or clear them if the deleted
+ * message was the last one) and (2) give the client a single
+ * server-rendered entry point so we can revalidate /messages.
+ */
+export async function deleteMessageAction(messageId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Not signed in" };
+  }
+
+  // Pull the message + its conversation in one query so we can update
+  // the conversation's last_message snapshot after the row is gone.
+  const { data: msg, error: msgError } = await supabase
+    .from('messages')
+    .select('id, conversation_id, created_at')
+    .eq('id', messageId)
+    .maybeSingle();
+
+  if (msgError) return { success: false, error: msgError.message };
+  if (!msg) return { success: false, error: "Message not found" };
+
+  // RLS will block this if the caller isn't a participant of the
+  // conversation. The action doesn't pre-check so the RLS policy
+  // remains the single source of truth.
+  const { error: deleteError } = await supabase
+    .from('messages')
+    .delete()
+    .eq('id', messageId);
+
+  if (deleteError) return { success: false, error: deleteError.message };
+
+  // Roll the conversation's last_message / last_message_at forward
+  // to the most recent surviving message, or clear them if the
+  // deleted message was the most recent one and nothing else exists.
+  const { data: latest } = await supabase
+    .from('messages')
+    .select('content, created_at')
+    .eq('conversation_id', msg.conversation_id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { error: convError } = await supabase
+    .from('conversations')
+    .update({
+      last_message: latest?.content ?? "",
+      last_message_at: latest?.created_at ?? new Date().toISOString(),
+    })
+    .eq('id', msg.conversation_id);
+
+  if (convError) {
+    // Non-fatal — the message is already deleted, the conversation
+    // snapshot will be stale until the next message is sent. Don't
+    // surface this to the user.
+    console.error("Failed to roll conversation snapshot after delete:", convError);
+  }
+
+  revalidatePath('/messages');
+  return { success: true };
+}

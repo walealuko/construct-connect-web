@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Badge } from "@/components/ui/Badge";
-import { createConversationAction } from "@/app/actions/chat";
+import { createConversationAction, deleteMessageAction } from "@/app/actions/chat";
 
 function ChatContent() {
   const userContext = useContext(UserContext);
@@ -25,6 +25,12 @@ function ChatContent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  // Tracks the message currently being deleted so the trash button
+  // shows a spinner / is disabled during the round-trip. The DELETE
+  // also propagates via the realtime channel, so we don't need to
+  // optimistically remove it from `messages` locally — the channel
+  // listener will drop it on confirmation.
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -126,6 +132,20 @@ function ChatContent() {
         }, (payload) => {
           setMessages((prev) => [...prev, payload.new as Message]);
         })
+        .on('postgres_changes', {
+          // Mirror a remote delete (either participant's) into the
+          // local state so the other side sees the bubble disappear
+          // in real time without a refresh.
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${activeConv.id}`,
+        }, (payload) => {
+          const oldId = (payload.old as Partial<Message>)?.id;
+          if (typeof oldId === 'string') {
+            setMessages((prev) => prev.filter((m) => m.id !== oldId));
+          }
+        })
         .subscribe();
 
       return () => {
@@ -162,6 +182,36 @@ function ChatContent() {
 
     } catch (err: any) {
       toast.error("Failed to send message");
+    }
+  };
+
+  // Either participant of the conversation can delete any message.
+  // The action layer talks to the server (which enforces RLS); the
+  // realtime channel mirrors the row removal into local state.
+  const deleteMessage = async (messageId: string) => {
+    if (!user || !activeConv) return;
+    if (!window.confirm("Delete this message? This will remove it for both participants.")) {
+      return;
+    }
+    setDeletingId(messageId);
+    try {
+      const result = await deleteMessageAction(messageId);
+      if (!result.success) {
+        toast.error(result.error || "Failed to delete message");
+        return;
+      }
+      // Belt-and-braces: drop it from local state immediately. The
+      // realtime DELETE listener would also do this, but if the
+      // listener drops the event for any reason the user still sees
+      // the bubble disappear.
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      // Refresh the sidebar so the conversation's last_message
+      // snapshot updates without waiting for the next realtime push.
+      await loadConversations();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete message");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -249,20 +299,39 @@ function ChatContent() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
-              {messages.map(msg => (
-                <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-md p-3 rounded-2xl text-sm ${
-                    msg.sender_id === user?.id
-                      ? "bg-blue-600 text-white rounded-tr-none shadow-sm"
-                      : "bg-white text-gray-800 shadow-sm border border-gray-100 rounded-tl-none"
-                  }`}>
-                    {msg.content}
-                    <div className={`text-[10px] mt-1 text-right ${msg.sender_id === user?.id ? "text-blue-200" : "text-gray-400"}`}>
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {messages.map(msg => {
+                const isMine = msg.sender_id === user?.id;
+                const isDeleting = deletingId === msg.id;
+                return (
+                  <div key={msg.id} className={`group flex ${isMine ? "justify-end" : "justify-start"}`}>
+                    <div className="relative max-w-md">
+                      <div className={`p-3 rounded-2xl text-sm ${
+                        isMine
+                          ? "bg-blue-600 text-white rounded-tr-none shadow-sm"
+                          : "bg-white text-gray-800 shadow-sm border border-gray-100 rounded-tl-none"
+                      }`}>
+                        {msg.content}
+                        <div className={`text-[10px] mt-1 text-right ${isMine ? "text-blue-200" : "text-gray-400"}`}>
+                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                      {/* Delete button. Hidden until hover/focus so the
+                          chat stays clean. Either party can delete any
+                          message in the conversation (RLS-gated). */}
+                      <button
+                        type="button"
+                        onClick={() => deleteMessage(msg.id)}
+                        disabled={isDeleting}
+                        aria-label="Delete message"
+                        title="Delete message"
+                        className={`absolute -top-2 ${isMine ? "-left-2" : "-right-2"} w-7 h-7 rounded-full bg-white shadow-md border border-gray-200 text-gray-400 hover:text-red-600 hover:border-red-300 transition-all flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 focus:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {isDeleting ? "…" : "🗑"}
+                      </button>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <form onSubmit={sendMessage} className="p-4 bg-white border-t border-gray-200 flex gap-3">
