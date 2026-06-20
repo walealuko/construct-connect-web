@@ -68,7 +68,7 @@ export function PortfolioGallery({
         )}
         {/* Always-present hidden trigger — parent calls onAdd to open the file picker */}
         <div className="mt-4 flex justify-end">
-          <Button size="sm" onClick={onAdd} disabled={loading} isLoading={loading}>
+          <Button size="sm" onClick={onAdd}>
             {addLabel}
           </Button>
         </div>

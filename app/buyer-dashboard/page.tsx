@@ -6,7 +6,6 @@ import Link from "next/link";
 import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
 import { Profile, Order, Product, primaryImage } from "@/types/database";
-import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
 import { removeProductViewAction } from "@/app/actions/products";
 import { toast } from "sonner";
@@ -42,8 +41,8 @@ export default function BuyerDashboard() {
         .from('profiles')
         .select('*')
         .eq('id', user?.id)
-        .single();
-      setProfile(profileData);
+        .maybeSingle();
+      setProfile(profileData ?? null);
 
       // The orders schema has a separate `order_items` table, so totals
       // have to be computed by joining — fetch the orders and their items

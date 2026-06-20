@@ -166,7 +166,7 @@ export default function ArtisanDashboard() {
   return (
     <DashboardLayout userRole="artisan">
       <div className="space-y-8">
-        <ProfileIncompleteBanner profile={profile} requireFields={["business_name", "location"]} />
+        <ProfileIncompleteBanner profile={profile} requireFields={["location"]} />
 
         <div className="flex justify-between items-center">
           <div className="space-y-1">
