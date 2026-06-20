@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabase";
 
 import { useDashboardData } from "@/components/dashboard/useDashboardData";
 import { ProfileCard } from "@/components/dashboard/ProfileCard";
+import { ProfileIncompleteBanner } from "@/components/dashboard/ProfileIncompleteBanner";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { ProductCard } from "@/components/dashboard/ProductCard";
 import { ProductFormModal } from "@/components/dashboard/ProductFormModal";
@@ -48,6 +49,7 @@ export default function ArtisanDashboard() {
     setProductPage,
     orderPage,
     orderPageCount,
+    orderCount,
     orderPageSize,
     setOrderPage,
   } = useDashboardData();
@@ -90,7 +92,7 @@ export default function ArtisanDashboard() {
       toast.error(result.error || "Failed to add product");
       return;
     }
-    toast.success("Product listed!");
+    toast.success("Product added successfully!");
     setIsAddOpen(false);
     if (productPage !== 1) setProductPage(1);
     refresh();
@@ -164,16 +166,19 @@ export default function ArtisanDashboard() {
   return (
     <DashboardLayout userRole="artisan">
       <div className="space-y-8">
+        <ProfileIncompleteBanner profile={profile} requireFields={["business_name", "location"]} />
+
         <div className="flex justify-between items-center">
-          <div>
+          <div className="space-y-1">
             <h2 className="text-3xl font-black text-slate-900">Artisan Dashboard</h2>
             <p className="text-gray-500 font-medium">Showcase your skill and services</p>
           </div>
           <Button
             onClick={() => setIsAddOpen(true)}
-            className="px-6 py-3 text-base font-bold"
+            aria-label="Add new product"
+            className="px-6 py-3 text-base font-bold shadow-sm hover:shadow-md transition-all active:scale-95"
           >
-            + List a Product
+            + Add New Product
           </Button>
         </div>
 
@@ -191,7 +196,56 @@ export default function ArtisanDashboard() {
           <div className="lg:col-span-3 space-y-8">
             <section>
               <div className="flex justify-between items-end mb-4">
-                <h3 className="text-xl font-bold text-slate-800">My Portfolio Gallery</h3>
+                <h3 className="text-xl font-bold text-slate-800">Product Inventory</h3>
+                <Link href="/messages" className="text-sm font-bold text-blue-600 hover:underline">
+                  View Messages →
+                </Link>
+              </div>
+              <Card>
+                <CardContent className="p-6">
+                  {loading && products.length === 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-24 w-full rounded-xl" />
+                      ))}
+                    </div>
+                  ) : products.length === 0 ? (
+                    <div className="py-12 text-center space-y-3">
+                      <div className="text-4xl">📦</div>
+                      <p className="text-gray-400 text-sm">
+                        No products listed yet. Start by adding your first product!
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {products.map((product) => (
+                          <ProductCard
+                            key={product.id}
+                            product={product}
+                            onEdit={setEditingProduct}
+                            onDelete={setDeletingId}
+                          />
+                        ))}
+                      </div>
+                      <Pagination
+                        page={productPage}
+                        pageCount={productPageCount}
+                        totalCount={productCount}
+                        pageSize={productPageSize}
+                        onPageChange={setProductPage}
+                        loading={loading}
+                      />
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
+
+            <section>
+              <div className="flex justify-between items-end mb-4">
+                <h3 className="text-xl font-bold text-slate-800">Portfolio Gallery</h3>
+                <span className="text-xs text-gray-400">{portfolio.length} item(s)</span>
               </div>
               <PortfolioGallery
                 items={portfolio}
@@ -222,52 +276,6 @@ export default function ArtisanDashboard() {
             </section>
 
             <section>
-              <div className="flex justify-between items-end mb-4">
-                <h3 className="text-xl font-bold text-slate-800">Active Product Listings</h3>
-                <span className="text-xs text-gray-400">{productCount} listing(s)</span>
-              </div>
-              <Card>
-                <CardContent className="p-6">
-                  {loading && products.length === 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {[...Array(4)].map((_, i) => (
-                        <Skeleton key={i} className="h-24 w-full rounded-xl" />
-                      ))}
-                    </div>
-                  ) : products.length === 0 ? (
-                    <div className="py-12 text-center space-y-3">
-                      <div className="text-4xl">📦</div>
-                      <p className="text-gray-400 text-sm">
-                        No products listed yet. Start selling your services!
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                        {products.map((product) => (
-                          <ProductCard
-                            key={product.id}
-                            product={product}
-                            onEdit={setEditingProduct}
-                            onDelete={setDeletingId}
-                          />
-                        ))}
-                      </div>
-                      <Pagination
-                        page={productPage}
-                        pageCount={productPageCount}
-                        totalCount={productCount}
-                        pageSize={productPageSize}
-                        onPageChange={setProductPage}
-                        loading={loading}
-                      />
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </section>
-
-            <section>
               <h3 className="text-xl font-bold text-slate-800 mb-4">Recent Orders</h3>
               <OrdersTable
                 orders={pagedOrders}
@@ -278,49 +286,13 @@ export default function ArtisanDashboard() {
                 <Pagination
                   page={orderPage}
                   pageCount={orderPageCount}
-                  totalCount={orders.length}
+                  totalCount={orderCount}
                   pageSize={orderPageSize}
                   onPageChange={setOrderPage}
                 />
               </div>
             </section>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Link
-            href="/marketplace"
-            className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
-          >
-            <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">🏗️</div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Marketplace</h3>
-            <p className="text-gray-500 text-sm">See how your products look to buyers.</p>
-            <div className="mt-4 text-blue-600 font-bold text-xs uppercase tracking-wider">
-              Visit Market →
-            </div>
-          </Link>
-          <Link
-            href="/projects"
-            className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
-          >
-            <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">🛠️</div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Browse Projects</h3>
-            <p className="text-gray-500 text-sm">Find new construction projects to bid on.</p>
-            <div className="mt-4 text-blue-600 font-bold text-xs uppercase tracking-wider">
-              Explore Projects →
-            </div>
-          </Link>
-          <Link
-            href="/messages"
-            className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
-          >
-            <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">💬</div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Messages</h3>
-            <p className="text-gray-500 text-sm">Reply to interested clients.</p>
-            <div className="mt-4 text-blue-600 font-bold text-xs uppercase tracking-wider">
-              Open Chat →
-            </div>
-          </Link>
         </div>
 
         <ProductFormModal
