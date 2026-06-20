@@ -83,11 +83,17 @@ export default function ArtisanDashboard() {
     images: string[];
   }) => {
     const result = await createProductAction(data);
-    if (!result.success) throw new Error(result.error);
+    if (!result.success) {
+      // Surface the failure inline instead of throwing — the modal doesn't
+      // need to catch, and a thrown error here would trip the React error
+      // boundary. Always jump to page 1 so the new product is visible.
+      toast.error(result.error || "Failed to add product");
+      return;
+    }
     toast.success("Product listed!");
     setIsAddOpen(false);
     if (productPage !== 1) setProductPage(1);
-    else refresh();
+    refresh();
   };
 
   const handleUpdate = async (data: {
