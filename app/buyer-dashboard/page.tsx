@@ -16,13 +16,17 @@ import { Badge } from "@/components/ui/Badge";
 import { formatNaira } from "@/lib/format";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { resolveImageUrl } from "@/lib/storage";
+import { useRouter } from "next/navigation";
+import type { Conversation, Profile as ChatProfile } from "@/types/chat";
 
 export default function BuyerDashboard() {
   const userContext = useContext(UserContext);
   const user = userContext?.user;
+  const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [orders, setOrders] = useState<(Order & { total_price?: number })[]>([]);
   const [viewedProducts, setViewedProducts] = useState<Product[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -86,6 +90,39 @@ export default function BuyerDashboard() {
           .in('id', productIds);
         setViewedProducts(products || []);
       }
+
+      // Recent conversations the buyer is part of. The conversations
+      // table has a uuid[] `participant_ids` column that PostgREST
+      // can't auto-embed, so we use the array-overlap operator and
+      // then fetch participant profiles in a second query.
+      const { data: convs } = await supabase
+        .from('conversations')
+        .select('*')
+        .overlaps('participant_ids', user ? [user.id] : [])
+        .order('last_message_at', { ascending: false })
+        .limit(5);
+
+      if (convs && convs.length > 0) {
+        const idSet = new Set<string>();
+        for (const c of convs) {
+          for (const pid of c.participant_ids || []) idSet.add(pid);
+        }
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, avatar_url')
+          .in('id', Array.from(idSet));
+        const byId: Record<string, ChatProfile> = {};
+        for (const p of profiles || []) byId[p.id] = p as ChatProfile;
+        const enriched = convs.map((c) => ({
+          ...c,
+          profiles: (c.participant_ids || [])
+            .map((pid: string) => byId[pid])
+            .filter(Boolean),
+        }));
+        setConversations(enriched as Conversation[]);
+      } else {
+        setConversations([]);
+      }
     } catch (err) {
       console.error("Error loading buyer data:", err);
     } finally {
@@ -121,7 +158,7 @@ export default function BuyerDashboard() {
               <Link href="/cart">My Cart</Link>
             </Button>
             <Button asChild className="px-4 py-2 text-sm font-bold">
-              <Link href="/checkout">My Orders</Link>
+              <Link href="/messages">Messages</Link>
             </Button>
           </div>
         </div>
@@ -158,12 +195,14 @@ export default function BuyerDashboard() {
             </CardFooter>
           </Card>
 
-          {/* Order History Widget */}
+          {/* Order History + Messages */}
           <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader className="flex justify-between items-center">
-                <h3 className="text-lg font-bold text-slate-800">Recent Orders</h3>
-                <Link href="/checkout" className="text-xs font-bold text-blue-600 hover:underline">View All →</Link>
+                <h3 className="text-lg font-bold text-slate-800">Order History</h3>
+                <span className="text-xs text-gray-400">
+                  {orders.length} {orders.length === 1 ? "order" : "orders"}
+                </span>
               </CardHeader>
               <CardContent>
                 {loading ? (
@@ -186,13 +225,25 @@ export default function BuyerDashboard() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {orders.slice(0, 5).map(order => (
-                          <tr key={order.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3 font-medium text-slate-900">#{order.id.slice(-6)}</td>
-                            <td className="px-4 py-3 font-bold text-blue-600">{formatNaira(order.total_price)}</td>
+                        {orders.map(order => (
+                          <tr
+                            key={order.id}
+                            onClick={() => router.push(`/orders/${order.id}`)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                router.push(`/orders/${order.id}`);
+                              }
+                            }}
+                            className="hover:bg-slate-50 transition-colors cursor-pointer"
+                          >
+                            <td className="px-4 py-3 font-medium text-blue-600 hover:underline">#{order.id.slice(-6)}</td>
+                            <td className="px-4 py-3 font-bold text-slate-900">{formatNaira(order.total_price)}</td>
                             <td className="px-4 py-3">
                               <Badge
-                                variant={order.status === 'completed' ? 'success' : order.status === 'shipped' ? 'info' : 'warning'}
+                                variant={order.status === 'completed' ? 'success' : order.status === 'shipped' ? 'info' : order.status === 'cancelled' ? 'default' : 'warning'}
                               >
                                 {order.status}
                               </Badge>
@@ -204,6 +255,67 @@ export default function BuyerDashboard() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Messages Widget */}
+            <Card>
+              <CardHeader className="flex justify-between items-center">
+                <h3 className="text-lg font-bold text-slate-800">Messages</h3>
+                <Link href="/messages" className="text-xs font-bold text-blue-600 hover:underline">
+                  Open Inbox →
+                </Link>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <Skeleton key={i} className="h-14 w-full rounded-xl" />
+                    ))}
+                  </div>
+                ) : conversations.length === 0 ? (
+                  <div className="py-8 text-center space-y-2">
+                    <div className="text-3xl">💬</div>
+                    <p className="text-gray-400 text-sm">
+                      No conversations yet.{" "}
+                      <Link href="/marketplace" className="text-blue-600 font-semibold hover:underline">
+                        Find sellers on the Marketplace →
+                      </Link>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {conversations.map((conv) => {
+                      const otherId = conv.participant_ids.find((id) => id !== user?.id);
+                      const other = conv.profiles?.find((p) => p.id === otherId);
+                      const otherName = other
+                        ? `${other.first_name ?? ""} ${other.last_name ?? ""}`.trim() || "Unknown"
+                        : "Unknown";
+                      return (
+                        <Link
+                          key={conv.id}
+                          href={`/messages?convId=${conv.id}`}
+                          className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-blue-300 hover:bg-blue-50/50 transition-all"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold shrink-0">
+                            {(other?.first_name ?? "?")[0]}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-baseline gap-2">
+                              <p className="text-sm font-bold text-slate-900 truncate">{otherName}</p>
+                              <span className="text-[10px] text-gray-400 shrink-0">
+                                {new Date(conv.last_message_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 truncate">
+                              {conv.last_message || "Start a conversation…"}
+                            </p>
+                          </div>
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
