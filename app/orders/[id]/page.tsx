@@ -9,9 +9,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/Button";
-import SafeImage from "@/components/ui/SafeImage";
-import { resolveImageUrl } from "@/lib/storage";
+import ProductImageGallery from "@/components/ui/ProductImageGallery";
 import { toast } from "sonner";
+import { formatNaira } from "@/lib/format";
 
 interface OrderItemRow {
   product_id: string;
@@ -20,7 +20,7 @@ interface OrderItemRow {
   products: {
     id: string;
     name: string;
-    image_url?: string | null;
+    images: string[];
     seller_id: string;
     location: string;
   } | null;
@@ -87,7 +87,7 @@ export default function OrderDetailPage() {
           `id, buyer_id, status, created_at,
            profiles:buyer_id(first_name, last_name),
            order_items(product_id, price_at_purchase, quantity,
-             products!inner(id, name, image_url, seller_id, location))`
+             products!inner(id, name, images, seller_id, location))`
         )
         .eq("id", id)
         .maybeSingle();
@@ -213,14 +213,8 @@ export default function OrderDetailPage() {
                     className="shrink-0"
                     aria-label={p ? `View ${p.name}` : undefined}
                   >
-                    {p?.image_url ? (
-                      <SafeImage
-                        src={resolveImageUrl(p.image_url, "product-images")}
-                        alt={p.name}
-                        width={64}
-                        height={64}
-                        className="w-16 h-16 object-cover rounded-lg shadow-sm"
-                      />
+                    {p ? (
+                      <ProductImageGallery images={p.images ?? []} alt={p.name} compact />
                     ) : (
                       <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">
                         No Image
@@ -241,13 +235,13 @@ export default function OrderDetailPage() {
                       </span>
                     )}
                     <p className="text-xs text-gray-500 mt-1">
-                      ${Number(it.price_at_purchase).toFixed(2)} × {it.quantity}
+                      {formatNaira(Number(it.price_at_purchase))} × {it.quantity}
                       {p?.location ? ` · 📍 ${p.location}` : ""}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-slate-900 text-sm">
-                      ${lineTotal(it).toFixed(2)}
+                      {formatNaira(lineTotal(it))}
                     </p>
                   </div>
                 </div>
@@ -257,7 +251,7 @@ export default function OrderDetailPage() {
           <div className="flex justify-between items-center p-4 bg-slate-50 border-t border-gray-100">
             <span className="text-sm font-bold text-slate-700">Total</span>
             <span className="text-lg font-black text-blue-600">
-              ${grandTotal.toFixed(2)}
+              {formatNaira(grandTotal)}
             </span>
           </div>
         </CardContent>

@@ -80,7 +80,7 @@ export default function ArtisanDashboard() {
     price: number;
     category: string;
     stock: number;
-    image_url: string;
+    images: string[];
   }) => {
     const result = await createProductAction(data);
     if (!result.success) throw new Error(result.error);
@@ -96,7 +96,7 @@ export default function ArtisanDashboard() {
     price: number;
     category: string;
     stock: number;
-    image_url: string;
+    images: string[];
   }) => {
     if (!editingProduct) return;
     const result = await updateProductAction(editingProduct.id, data);
@@ -223,7 +223,7 @@ export default function ArtisanDashboard() {
               <Card>
                 <CardContent className="p-6">
                   {loading && products.length === 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                       {[...Array(4)].map((_, i) => (
                         <Skeleton key={i} className="h-24 w-full rounded-xl" />
                       ))}
@@ -237,7 +237,7 @@ export default function ArtisanDashboard() {
                     </div>
                   ) : (
                     <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                         {products.map((product) => (
                           <ProductCard
                             key={product.id}

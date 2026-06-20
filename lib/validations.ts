@@ -17,15 +17,8 @@ export const registerSchema = z.object({
   path: ['confirmPassword'],
 });
 
-// Product Schema
-export const productSchema = z.object({
-  name: z.string().min(3, 'Product name must be at least 3 characters'),
-  description: z.string().min(10, 'Description should be more detailed'),
-  price: z.coerce.number().positive('Price must be a positive number'),
-  category: z.string().min(1, 'Category is required'),
-  stock: z.coerce.number().int().nonnegative('Stock cannot be negative'),
-  image_url: z.string().url('Invalid image URL').optional().or(z.literal('')),
-});
+// Product creation/edit validation lives in `app/actions/products.ts`
+// (Zod `ProductSchema`). It owns the `images: string[]` shape since the
+// action layer is the source of truth for what's persisted.
 
 export type RegisterInput = z.infer<typeof registerSchema>;
-export type ProductInput = z.infer<typeof productSchema>;

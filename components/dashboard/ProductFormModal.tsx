@@ -21,6 +21,9 @@ export const PRODUCT_CATEGORIES = [
   "Painting & Finishing",
 ];
 
+const MAX_IMAGES = 10;
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+
 interface ProductFormModalProps {
   isOpen: boolean;
   mode: "add" | "edit";
@@ -29,15 +32,14 @@ interface ProductFormModalProps {
   // For artisans, the category is forced to 'artisan-service' and there's
   // no category picker.
   fixedCategory?: string;
-  // Submit returns the cleaned payload (image is the bare path, or empty
-  // string if no new file was picked). The parent calls the action.
+  // Submit returns the cleaned payload. The parent calls the action.
   onSubmit: (data: {
     name: string;
     description: string;
     price: number;
     category: string;
     stock: number;
-    image_url: string;
+    images: string[];
   }) => Promise<void>;
   onClose: () => void;
   // Action button label.
@@ -48,11 +50,12 @@ interface ProductFormModalProps {
  * Add/Edit product form. One component for both modes — the differences:
  *   - "required" on the file input (true for add, false for edit)
  *   - submit label ("Save Product" vs "Update Product")
- *   - the image preview shows the existing image when editing without
- *     picking a new one
+ *   - on edit, the picker pre-populates with the existing images and
+ *     lets the seller add or remove images freely
  *
- * The component handles its own image upload to the bucket, then hands the
- * bare path up via onSubmit. The parent owns the actual create/update.
+ * Up to MAX_IMAGES images per product (10). The component handles its
+ * own image uploads to the bucket sequentially, then hands the final
+ * bare paths up via onSubmit. The parent owns the actual create/update.
  */
 export function ProductFormModal({
   isOpen,
@@ -71,9 +74,16 @@ export function ProductFormModal({
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState(fixedCategory || PRODUCT_CATEGORIES[0]);
   const [stock, setStock] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState("");
+  // Existing image paths (edit mode). The user can remove these to
+  // delete them from the final array; we collect which were removed
+  // for storage cleanup in the parent action.
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+  // Newly picked files that haven't been uploaded yet (blob previews).
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [newPreviews, setNewPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  const totalImages = existingImages.length + newFiles.length;
 
   // Reset form whenever the modal opens or the product changes.
   useEffect(() => {
@@ -84,64 +94,126 @@ export function ProductFormModal({
       setPrice(product.price.toString());
       setCategory(product.category || fixedCategory || PRODUCT_CATEGORIES[0]);
       setStock(product.stock.toString());
-      setImageFile(null);
-      setImagePreview(resolveImageUrl(product.image_url, "product-images"));
+      setExistingImages(product.images ?? []);
+      setNewFiles([]);
+      setNewPreviews([]);
     } else {
       setName("");
       setDescription("");
       setPrice("");
       setCategory(fixedCategory || PRODUCT_CATEGORIES[0]);
       setStock("");
-      setImageFile(null);
-      setImagePreview("");
+      setExistingImages([]);
+      setNewFiles([]);
+      setNewPreviews([]);
     }
   }, [isOpen, isEdit, product, fixedCategory]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload a valid image file");
+  // Revoke blob URLs when the modal closes to avoid memory leaks.
+  useEffect(() => {
+    if (!isOpen) {
+      newPreviews.forEach((url) => URL.revokeObjectURL(url));
+    }
+  }, [isOpen, newPreviews]);
+
+  const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ""; // allow re-picking the same files
+    const accepted: File[] = [];
+    const previews: string[] = [];
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) {
+        toast.error(`"${file.name}" is not an image`);
+        continue;
+      }
+      if (file.size > MAX_FILE_BYTES) {
+        toast.error(`"${file.name}" is larger than 5MB`);
+        continue;
+      }
+      accepted.push(file);
+      previews.push(URL.createObjectURL(file));
+    }
+    if (accepted.length === 0) return;
+
+    const room = MAX_IMAGES - totalImages;
+    if (room <= 0) {
+      toast.error(`Maximum ${MAX_IMAGES} images per product`);
+      // Revoke any previews we made but won't use.
+      previews.forEach((u) => URL.revokeObjectURL(u));
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image size must be less than 5MB");
-      return;
+    const trimmed = accepted.slice(0, room);
+    const trimmedPreviews = previews.slice(0, room);
+    if (accepted.length > room) {
+      toast.error(`Only ${room} more image${room === 1 ? "" : "s"} allowed (max ${MAX_IMAGES})`);
+      // Revoke the unaccepted previews.
+      previews.slice(room).forEach((u) => URL.revokeObjectURL(u));
     }
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    setNewFiles((prev) => [...prev, ...trimmed]);
+    setNewPreviews((prev) => [...prev, ...trimmedPreviews]);
+  };
+
+  const removeNewFile = (index: number) => {
+    setNewFiles((prev) => prev.filter((_, i) => i !== index));
+    setNewPreviews((prev) => {
+      const removed = prev[index];
+      if (removed) URL.revokeObjectURL(removed);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const removeExistingImage = (index: number) => {
+    setExistingImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadFile = async (file: File): Promise<string | null> => {
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${file.name}`;
+    const { error } = await supabase.storage
+      .from("product-images")
+      .upload(fileName, file, { upsert: true });
+    if (error) {
+      const hint = error.message?.includes("row-level security")
+        ? " Check the RLS policies on the product-images bucket."
+        : "";
+      toast.error(`Failed to upload ${file.name}: ${error.message}${hint}`);
+      return null;
+    }
+    return fileName;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
+    if (totalImages === 0 && !isEdit) {
+      toast.error("Please upload at least one image");
+      return;
+    }
     setSubmitting(true);
     try {
-      let finalImageUrl = "";
-      if (imageFile) {
-        const fileName = `${Date.now()}-${imageFile.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from("product-images")
-          .upload(fileName, imageFile, { upsert: true });
-        if (uploadError) {
-          const hint = uploadError.message?.includes("row-level security")
-            ? " Check the RLS policies on the product-images bucket."
-            : "";
-          throw new Error(`Image upload failed: ${uploadError.message}${hint}`);
+      // Upload all newly picked files sequentially. Sequential keeps
+      // per-file error reporting simple and avoids hammering the bucket.
+      const uploadedPaths: string[] = [];
+      for (const file of newFiles) {
+        const path = await uploadFile(file);
+        if (!path) {
+          // Abort the whole submission so the form isn't left half-uploaded.
+          throw new Error("Image upload failed");
         }
-        finalImageUrl = fileName;
-      } else if (!isEdit) {
-        throw new Error("Product image is required");
+        uploadedPaths.push(path);
       }
-      // On edit, an empty finalImageUrl tells the parent action to keep
-      // the existing image (see updateProductAction).
+
+      const images = [...existingImages, ...uploadedPaths];
+      if (images.length === 0) {
+        throw new Error("Product must have at least one image");
+      }
+
       await onSubmit({
         name,
         description,
         price: parseFloat(price),
         category,
         stock: parseInt(stock || "0", 10),
-        image_url: finalImageUrl,
+        images,
       });
     } catch (err: any) {
       toast.error(err.message || `Failed to ${isEdit ? "update" : "add"} product`);
@@ -179,7 +251,7 @@ export function ProductFormModal({
 
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Price ($)"
+              label="Price (₦)"
               type="number"
               step="0.01"
               placeholder="0.00"
@@ -220,30 +292,68 @@ export function ProductFormModal({
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-              Product Image {isEdit && <span className="text-gray-300 normal-case font-medium">(optional — leave empty to keep current)</span>}
+              Product Images ({totalImages}/{MAX_IMAGES})
+              {isEdit && <span className="text-gray-300 normal-case font-medium"> — remove any you want gone; pick new ones to add</span>}
             </label>
-            <div className="flex flex-col gap-3">
+
+            {(existingImages.length > 0 || newPreviews.length > 0) && (
+              <div className="flex flex-wrap gap-2">
+                {existingImages.map((path, i) => (
+                  <div key={`existing-${i}-${path}`} className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={resolveImageUrl(path, "product-images")}
+                      alt={`Existing ${i + 1}`}
+                      className="w-20 h-20 rounded-lg object-cover border border-gray-200"
+                    />
+                    {i === 0 && (
+                      <span className="absolute bottom-0 left-0 right-0 text-center bg-blue-600 text-white text-[10px] py-0.5 rounded-b-lg font-bold">
+                        Primary
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeExistingImage(i)}
+                      className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow"
+                      aria-label={`Remove image ${i + 1}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {newPreviews.map((url, i) => (
+                  <div key={`new-${i}-${url}`} className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt={`New ${i + 1}`}
+                      className="w-20 h-20 rounded-lg object-cover border-2 border-blue-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeNewFile(i)}
+                      className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow"
+                      aria-label={`Remove pending image ${i + 1}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {totalImages < MAX_IMAGES && (
               <input
                 ref={fileInputRef}
-                name="image"
+                name="images"
                 type="file"
                 accept="image/*"
-                onChange={handleFileChange}
+                multiple
+                onChange={handleFilesChange}
                 className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                required={!isEdit}
+                required={!isEdit && totalImages === 0}
               />
-              {imagePreview && (
-                // blob: URLs (from createObjectURL) are not optimisable by
-                // next/image, so we use a plain <img> here. For server URLs
-                // resolveImageUrl returns a real URL — still fine.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="w-32 h-32 rounded-xl object-cover border-2 border-blue-100"
-                />
-              )}
-            </div>
+            )}
           </div>
         </div>
 

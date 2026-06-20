@@ -3,6 +3,7 @@ import { Product } from "@/types/database";
 import Link from "next/link";
 import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
+import ProductImageGallery from "@/components/ui/ProductImageGallery";
 import SellerRating from "@/components/SellerRating";
 import ReviewButton from "@/components/ReviewButton";
 import ProductAddToCart from "@/components/ProductAddToCart";
@@ -10,6 +11,7 @@ import MessageSellerButton from "@/components/MessageSellerButton";
 import { UserContext } from "@/components/UserContext";
 import { useContext } from "react";
 import { resolveImageUrl } from "@/lib/storage";
+import { formatNaira } from "@/lib/format";
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -38,19 +40,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
         {/* Left: Image & Seller Info */}
         <div className="space-y-5">
-          {p.image_url ? (
-            <SafeImage
-              src={resolveImageUrl(p.image_url, 'product-images')}
-              alt={p.name}
-              width={600}
-              height={420}
-              className="w-full max-h-[420px] object-cover rounded-2xl shadow-lg"
-            />
-          ) : (
-            <div className="w-full h-[360px] bg-gray-100 rounded-2xl flex items-center justify-center text-6xl">
-              🏗️
-            </div>
-          )}
+          <ProductImageGallery images={p.images ?? []} alt={p.name} />
 
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
             <p className="text-xs text-gray-400 mb-2 uppercase font-bold tracking-wider">Sold By</p>
@@ -74,7 +64,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           <h1 className="text-4xl font-extrabold text-slate-900 leading-tight">
             {p.name}
           </h1>
-          <p className="text-4xl font-black text-blue-600">${p.price?.toFixed(2)}</p>
+          <p className="text-4xl font-black text-blue-600">{formatNaira(p.price)}</p>
 
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <span>Stock:</span>

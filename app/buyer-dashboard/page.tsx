@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import Link from "next/link";
 import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
-import { Profile, Order, Product } from "@/types/database";
+import { Profile, Order, Product, primaryImage } from "@/types/database";
 import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
 import { removeProductViewAction } from "@/app/actions/products";
@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { formatNaira } from "@/lib/format";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { resolveImageUrl } from "@/lib/storage";
 
@@ -188,7 +189,7 @@ export default function BuyerDashboard() {
                         {orders.slice(0, 5).map(order => (
                           <tr key={order.id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-4 py-3 font-medium text-slate-900">#{order.id.slice(-6)}</td>
-                            <td className="px-4 py-3 font-bold text-blue-600">${order.total_price?.toFixed(2)}</td>
+                            <td className="px-4 py-3 font-bold text-blue-600">{formatNaira(order.total_price)}</td>
                             <td className="px-4 py-3">
                               <Badge
                                 variant={order.status === 'completed' ? 'success' : order.status === 'shipped' ? 'info' : 'warning'}
@@ -244,14 +245,14 @@ export default function BuyerDashboard() {
                       </Button>
                       <Link href={`/product/${product.id}`} className="block space-y-2">
                         <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
-                          {product.image_url ? (
-                            <SafeImage src={resolveImageUrl(product.image_url, 'product-images')} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform" />
+                          {primaryImage(product) ? (
+                            <SafeImage src={resolveImageUrl(primaryImage(product), 'product-images')} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-2xl">🏗️</div>
                           )}
                         </div>
                         <p className="text-xs font-bold text-slate-900 truncate">{product.name}</p>
-                        <p className="text-xs text-blue-600 font-semibold">${product.price?.toFixed(2)}</p>
+                        <p className="text-xs text-blue-600 font-semibold">{formatNaira(product.price)}</p>
                       </Link>
                     </div>
                   ))}

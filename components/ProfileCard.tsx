@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { Product, Order } from "@/types/database";
+import { formatNaira } from "@/lib/format";
 
 interface ProfileCardProps {
   item: Product | Order;
@@ -36,7 +37,7 @@ export default function ProfileCard({ item }: ProfileCardProps) {
           </p>
           <div className="flex justify-between items-center">
             {price != null && (
-              <span className="font-bold text-blue-600 text-lg">${price.toFixed(2)}</span>
+              <span className="font-bold text-blue-600 text-lg">{formatNaira(price)}</span>
             )}
             <Link
               href={isOrder ? `/orders/${(item as Order).id}` : `/product/${(item as Product).id}`}

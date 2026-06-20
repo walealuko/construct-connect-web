@@ -39,13 +39,20 @@ export interface Product {
   description: string;
   price: number;
   category: string;
-  image_url?: string;
+  // Paths into the `product-images` bucket. The first element is the
+  // primary image displayed in cards/marketplace. Up to 10 entries.
+  images: string[];
   stock: number;
   seller_id: string;
   seller_name: string;
   seller_location?: string;
   location: string;
   created_at: string;
+}
+
+/** Primary image path for a product, or '' if it has none. */
+export function primaryImage(p: Pick<Product, "images">): string {
+  return p.images?.[0] ?? "";
 }
 
 export interface Project {

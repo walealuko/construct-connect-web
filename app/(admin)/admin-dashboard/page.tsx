@@ -5,10 +5,11 @@ import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
-import { Profile, Product } from "@/types/database";
+import { Profile, Product, primaryImage } from "@/types/database";
 import { updateUserRoleAction } from "@/app/actions/admin";
 import { toast } from "sonner";
 import { resolveImageUrl } from "@/lib/storage";
+import { formatNaira } from "@/lib/format";
 
 interface Review {
   id: string;
@@ -224,7 +225,7 @@ export default function AdminDashboard() {
             { label: "Sellers", value: stats.sellers, color: "text-blue-600" },
             { label: "Buyers", value: stats.buyers, color: "text-green-600" },
             { label: "Products", value: stats.products, color: "text-amber-600" },
-            { label: "Total Revenue", value: `$${stats.revenue.toFixed(2)}`, color: "text-indigo-600" },
+            { label: "Total Revenue", value: formatNaira(stats.revenue), color: "text-indigo-600" },
           ].map((stat) => (
             <div key={stat.label} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
               <div className={`text-3xl font-black ${stat.color}`}>{stat.value}</div>
@@ -298,14 +299,14 @@ export default function AdminDashboard() {
                 <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      {p.image_url && (
-                        <SafeImage src={resolveImageUrl(p.image_url, 'product-images')} alt={p.name} width={32} height={32} className="rounded-md" />
+                      {primaryImage(p) && (
+                        <SafeImage src={resolveImageUrl(primaryImage(p), 'product-images')} alt={p.name} width={32} height={32} className="rounded-md" />
                       )}
                       <span className="text-slate-900 font-medium truncate max-w-[150px]">{p.name}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-gray-500">{p.seller_name || "—"}</td>
-                  <td className="px-6 py-4 text-blue-600 font-bold">${p.price?.toFixed(2)}</td>
+                  <td className="px-6 py-4 text-blue-600 font-bold">{formatNaira(p.price)}</td>
                   <td className="px-6 py-4 text-gray-500 capitalize">{p.category}</td>
                   <td className="px-6 py-4 font-medium text-gray-900">{p.stock}</td>
                   <td className="px-6 py-4 text-right">

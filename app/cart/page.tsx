@@ -5,9 +5,10 @@ import { useCart } from "@/components/CartContext";
 import Link from "next/link";
 import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
-import { CartItem } from "@/types/database";
+import { CartItem, primaryImage } from "@/types/database";
 import MessageSellerButton from "@/components/MessageSellerButton";
 import { resolveImageUrl } from "@/lib/storage";
+import { formatNaira } from "@/lib/format";
 
 export default function Cart() {
   const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
@@ -59,15 +60,17 @@ export default function Cart() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Items List */}
         <div className="lg:col-span-2 space-y-4">
-          {cart.map((item: CartItem) => (
+          {cart.map((item: CartItem) => {
+            const primary = primaryImage(item);
+            return (
             <div
               key={item.id}
               className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-4 items-center hover:shadow-md transition-shadow"
             >
               <Link href={`/product/${item.id}`} className="relative w-24 h-24 flex-shrink-0 transition-transform hover:scale-105">
-                {item.image_url ? (
+                {primary ? (
                   <SafeImage
-                    src={resolveImageUrl(item.image_url, 'product-images')}
+                    src={resolveImageUrl(primary, 'product-images')}
                     alt={item.name}
                     fill
                     className="object-cover rounded-xl"
@@ -81,7 +84,7 @@ export default function Cart() {
                 <Link href={`/product/${item.id}`} className="hover:text-blue-600 transition-colors">
                   <h3 className="text-lg font-bold text-slate-900 truncate">{item.name}</h3>
                 </Link>
-                <p className="text-blue-600 font-bold">${item.price?.toFixed(2)}</p>
+                <p className="text-blue-600 font-bold">{formatNaira(item.price)}</p>
 
                 <div className="flex items-center gap-4 mt-3">
                   <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
@@ -113,10 +116,11 @@ export default function Cart() {
 
               <div className="text-right min-w-fit">
                 <p className="text-sm text-gray-400">Subtotal</p>
-                <p className="text-lg font-black text-slate-900">${(item.price * item.quantity).toFixed(2)}</p>
+                <p className="text-lg font-black text-slate-900">{formatNaira(item.price * item.quantity)}</p>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Summary Card */}
@@ -126,7 +130,7 @@ export default function Cart() {
           <div className="space-y-3 mb-6">
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Subtotal</span>
-              <span className="text-slate-900 font-medium">${totalPrice.toFixed(2)}</span>
+              <span className="text-slate-900 font-medium">{formatNaira(totalPrice)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Shipping</span>
@@ -134,7 +138,7 @@ export default function Cart() {
             </div>
             <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
               <span className="text-lg font-bold text-slate-900">Total</span>
-              <span className="text-2xl font-black text-blue-600">${totalPrice.toFixed(2)}</span>
+              <span className="text-2xl font-black text-blue-600">{formatNaira(totalPrice)}</span>
             </div>
           </div>
 

@@ -6,10 +6,11 @@ import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
 import { supabase } from "@/lib/supabase";
 import { useCart } from "@/components/CartContext";
-import { Product } from "@/types/database";
+import { Product, primaryImage } from "@/types/database";
 import { toast } from "sonner";
 import ProductSkeleton from "./ProductSkeleton";
 import { resolveImageUrl } from "@/lib/storage";
+import { formatNaira } from "@/lib/format";
 
 const CATEGORIES = [
   { value: "all", label: "All Categories" },
@@ -185,24 +186,32 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
         <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-4">
           {products.map((product) => {
             const inCart = cart.some((item) => item.id === product.id);
+            const primary = primaryImage(product);
             return (
               <div key={product.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <Link href={`/product/${product.id}`} className="block group">
-                  {product.image_url ? (
-                    <SafeImage
-                      src={resolveImageUrl(product.image_url, 'product-images')}
-                      alt={product.name}
-                      width={300}
-                      height={144}
-                      className="w-full h-36 object-cover rounded-lg mb-3 group-hover:opacity-90 transition-opacity"
-                    />
-                  ) : (
-                    <div className="w-full h-36 bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-gray-400 text-2xl">🏗️</div>
-                  )}
+                  <div className="relative">
+                    {primary ? (
+                      <SafeImage
+                        src={resolveImageUrl(primary, 'product-images')}
+                        alt={product.name}
+                        width={300}
+                        height={144}
+                        className="w-full h-36 object-cover rounded-lg mb-3 group-hover:opacity-90 transition-opacity"
+                      />
+                    ) : (
+                      <div className="w-full h-36 bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-gray-400 text-2xl">🏗️</div>
+                    )}
+                    {(product.images?.length ?? 0) > 1 && (
+                      <span className="absolute top-2 right-2 bg-blue-600 text-white text-[10px] font-bold rounded-full w-6 h-6 flex items-center justify-center shadow">
+                        +{product.images.length - 1}
+                      </span>
+                    )}
+                  </div>
                   <h4 className="text-lg font-bold text-slate-900 mb-1 group-hover:text-blue-700 transition-colors">{product.name}</h4>
                 </Link>
                 <p className="text-gray-500 text-sm mb-2 line-clamp-2 h-10">{product.description || "No description"}</p>
-                <p className="text-blue-600 font-bold text-lg mb-1">${product.price?.toFixed(2)}</p>
+                <p className="text-blue-600 font-bold text-lg mb-1">{formatNaira(product.price)}</p>
                 <p className="text-gray-400 text-xs mb-2">
                   {product.seller_name || "Unknown"}
                   {product.seller_location && ` • ${product.seller_location}`}
