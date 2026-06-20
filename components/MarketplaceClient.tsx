@@ -35,6 +35,31 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
   const [sort, setSort] = useState("newest");
   const [searchInput, setSearchInput] = useState("");
   const [searchType, setSearchType] = useState("all");
+  // City the buyer is shopping from. Used only when sort === "nearest";
+  // we promote products whose `location` contains this string to the top.
+  // We don't have lat/lng, so case-insensitive substring match on the
+  // city text is the closest proxy — sellers/artisans now list a real
+  // city on every product (per the form requirement), so this works.
+  const [nearestTo, setNearestTo] = useState("");
+
+  // After every load, if the user picked "Nearest to me", promote
+  // matching-city products to the top of the visible list. The query
+  // itself is unchanged — we just reorder what was returned.
+  useEffect(() => {
+    if (sort !== "nearest") return;
+    const needle = nearestTo.trim().toLowerCase();
+    if (!needle) return; // nothing to match — leave the default order
+    setProducts((prev) => {
+      const matches: Product[] = [];
+      const rest: Product[] = [];
+      for (const p of prev) {
+        const city = (p.location || p.seller_location || "").toLowerCase();
+        if (city.includes(needle)) matches.push(p);
+        else rest.push(p);
+      }
+      return [...matches, ...rest];
+    });
+  }, [sort, nearestTo, loading]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -148,15 +173,30 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
           <option value="newest">Newest First</option>
           <option value="price-asc">Price: Low to High</option>
           <option value="price-desc">Price: High to Low</option>
+          <option value="nearest">Nearest to Me</option>
         </select>
 
-        {(searchInput !== "" || category !== "all" || sort !== "newest") && (
+        {sort === "nearest" && (
+          <div className="relative flex-1 min-w-[200px]">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-lg">📍</span>
+            <input
+              type="text"
+              placeholder="Your city (e.g., Lagos)"
+              value={nearestTo}
+              onChange={(e) => setNearestTo(e.target.value)}
+              className="w-full py-3 pl-10 pr-4 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+            />
+          </div>
+        )}
+
+        {(searchInput !== "" || category !== "all" || sort !== "newest" || nearestTo !== "") && (
           <button
             onClick={() => {
               setSearchInput("");
               setSearchType("all");
               setCategory("all");
               setSort("newest");
+              setNearestTo("");
             }}
             className="px-3 py-3 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors"
           >

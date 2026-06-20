@@ -299,6 +299,7 @@ export default function ArtisanDashboard() {
           isOpen={isAddOpen}
           mode="add"
           fixedCategory="artisan-service"
+          defaultLocation={profile?.location}
           onClose={() => setIsAddOpen(false)}
           onSubmit={handleCreate}
         />
@@ -308,6 +309,7 @@ export default function ArtisanDashboard() {
           mode="edit"
           product={editingProduct}
           fixedCategory="artisan-service"
+          defaultLocation={profile?.location}
           onClose={() => setEditingProduct(null)}
           onSubmit={handleUpdate}
           submitLabel="Update Listing"

@@ -14,6 +14,10 @@ const ProductSchema = z.object({
   price: z.coerce.number().positive("Price must be positive"),
   category: z.string().min(1, "Category is required"),
   stock: z.coerce.number().int().nonnegative("Stock cannot be negative"),
+  // Sellers and artisans must list a city on every product. Buyers search
+  // and sort by this field, so an empty value would mean "Not specified"
+  // forever and hide the listing from proximity searches.
+  location: z.string().min(1, "Location is required"),
   images: z
     .array(z.string().min(1))
     .min(1, "At least one image is required")
@@ -51,7 +55,11 @@ export async function createProductAction(formData: any) {
     .insert({
       seller_id: user.id,
       seller_name: profile?.business_name || "Unknown Seller",
-      location: profile?.location || "Not specified",
+      // seller_location mirrors location so the marketplace card label
+      // ("Product Name • Lagos") has the data it needs without a join.
+      // The form's location is the source of truth; profile.location
+      // is only a fallback for legacy callers.
+      seller_location: validated.data.location || profile?.location || undefined,
       ...validated.data,
     });
 
@@ -184,6 +192,8 @@ export async function updateProductAction(productId: string, formData: any) {
       price: validated.data.price,
       category: validated.data.category,
       stock: validated.data.stock,
+      location: validated.data.location,
+      seller_location: validated.data.location,
       images: validated.data.images,
     })
     .eq('id', productId);

@@ -226,6 +226,7 @@ export default function SellerDashboard() {
         <ProductFormModal
           isOpen={isAddOpen}
           mode="add"
+          defaultLocation={profile?.location}
           onClose={() => setIsAddOpen(false)}
           onSubmit={handleCreate}
         />
@@ -234,6 +235,7 @@ export default function SellerDashboard() {
           isOpen={!!editingProduct}
           mode="edit"
           product={editingProduct}
+          defaultLocation={profile?.location}
           onClose={() => setEditingProduct(null)}
           onSubmit={handleUpdate}
         />

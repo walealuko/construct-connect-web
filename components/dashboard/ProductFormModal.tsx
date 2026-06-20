@@ -32,6 +32,11 @@ interface ProductFormModalProps {
   // For artisans, the category is forced to 'artisan-service' and there's
   // no category picker.
   fixedCategory?: string;
+  // Pre-fills the Location field. The user can override it per listing
+  // (e.g. stock that's actually at a different warehouse). Sellers and
+  // artisans must list a city on every product so buyers can sort by
+  // proximity.
+  defaultLocation?: string | null;
   // Submit returns the cleaned payload. The parent calls the action.
   onSubmit: (data: {
     name: string;
@@ -39,6 +44,7 @@ interface ProductFormModalProps {
     price: number;
     category: string;
     stock: number;
+    location: string;
     images: string[];
   }) => Promise<void>;
   onClose: () => void;
@@ -62,6 +68,7 @@ export function ProductFormModal({
   mode,
   product,
   fixedCategory,
+  defaultLocation,
   onSubmit,
   onClose,
   submitLabel,
@@ -74,6 +81,9 @@ export function ProductFormModal({
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState(fixedCategory || PRODUCT_CATEGORIES[0]);
   const [stock, setStock] = useState("");
+  // Listing city. Required — buyers search/sort by this, and an empty
+  // value hides the product from proximity results.
+  const [location, setLocation] = useState("");
   // Existing image paths (edit mode). The user can remove these to
   // delete them from the final array; we collect which were removed
   // for storage cleanup in the parent action.
@@ -94,6 +104,7 @@ export function ProductFormModal({
       setPrice(product.price.toString());
       setCategory(product.category || fixedCategory || PRODUCT_CATEGORIES[0]);
       setStock(product.stock.toString());
+      setLocation(product.location || defaultLocation || "");
       setExistingImages(product.images ?? []);
       setNewFiles([]);
       setNewPreviews([]);
@@ -103,11 +114,14 @@ export function ProductFormModal({
       setPrice("");
       setCategory(fixedCategory || PRODUCT_CATEGORIES[0]);
       setStock("");
+      // Pre-fill from the seller's profile so they don't have to type
+      // it on every listing. They can override.
+      setLocation(defaultLocation || "");
       setExistingImages([]);
       setNewFiles([]);
       setNewPreviews([]);
     }
-  }, [isOpen, isEdit, product, fixedCategory]);
+  }, [isOpen, isEdit, product, fixedCategory, defaultLocation]);
 
   // Revoke blob URLs when the modal closes to avoid memory leaks.
   useEffect(() => {
@@ -184,6 +198,13 @@ export function ProductFormModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
+    if (!location.trim()) {
+      // Buyers search and sort by city — a blank location would never
+      // surface in their results. Block at the form layer so the seller
+      // gets immediate feedback instead of a server round-trip.
+      toast.error("Please add the city where this product is located");
+      return;
+    }
     if (totalImages === 0 && !isEdit) {
       toast.error("Please upload at least one image");
       return;
@@ -213,6 +234,7 @@ export function ProductFormModal({
         price: parseFloat(price),
         category,
         stock: parseInt(stock || "0", 10),
+        location: location.trim(),
         images,
       });
     } catch (err: any) {
@@ -289,6 +311,19 @@ export function ProductFormModal({
               </select>
             </div>
           )}
+
+          <div className="space-y-1.5">
+            <Input
+              label="Location (City)"
+              placeholder="e.g., Lagos, Abuja, Port Harcourt"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              required
+            />
+            <p className="text-[11px] text-gray-400">
+              Buyers prefer to buy from vendors in their city — keep this accurate.
+            </p>
+          </div>
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
