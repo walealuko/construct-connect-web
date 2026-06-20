@@ -46,14 +46,18 @@ export default function Sidebar({ userRole }: SidebarProps) {
 
   return (
     <aside className="w-64 bg-slate-900 text-white min-h-screen p-6 flex flex-col transition-all duration-300">
-      <div className="mb-10 px-2">
+      <Link
+        href="/"
+        aria-label="Construct Hub home"
+        className="mb-10 px-2 block hover:opacity-90 transition-opacity"
+      >
         <h2 className="text-xl font-black tracking-tight text-white">
           Construct<span className="text-blue-500">Hub</span>
         </h2>
         <p className="text-[10px] text-slate-500 uppercase font-bold mt-1 tracking-widest">
           Professional Network
         </p>
-      </div>
+      </Link>
 
       <nav className="flex-1 flex flex-col gap-2">
         {menuItems.map((item) => {
