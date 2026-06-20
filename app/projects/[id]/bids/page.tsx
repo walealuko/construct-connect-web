@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { formatNaira } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Profile } from "@/types/database";
@@ -118,7 +119,7 @@ export default function ProjectBidsPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-black text-blue-600">${bid.amount.toLocaleString()}</p>
+                      <p className="text-lg font-black text-blue-600">{formatNaira(bid.amount)}</p>
                       <p className="text-[10px] text-gray-400 uppercase font-bold">Bid Amount</p>
                     </div>
                   </div>

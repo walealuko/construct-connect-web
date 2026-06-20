@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Modal } from "@/components/ui/Modal";
+import { formatNaira } from "@/lib/format";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { submitBidAction } from "@/app/actions/projects";
@@ -133,7 +134,7 @@ export default function ProjectsPage() {
                   {project.title}
                 </h3>
                 <Badge variant="info">
-                  ${project.budget?.toLocaleString() || 'Negotiable'}
+                  ${project.budget ? formatNaira(project.budget) : 'Negotiable'}
                 </Badge>
               </div>
               <p className="text-gray-600 text-sm mb-4 line-clamp-3 leading-relaxed">
@@ -177,7 +178,7 @@ export default function ProjectsPage() {
           </p>
           <Input
             type="number"
-            placeholder="Your Bid Amount ($)"
+            placeholder="Your Bid Amount (₦)"
             value={bidForm.amount}
             onChange={(e) => setBidForm({ ...bidForm, amount: e.target.value })}
             required

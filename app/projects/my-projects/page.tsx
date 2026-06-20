@@ -8,6 +8,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
+import { formatNaira } from "@/lib/format";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Modal } from "@/components/ui/Modal";
@@ -98,7 +99,7 @@ export default function MyProjectsPage() {
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="text-lg font-bold text-slate-900">{project.title}</h3>
-                    <p className="text-xs text-gray-400 uppercase font-bold mt-1">Budget: ${project.budget?.toLocaleString() || 'Negotiable'}</p>
+                    <p className="text-xs text-gray-400 uppercase font-bold mt-1">Budget: {project.budget ? formatNaira(project.budget) : 'Negotiable'}</p>
                   </div>
                   <Badge variant={project.status === 'open' ? 'info' : project.status === 'completed' ? 'success' : 'warning'}>
                     {project.status}

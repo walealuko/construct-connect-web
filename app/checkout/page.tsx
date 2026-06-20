@@ -10,6 +10,7 @@ import { verifyStockAction } from "@/app/actions/products";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { formatNaira } from "@/lib/format";
 
 export default function Checkout() {
   const { cart, clearCart } = useCart();
@@ -136,7 +137,7 @@ export default function Checkout() {
               {cart.map((item: CartItem) => (
                 <li key={item.id} className="flex justify-between py-3">
                   <span className="text-gray-600">{item.name} x {item.quantity || 1}</span>
-                  <span className="font-semibold text-slate-900">${(item.price * (item.quantity || 1)).toFixed(2)}</span>
+                  <span className="font-semibold text-slate-900">{formatNaira(item.price * (item.quantity || 1))}</span>
                 </li>
               ))}
             </ul>
@@ -144,7 +145,7 @@ export default function Checkout() {
             <div className="flex justify-between items-center pt-4 border-t-2 border-gray-100">
               <span className="text-lg font-medium text-gray-500">Total</span>
               <span className="text-3xl font-black text-blue-600">
-                ${totalPrice.toFixed(2)}
+                {formatNaira(totalPrice)}
               </span>
             </div>
 

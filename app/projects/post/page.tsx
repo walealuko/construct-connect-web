@@ -89,7 +89,7 @@ export default function PostProject() {
               <Input
                 label="Budget (Optional)"
                 type="number"
-                placeholder="Estimated budget in $"
+                placeholder="Estimated budget in ₦"
                 value={formData.budget}
                 onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
               />
