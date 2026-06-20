@@ -49,22 +49,20 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // 2. Protected Routes - Must be logged in
-  const protectedRoutes = [
-    '/seller-dashboard',
-    '/artisan-dashboard',
-    '/buyer-dashboard',
-    '/admin-dashboard',
-    '/profile/edit',
-    '/messages',
-    '/projects/post',
-    '/dashboard',
-    '/checkout'
-  ]
-  const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route))
+  // 2. Protected Routes — every route is protected except /login and
+  //    /register. supabase.auth.getUser() validates the JWT against the
+  //    Auth server, so a missing/expired/revoked token resolves to a
+  //    null user and we bounce to /login with the original path so the
+  //    user lands back here after sign-in.
+  const publicPaths = new Set(["/login", "/register"]);
+  const isPublicRoute = publicPaths.has(path);
 
-  if (isProtectedRoute && !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  if (!isPublicRoute && !user) {
+    const loginUrl = new URL("/login", request.url);
+    if (path !== "/") {
+      loginUrl.searchParams.set("redirect", path + url.search);
+    }
+    return NextResponse.redirect(loginUrl);
   }
 
   // 3. Role-Based Access Control (RBAC)

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -10,8 +10,22 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { getRedirectPath } from '@/lib/roles';
 
-export default function LoginPage() {
+// Open-redirect guard: the URL may carry ?redirect=<path> from the
+// proxy/middleware when a protected page bounced an anonymous visitor.
+// Only accept relative paths (start with `/`) that don't loop us back
+// to an auth page.
+function safeRedirectPath(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/")) return null; // refuse absolute URLs
+  if (raw.startsWith("//")) return null; // refuse protocol-relative
+  if (raw === "/login" || raw === "/register") return null;
+  return raw;
+}
+
+function LoginPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const target = safeRedirectPath(searchParams.get("redirect"));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -23,14 +37,18 @@ export default function LoginPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const role = session.user.user_metadata?.tier || 'individual';
-        const destination = getRedirectPath(role);
-        router.replace(destination);
+        // Already signed in — go to the requested target if it's safe,
+        // otherwise fall back to the role-specific dashboard.
+        const dest = target ?? getRedirectPath(role);
+        router.replace(dest);
       } else {
         setAuthLoading(false);
       }
     };
     checkSession();
-  }, [router]);
+    // Re-run if the user opens the page with a different ?redirect=.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, target]);
 
   const handleSubmit = async (e: React.FormEvent) => {
 
@@ -53,7 +71,9 @@ export default function LoginPage() {
 
       if (data.user) {
         toast.success("Welcome back!");
-        router.replace('/dashboard');
+        const role = data.user.user_metadata?.tier || 'individual';
+        const dest = target ?? getRedirectPath(role);
+        router.replace(dest);
       }
     } catch (err: any) {
       setError('Something went wrong. Please try again.');
@@ -129,6 +149,21 @@ export default function LoginPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function LoginPage() {
+  // useSearchParams() must be wrapped in a Suspense boundary for
+  // static generation (Next.js requirement when pre-rendering
+  // pages that read search params at build time).
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <LoginPageInner />
+    </Suspense>
   );
 }
 
