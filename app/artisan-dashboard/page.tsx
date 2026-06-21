@@ -40,7 +40,7 @@ export default function ArtisanDashboard() {
     loading,
     refresh,
     updateOrderStatus,
-    addPortfolioItem,
+    addPortfolioItems,
     removePortfolioItem,
     productPage,
     productPageCount,
@@ -131,20 +131,42 @@ export default function ArtisanDashboard() {
   };
 
   const handlePortfolioSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
+    // Always reset so re-picking the same files fires onChange again.
     e.target.value = "";
-    if (!file) return;
-    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
-      toast.error("Please upload an image or video file");
-      return;
+    if (files.length === 0) return;
+
+    // Per-file validation: type and size. We collect the failures so
+    // the user sees them all in one toast batch instead of having to
+    // retry the whole selection one error at a time.
+    const MAX_BYTES = 20 * 1024 * 1024;
+    const rejected: string[] = [];
+    const accepted: File[] = [];
+    for (const file of files) {
+      if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+        rejected.push(`${file.name}: not an image or video`);
+        continue;
+      }
+      if (file.size > MAX_BYTES) {
+        rejected.push(`${file.name}: larger than 20MB`);
+        continue;
+      }
+      accepted.push(file);
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("File must be less than 10MB");
-      return;
+    if (rejected.length > 0) {
+      toast.error(rejected.slice(0, 3).join("; ") + (rejected.length > 3 ? ` (+${rejected.length - 3} more)` : ""));
     }
+    if (accepted.length === 0) return;
+
     setUploadingPortfolio(true);
-    try {
-      const fileName = `portfolio-${Date.now()}-${file.name}`;
+    // Sequential uploads — keeps per-file error reporting simple and
+    // avoids hammering the bucket. We only persist to the profile on
+    // success of *every* file so a partial failure doesn't leave the
+    // portfolio array referencing ghost paths.
+    const uploaded: string[] = [];
+    const uploadErrors: string[] = [];
+    for (const file of accepted) {
+      const fileName = `portfolio-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from("artisan-portfolio")
         .upload(fileName, file, { upsert: true });
@@ -152,15 +174,32 @@ export default function ArtisanDashboard() {
         const hint = uploadError.message?.includes("row-level security")
           ? " Check the RLS policies on the artisan-portfolio bucket."
           : "";
-        throw new Error(`Upload failed: ${uploadError.message}${hint}`);
+        uploadErrors.push(`${file.name}: ${uploadError.message}${hint}`);
+        continue;
       }
-      await addPortfolioItem(fileName);
-      toast.success("Portfolio project uploaded!");
-    } catch (err: any) {
-      toast.error(err.message || "Upload failed");
-    } finally {
-      setUploadingPortfolio(false);
+      uploaded.push(fileName);
     }
+
+    if (uploaded.length > 0) {
+      try {
+        await addPortfolioItems(uploaded);
+        toast.success(
+          uploaded.length === 1
+            ? "Portfolio item uploaded!"
+            : `${uploaded.length} portfolio items uploaded!`
+        );
+      } catch (err: any) {
+        // The DB upsert failed after files already landed in storage.
+        // The files are still in the bucket but not linked to the
+        // profile — surface this clearly so the user can refresh and
+        // retry the DB write without re-uploading.
+        toast.error(`Files uploaded but profile save failed: ${err.message || err}`);
+      }
+    }
+    if (uploadErrors.length > 0) {
+      toast.error(uploadErrors.slice(0, 3).join("; ") + (uploadErrors.length > 3 ? ` (+${uploadErrors.length - 3} more)` : ""));
+    }
+    setUploadingPortfolio(false);
   };
 
   return (
@@ -267,6 +306,7 @@ export default function ArtisanDashboard() {
                 ref={portfolioInputRef}
                 type="file"
                 accept="image/*,video/*"
+                multiple
                 onChange={handlePortfolioSelected}
                 className="hidden"
               />

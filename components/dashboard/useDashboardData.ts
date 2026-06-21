@@ -42,6 +42,7 @@ interface UseDashboardDataResult {
   refresh: () => Promise<void>;
   updateOrderStatus: (orderId: string, newStatus: string) => Promise<void>;
   addPortfolioItem: (path: string) => Promise<void>;
+  addPortfolioItems: (paths: string[]) => Promise<void>;
   removePortfolioItem: (path: string) => Promise<void>;
 }
 
@@ -268,22 +269,36 @@ export function useDashboardData(): UseDashboardDataResult {
     [orders, load]
   );
 
-  const addPortfolioItem = useCallback(
-    async (path: string) => {
-      if (!user?.id) return;
-      const next = [...portfolio, path];
-      setPortfolio(next);
+  const addPortfolioItems = useCallback(
+    async (paths: string[]) => {
+      if (!user?.id || paths.length === 0) return;
+      // Read the freshest portfolio via the functional form so this
+      // composes correctly when called multiple times in the same event
+      // (e.g. several concurrent uploads).
+      let nextSnapshot: string[] = [];
+      setPortfolio((prev) => {
+        nextSnapshot = [...prev, ...paths];
+        return nextSnapshot;
+      });
       // upsert so this also works the first time (profile row exists but
       // `portfolio` column not yet written to).
       const { error } = await supabase
         .from("profiles")
-        .upsert({ id: user.id, portfolio: next }, { onConflict: "id" });
+        .upsert({ id: user.id, portfolio: nextSnapshot }, { onConflict: "id" });
       if (error) {
-        setPortfolio(portfolio);
+        // The DB will be reloaded on next refresh(); the in-memory
+        // state is already ahead. Caller toasts the error.
         throw error;
       }
     },
-    [portfolio, user?.id]
+    [user?.id]
+  );
+
+  const addPortfolioItem = useCallback(
+    async (path: string) => {
+      await addPortfolioItems([path]);
+    },
+    [addPortfolioItems]
   );
 
   const removePortfolioItem = useCallback(
@@ -327,6 +342,7 @@ export function useDashboardData(): UseDashboardDataResult {
     refresh: load,
     updateOrderStatus,
     addPortfolioItem,
+    addPortfolioItems,
     removePortfolioItem,
   };
 }

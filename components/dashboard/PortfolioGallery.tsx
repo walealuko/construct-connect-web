@@ -12,6 +12,10 @@ interface PortfolioGalleryProps {
   onAdd: () => void;
   onRemove: (path: string) => void;
   addLabel?: string;
+  // Soft cap so an artisan can't grow this gallery unbounded. The
+  // upload handler is responsible for hard-rejecting past this count;
+  // the gallery just hides the Add button when full.
+  maxItems?: number;
 }
 
 /**
@@ -24,6 +28,7 @@ export function PortfolioGallery({
   onAdd,
   onRemove,
   addLabel = "Add Project Image",
+  maxItems = 24,
 }: PortfolioGalleryProps) {
   return (
     <Card>
@@ -68,8 +73,8 @@ export function PortfolioGallery({
         )}
         {/* Always-present hidden trigger — parent calls onAdd to open the file picker */}
         <div className="mt-4 flex justify-end">
-          <Button size="sm" onClick={onAdd}>
-            {addLabel}
+          <Button size="sm" onClick={onAdd} disabled={items.length >= maxItems}>
+            {addLabel}{items.length >= maxItems ? ` (${maxItems} max)` : ""}
           </Button>
         </div>
       </CardContent>
