@@ -115,3 +115,53 @@ export async function deleteMessageAction(messageId: string) {
   revalidatePath('/messages');
   return { success: true };
 }
+
+/**
+ * Empty a conversation — delete every message in it. Either participant
+ * can do this (RLS-gated on the messages DELETE policy). The conversation
+ * row itself is preserved so the participant still shows up in the
+ * sidebar; only its `last_message` snapshot is cleared.
+ *
+ * We don't keep an "Empty" marker in `last_message` — an empty string
+ * is what the sidebar shows as the placeholder ("Start a conversation…"),
+ * so a clean empty is the right UI state.
+ */
+export async function clearConversationAction(conversationId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Not signed in" };
+  }
+
+  // RLS blocks the delete if the caller isn't a participant. The action
+  // doesn't pre-check membership — same pattern as deleteMessageAction.
+  const { error: deleteError, count } = await supabase
+    .from("messages")
+    .delete({ count: "exact" })
+    .eq("conversation_id", conversationId);
+
+  if (deleteError) {
+    return { success: false, error: deleteError.message };
+  }
+
+  // Reset the snapshot so the sidebar doesn't keep showing the last
+  // deleted message as a preview. After migration 0005, participants
+  // can update the conversation row's snapshot fields.
+  const { error: convError } = await supabase
+    .from("conversations")
+    .update({
+      last_message: "",
+      last_message_at: new Date().toISOString(),
+    })
+    .eq("id", conversationId);
+
+  if (convError) {
+    // Non-fatal — the messages are gone, the sidebar preview will be
+    // stale until the next message is sent.
+    console.error("Failed to reset conversation snapshot after clear:", convError);
+  }
+
+  revalidatePath("/messages");
+  return { success: true, deleted: count ?? 0 };
+}

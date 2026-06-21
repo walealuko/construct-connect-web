@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Badge } from "@/components/ui/Badge";
-import { createConversationAction, deleteMessageAction } from "@/app/actions/chat";
+import { createConversationAction, deleteMessageAction, clearConversationAction } from "@/app/actions/chat";
 
 function ChatContent() {
   const userContext = useContext(UserContext);
@@ -31,6 +31,9 @@ function ChatContent() {
   // optimistically remove it from `messages` locally — the channel
   // listener will drop it on confirmation.
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Tracks whether a "clear all" operation is in flight on the active
+  // conversation so the Empty button shows a spinner / is disabled.
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -215,6 +218,44 @@ function ChatContent() {
     }
   };
 
+  // Empty the entire conversation. Either participant can do this —
+  // RLS gates the messages DELETE inside the action. The realtime
+  // channel will drop every message locally; we also clear optimistically
+  // so the chat area snaps to empty even before the first DELETE event
+  // lands. The conversation row itself stays — the sidebar still shows
+  // the participant with an empty preview ("Start a conversation…").
+  const clearConversation = async () => {
+    if (!user || !activeConv) return;
+    if (!window.confirm(
+      "Empty this conversation? All messages will be removed for both participants. This cannot be undone."
+    )) {
+      return;
+    }
+    setClearing(true);
+    try {
+      const result = await clearConversationAction(activeConv.id);
+      if (!result.success) {
+        toast.error(result.error || "Failed to empty conversation");
+        return;
+      }
+      // Snap the chat area to empty. Realtime DELETEs would also do
+      // this, but the batch DELETE fires one event per row and the
+      // optimistic clear avoids the user seeing the messages fade out
+      // one-by-one.
+      setMessages([]);
+      await loadConversations();
+      toast.success(
+        result.deleted
+          ? `Emptied ${result.deleted} message${result.deleted === 1 ? "" : "s"}`
+          : "Conversation emptied"
+      );
+    } catch (err: any) {
+      toast.error(err.message || "Failed to empty conversation");
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const getOtherParticipant = (conv: Conversation) => {
     const other = conv.participant_ids.find(id => id !== user?.id);
     const profile = conv.profiles?.find((p: Profile) => p.id === other);
@@ -291,16 +332,41 @@ function ChatContent() {
                   {getOtherParticipant(activeConv).first_name} {getOtherParticipant(activeConv).last_name}
                 </h3>
               </div>
-              {activeConv.project_id && (
-                <Badge variant="info" className="px-3">
-                  Project Context: {activeConv.project_id.slice(0, 8)}...
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {activeConv.project_id && (
+                  <Badge variant="info" className="px-3">
+                    Project Context: {activeConv.project_id.slice(0, 8)}...
+                  </Badge>
+                )}
+                {/* Empty the conversation. Either participant can do
+                    this; the action is RLS-gated and confirms before
+                    firing. Disabled while a clear is in flight. */}
+                <button
+                  type="button"
+                  onClick={clearConversation}
+                  disabled={clearing || messages.length === 0}
+                  aria-label="Empty conversation"
+                  title="Empty this conversation"
+                  className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg border border-gray-200 text-gray-500 hover:text-red-600 hover:border-red-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {clearing ? "Emptying…" : "Empty"}
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
-              {messages.map(msg => {
-                const isMine = msg.sender_id === user?.id;
+              {messages.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-center">
+                  <div className="space-y-2 max-w-xs">
+                    <div className="text-4xl">💬</div>
+                    <p className="text-gray-500 text-sm font-medium">
+                      No messages yet. Say hi to break the ice.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                messages.map(msg => {
+                  const isMine = msg.sender_id === user?.id;
                 const isDeleting = deletingId === msg.id;
                 return (
                   <div key={msg.id} className={`group flex ${isMine ? "justify-end" : "justify-start"}`}>
@@ -331,7 +397,8 @@ function ChatContent() {
                     </div>
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
 
             <form onSubmit={sendMessage} className="p-4 bg-white border-t border-gray-200 flex gap-3">
