@@ -32,26 +32,29 @@
 -- ownership for the *current* user, even though it sees all rows.
 --
 -- The four helpers cover every cross-table check on the
--- orders / order_items pair:
+-- orders / order_items pair. (Signatures below are documentation
+-- only — copy each `create or replace function` block from the
+-- SQL body further down; do NOT paste these lines into the
+-- editor as-is, they are inside a comment.)
 --
---   is_buyer_of_order(_order_id)
---     Used in: order_items SELECT (buyers),
---              order_items INSERT (buyers).
+--   1. is_buyer_of_order(_order_id)        -> boolean
+--      Used in: order_items SELECT (buyers),
+--               order_items INSERT (buyers).
 --
---   is_seller_of_order(_order_id)
---     Used in: orders SELECT (sellers),
---              orders UPDATE (sellers).
+--   2. is_seller_of_order(_order_id)       -> boolean
+--      Used in: orders SELECT (sellers),
+--               orders UPDATE (sellers).
 --
---   is_seller_of_product(_product_id)
---     Used in: order_items SELECT (sellers).
+--   3. is_seller_of_product(_product_id)   -> boolean
+--      Used in: order_items SELECT (sellers).
 --
---   product_exists(_product_id)
---     Used in: order_items INSERT (buyers). The previous policy
---     used `exists(select from products where id = ...)`. The
---     subquery itself isn't recursive, but routing it through
---     a SECURITY DEFINER helper keeps every cross-table check
---     in this migration consistent and avoids any future
---     policy on `products` from re-introducing a cycle.
+--   4. product_exists(_product_id)         -> boolean
+--      Used in: order_items INSERT (buyers). The previous policy
+--      used `exists(select from products where id = ...)`. The
+--      subquery itself isn't recursive, but routing it through
+--      a SECURITY DEFINER helper keeps every cross-table check
+--      in this migration consistent and avoids any future
+--      policy on `products` from re-introducing a cycle.
 --
 -- The INSERT policy on orders (from 0007) is a flat
 -- `buyer_id = auth.uid()` check — no subquery, no recursion.
