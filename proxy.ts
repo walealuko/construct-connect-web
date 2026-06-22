@@ -42,12 +42,13 @@ export async function proxy(request: NextRequest) {
   const userRole = user?.user_metadata?.tier || 'individual'
   const correctPath = rolePaths[userRole] || '/'
 
-  // 1. Auth Routes - If logged in, redirect away from login/register
-  if (path === '/login' || path === '/register') {
-    if (user) {
-      return NextResponse.redirect(new URL(correctPath, request.url))
-    }
-  }
+  // 1. Auth Routes - /login and /register are public; they show their
+  //    own "Switch Account" / "Sign out & create" interstitials when
+  //    the visitor already has a session. We deliberately do NOT
+  //    redirect signed-in users away here — that would silently
+  //    bounce anyone trying to create a new account (or sign in as
+  //    a different account) and leave them confused. The auth pages
+  //    own the routing decision once we render them.
 
   // 2. Protected Routes — every route is protected except /login and
   //    /register. supabase.auth.getUser() validates the JWT against the

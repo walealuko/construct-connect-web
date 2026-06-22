@@ -34,10 +34,6 @@ function LoginPageInner() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  // `authLoading` is true while we check for an existing session — the
-  // spinner stays up until we know whether to show the form or the
-  // "switch account" interstitial.
-  const [authLoading, setAuthLoading] = useState(true);
   // `existingSession` is non-null when the user arrived at /login while
   // still signed in (cached session, idle timer about to fire, etc.).
   // Showing an interstitial gives them a choice instead of silently
@@ -58,7 +54,6 @@ function LoginPageInner() {
           role: session.user.user_metadata?.tier || 'individual',
         });
       }
-      setAuthLoading(false);
     };
     checkSession();
     return () => { cancelled = true; };
@@ -129,18 +124,13 @@ function LoginPageInner() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-6 py-12">
-      {authLoading ? (
-        <div className="flex flex-col items-center justify-center space-y-4">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="max-w-md mx-auto w-full space-y-8">
+        <div className="text-center">
+          <Link href="/" className="text-3xl font-black text-blue-800 tracking-tight">
+            Construct Hub
+          </Link>
+          <div className="h-1 w-12 bg-blue-600 mx-auto mt-2 rounded-full" />
         </div>
-      ) : (
-        <div className="max-w-md mx-auto w-full space-y-8">
-          <div className="text-center">
-            <Link href="/" className="text-3xl font-black text-blue-800 tracking-tight">
-              Construct Hub
-            </Link>
-            <div className="h-1 w-12 bg-blue-600 mx-auto mt-2 rounded-full" />
-          </div>
 
           {existingSession ? (
             // The user landed on /login while still holding a valid
@@ -232,7 +222,6 @@ function LoginPageInner() {
             </Card>
           )}
         </div>
-      )}
     </div>
   );
 }

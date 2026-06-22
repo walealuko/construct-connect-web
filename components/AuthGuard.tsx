@@ -29,14 +29,27 @@ const REVERIFY_AFTER_MS = 60_000;
  * run (cached navigations, prefetched routes, client-side router
  * transitions that skip the network round-trip).
  *
- * We prefer the in-memory UserContext for short navigations so the
- * UI doesn't flash a spinner on every page change. The expensive
- * `getUser()` re-check only fires once per REVERIFY_AFTER_MS.
+ * Public paths (/login, /register) are passed through on the very
+ * first render so the SSR HTML contains the actual page content
+ * rather than a spinner. The protected-path check only kicks in
+ * after the effect runs, which only happens on the client.
  */
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const userContext = useContext(UserContext);
-  const [ready, setReady] = useState(false);
+
+  // Public paths render children immediately. The pathname is known
+  // synchronously from the URL, so we don't need an effect to
+  // determine whether to gate the render. This is what lets the
+  // /login and /register pages render in the SSR HTML — without
+  // this, every auth page would just be a spinner until hydration.
+  const isPublic = pathname ? PUBLIC_PATHS.has(pathname) : false;
+
+  // Protected paths default to NOT ready on first render. The effect
+  // flips this to true after we confirm the user has a valid session.
+  // Public paths default to ready so the children render in the
+  // initial paint.
+  const [ready, setReady] = useState(isPublic);
   // Track the last verified path so we don't re-verify the same path
   // twice in a row (e.g. on initial mount followed by a setReady flip).
   const lastVerifiedRef = useRef<string | null>(null);

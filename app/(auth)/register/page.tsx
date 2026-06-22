@@ -249,12 +249,14 @@ function RegisterForm() {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [authLoading, setAuthLoading] = useState(true);
-  // When the user lands on /register while a session is already
-  // active, we don't auto-bounce them — we ask whether they want to
-  // continue as the current user or sign out first so they can
-  // create a fresh account. This is the "even if I have an account
-  // on my cache" flow.
+  // We render the registration form on the very first paint. The
+  // session check below will swap in the "Switch Account"
+  // interstitial on the next tick if the user is already signed in.
+  // The one-frame flash of the form before the swap is a fair
+  // trade-off for keeping this page usable without JS / before
+  // hydration completes — the previous "show a spinner first"
+  // approach left signed-out users staring at a spinner when JS
+  // was slow to load.
   const [existingSession, setExistingSession] = useState<{ email: string; role: string } | null>(null);
   const userContext = useContext(UserContext);
   const logout = userContext?.logout;
@@ -270,7 +272,6 @@ export default function RegisterPage() {
           role: session.user.user_metadata?.tier || 'individual',
         });
       }
-      setAuthLoading(false);
     };
     checkSession();
     return () => { cancelled = true; };
@@ -292,16 +293,6 @@ export default function RegisterPage() {
     const dest = getRedirectPath(existingSession?.role ?? 'individual');
     window.location.assign(dest);
   };
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-6 py-12">
-        <div className="flex flex-col items-center justify-center space-y-4">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-6 py-12">
