@@ -3,7 +3,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { z } from "zod";
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Order, OrderItem } from "@/types/database";
 
 const ReviewSchema = z.object({
   sellerId: z.string().uuid(),
@@ -41,17 +40,28 @@ export async function submitReviewAction(formData: {
     return { success: false, error: "Only buyers can leave reviews" };
   }
 
-  // 4. Verify the user has a completed order from this seller
-  // We need to find if any product in any of the user's orders belongs to the seller
+  // 4. Verify the user has a completed order containing a product from
+  //    this seller. The orders schema has `buyer_id` (not `user_id`) on
+  //    the orders table, and line items live in a separate
+  //    `order_items` table — so we need a two-step fetch plus a final
+  //    seller lookup. (See app/buyer-dashboard/page.tsx for the same
+  //    pattern.) The previous version filtered on `user_id` and tried
+  //    to embed a non-existent `items` column, which silently matched
+  //    nothing and blocked every legitimate reviewer.
   const { data: orders, error: ordersError } = await supabase
     .from('orders')
-    .select('items')
-    .eq('user_id', user.id)
+    .select('id')
+    .eq('buyer_id', user.id)
     .eq('status', 'completed');
 
   if (ordersError) return { success: false, error: "Error verifying purchase history" };
 
-  const hasPurchased = await verifyPurchase(supabase, (orders || []) as any, formData.sellerId);
+  const orderIds = (orders ?? []).map((o) => o.id);
+  if (orderIds.length === 0) {
+    return { success: false, error: "You must have completed a purchase from this seller to leave a review" };
+  }
+
+  const hasPurchased = await verifyPurchase(supabase, orderIds, formData.sellerId);
   if (!hasPurchased) {
     return { success: false, error: "You must have completed a purchase from this seller to leave a review" };
   }
@@ -84,18 +94,38 @@ export async function submitReviewAction(formData: {
   return { success: true };
 }
 
-async function verifyPurchase(supabase: SupabaseClient, orders: { items: OrderItem[] }[], sellerId: string) {
-  for (const order of orders) {
-    const items = order.items || [];
-    for (const item of items) {
-      const { data: product } = await supabase
-        .from('products')
-        .select('seller_id')
-        .eq('id', item.product_id)
-        .single();
+/**
+ * Check whether ANY of the supplied completed orders contains a
+ * product sold by `sellerId`. Two-step fetch: pull the product ids
+ * from `order_items`, then resolve their sellers in one query. The
+ * previous implementation did one product lookup per order item
+ * (N+1) and assumed an `items` column on the orders table.
+ */
+async function verifyPurchase(
+  supabase: SupabaseClient,
+  orderIds: string[],
+  sellerId: string
+): Promise<boolean> {
+  if (orderIds.length === 0) return false;
 
-      if (product?.seller_id === sellerId) return true;
-    }
-  }
-  return false;
+  const { data: items, error: itemsError } = await supabase
+    .from('order_items')
+    .select('product_id')
+    .in('order_id', orderIds);
+
+  if (itemsError || !items || items.length === 0) return false;
+
+  // De-dup product ids before the seller lookup — the same product
+  // can appear across multiple line items / orders.
+  const productIds = Array.from(new Set(items.map((i) => i.product_id)));
+  if (productIds.length === 0) return false;
+
+  const { data: products } = await supabase
+    .from('products')
+    .select('id, seller_id')
+    .in('id', productIds);
+
+  if (!products) return false;
+
+  return products.some((p) => p.seller_id === sellerId);
 }
