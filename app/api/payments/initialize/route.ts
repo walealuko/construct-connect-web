@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
+import { log } from '@/lib/logger';
 
 export async function POST(req: Request) {
+  // Hoist orderId out of the try so the catch block can include it
+  // in the structured log. The early-return for missing fields stays
+  // inside the try — we still want it to be a 400, not a 500.
+  let orderId: string | undefined;
   try {
-    const { email, amount, orderId } = await req.json();
+    const body = await req.json();
+    orderId = body?.orderId;
+    const { email, amount } = body;
 
     if (!email || !amount || !orderId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -103,7 +110,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: data.message || 'Payment initialization failed' }, { status: 400 });
     }
   } catch (error: any) {
-    console.error('Paystack Init Error:', error);
+    log.error('payment_init_failed', {
+      orderId,
+      message: error?.message,
+    });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

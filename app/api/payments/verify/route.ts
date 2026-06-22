@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { log } from '@/lib/logger';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -8,6 +9,10 @@ export async function GET(req: Request) {
   if (!reference) {
     return NextResponse.json({ error: 'Reference is required' }, { status: 400 });
   }
+
+  // Hoist orderId out of the try so the catch block can include it
+  // in the structured log without re-running the metadata lookup.
+  let orderId: string | undefined;
 
   try {
     const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
@@ -155,7 +160,11 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('Payment Verify Error:', error);
+    log.error('payment_verify_failed', {
+      reference,
+      orderId,
+      message: error?.message,
+    });
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }

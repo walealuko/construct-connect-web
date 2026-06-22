@@ -2,20 +2,31 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+The latest commit on `main` is supported. Older commits are not — we
+do not backport security fixes to historical SHAs. If you are running
+behind a fork, please pin to a known-good commit and watch the repo
+for advisories.
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+Please **do not** file a public GitHub issue for suspected
+vulnerabilities. Instead, open a private security advisory on GitHub
+(Security → Advisories → New draft security advisory) or email
+security@construct-hub.example.com with:
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+- A clear description of the vulnerability and its impact.
+- Steps to reproduce, ideally with a minimal proof of concept.
+- The commit / deployment SHA where you observed the issue.
+
+We aim to:
+
+- Acknowledge new reports within **3 business days**.
+- Ship a fix or a workaround within **30 days** for confirmed issues.
+- Credit reporters in the release notes unless you ask us not to.
+
+## Out of Scope
+
+- Automated scanner output without a working proof of concept.
+- Denial-of-service against staging or demo deployments.
+- Issues that require a victim to paste a malicious script into the
+  browser console while already signed in.

@@ -3,8 +3,30 @@
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { createClient as createServerClient } from '@/utils/supabase/server';
+import { log } from '@/lib/logger';
 
 export async function clearAllUserSessionsAction(userId: string) {
+  // Caller-side admin check. The action runs with the service-role key
+  // (bypasses RLS) — without this guard, any signed-in client could
+  // call the action against an arbitrary `userId` and force a
+  // session-version bump. The proxy already verifies the caller is
+  // signed in, but admin-only enforcement lives here, not at the
+  // proxy layer (admin users may navigate to a normal page, and the
+  // proxy has no concept of "this action needs admin").
+  const callerSupabase = await createServerClient();
+  const { data: { user: caller } } = await callerSupabase.auth.getUser();
+  if (!caller) {
+    return { success: false, error: "Unauthorized" };
+  }
+  const { data: callerProfile } = await callerSupabase
+    .from('profiles')
+    .select('tier')
+    .eq('id', caller.id)
+    .maybeSingle();
+  if (callerProfile?.tier !== 'admin') {
+    return { success: false, error: "Admin only" };
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
@@ -26,7 +48,7 @@ export async function clearAllUserSessionsAction(userId: string) {
     if (error) throw error;
     return { success: true };
   } catch (err: any) {
-    console.error("Clear sessions action failed:", err);
+    log.error('admin_clear_sessions_failed', { userId, message: err?.message });
     return { success: false, error: err.message };
   }
 }
@@ -79,7 +101,7 @@ export async function updateUserRoleAction(userId: string, newRole: string) {
     revalidatePath('/admin-dashboard');
     return { success: true };
   } catch (err: any) {
-    console.error("Role update action failed:", err);
+    log.error('admin_role_update_failed', { userId, newRole, message: err?.message });
     return { success: false, error: err.message };
   }
 }
