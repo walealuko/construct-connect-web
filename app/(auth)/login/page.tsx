@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useContext, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { UserContext } from '@/components/UserContext';
 import { toast } from 'sonner';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -26,29 +27,72 @@ function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const target = safeRedirectPath(searchParams.get("redirect"));
+  const userContext = useContext(UserContext);
+  const logout = userContext?.logout;
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // `authLoading` is true while we check for an existing session — the
+  // spinner stays up until we know whether to show the form or the
+  // "switch account" interstitial.
   const [authLoading, setAuthLoading] = useState(true);
+  // `existingSession` is non-null when the user arrived at /login while
+  // still signed in (cached session, idle timer about to fire, etc.).
+  // Showing an interstitial gives them a choice instead of silently
+  // bouncing them back to their dashboard.
+  const [existingSession, setExistingSession] = useState<{ email: string; role: string } | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
       if (session?.user) {
-        const role = session.user.user_metadata?.tier || 'individual';
-        // Already signed in — go to the requested target if it's safe,
-        // otherwise fall back to the role-specific dashboard.
-        const dest = target ?? getRedirectPath(role);
-        router.replace(dest);
-      } else {
-        setAuthLoading(false);
+        // Don't auto-redirect. Surface the "switch account" prompt so
+        // the user can pick: continue as current user, or sign out
+        // first to sign in as a different one.
+        setExistingSession({
+          email: session.user.email ?? '',
+          role: session.user.user_metadata?.tier || 'individual',
+        });
       }
+      setAuthLoading(false);
     };
     checkSession();
+    return () => { cancelled = true; };
     // Re-run if the user opens the page with a different ?redirect=.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, target]);
+
+  // Sign out the existing session so the form below becomes usable.
+  // We hand control to UserContext.logout, which clears supabase auth
+  // storage, fires the SIGNED_OUT listener (deduped via redirectingRef),
+  // and hard-navigates back to /login. The fresh page load renders the
+  // empty form — exactly the "switch account" experience the user wants.
+  const switchAccount = async () => {
+    if (!logout) {
+      // Defensive fallback if the context provider is missing for any
+      // reason. Sweep tokens manually and reload.
+      try {
+        await supabase.auth.signOut();
+      } catch { /* network may be down */ }
+      window.location.assign("/login");
+      return;
+    }
+    // Default redirectTo is "/login" — same page, fresh load. Pass
+    // `redirectTo` explicitly so the forced nav lands somewhere usable
+    // even if the user context's default changes in future.
+    await logout({ redirectTo: "/login" });
+  };
+
+  const continueAsCurrent = () => {
+    const dest = target ?? getRedirectPath(existingSession?.role ?? 'individual');
+    // Use hard nav so we don't carry over any stale React state from
+    // the auth form into the dashboard render.
+    window.location.assign(dest);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
 
@@ -98,54 +142,95 @@ function LoginPageInner() {
             <div className="h-1 w-12 bg-blue-600 mx-auto mt-2 rounded-full" />
           </div>
 
-          <Card>
-            <CardHeader className="text-center space-y-2">
-              <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
-              <p className="text-gray-500 text-sm">Enter your details to access your account</p>
-            </CardHeader>
-            <CardContent>
-              {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm font-medium">
-                  {error}
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <Input
-                  label="Email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  required
-                  autoComplete="email"
-                />
-                <Input
-                  label="Password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  autoComplete="current-password"
-                />
+          {existingSession ? (
+            // The user landed on /login while still holding a valid
+            // session (cached token, other tab just signed in, etc.).
+            // Rather than silently bounce them back to their dashboard,
+            // we ask what they want — this is the "even if I have an
+            // account on my cache" case the user asked us to handle.
+            <Card>
+              <CardHeader className="text-center space-y-2">
+                <h1 className="text-2xl font-bold text-slate-900">You're already signed in</h1>
+                <p className="text-gray-500 text-sm">
+                  Signed in as <span className="font-semibold text-slate-700">{existingSession.email}</span>
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <Button
-                  type="submit"
+                  type="button"
                   className="w-full py-6 text-base"
-                  disabled={loading}
-                  isLoading={loading}
+                  onClick={continueAsCurrent}
                 >
-                  Sign In
+                  Continue to my dashboard
                 </Button>
-              </form>
-            </CardContent>
-            <CardFooter className="flex flex-col gap-4 border-t border-gray-50 py-6 text-center">
-              <p className="text-sm text-gray-600">
-                Don't have an account?{' '}
-                <Link href="/register" className="text-blue-600 font-bold hover:underline">Create one</Link>
-              </p>
-            </CardFooter>
-          </Card>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full py-6 text-base"
+                  onClick={switchAccount}
+                >
+                  Sign out & use a different account
+                </Button>
+              </CardContent>
+              <CardFooter className="text-center border-t border-gray-50 py-5">
+                <p className="text-sm text-gray-600">
+                  Need a new account?{' '}
+                  <Link href="/register" className="text-blue-600 font-bold hover:underline">
+                    Create one
+                  </Link>
+                </p>
+              </CardFooter>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader className="text-center space-y-2">
+                <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
+                <p className="text-gray-500 text-sm">Enter your details to access your account</p>
+              </CardHeader>
+              <CardContent>
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm font-medium">
+                    {error}
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <Input
+                    label="Email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                    autoComplete="email"
+                  />
+                  <Input
+                    label="Password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    autoComplete="current-password"
+                  />
+                  <Button
+                    type="submit"
+                    className="w-full py-6 text-base"
+                    disabled={loading}
+                    isLoading={loading}
+                  >
+                    Sign In
+                  </Button>
+                </form>
+              </CardContent>
+              <CardFooter className="flex flex-col gap-4 border-t border-gray-50 py-6 text-center">
+                <p className="text-sm text-gray-600">
+                  Don't have an account?{' '}
+                  <Link href="/register" className="text-blue-600 font-bold hover:underline">Create one</Link>
+                </p>
+              </CardFooter>
+            </Card>
+          )}
         </div>
       )}
     </div>

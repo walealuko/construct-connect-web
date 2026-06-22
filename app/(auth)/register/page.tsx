@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, Suspense, useEffect } from 'react';
+import { useState, Suspense, useEffect, useContext } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { UserContext } from '@/components/UserContext';
 import { getRedirectPath } from '@/lib/roles';
 import { toast } from 'sonner';
 import { registerSchema } from '@/lib/validations';
@@ -249,20 +250,48 @@ function RegisterForm() {
 export default function RegisterPage() {
   const router = useRouter();
   const [authLoading, setAuthLoading] = useState(true);
+  // When the user lands on /register while a session is already
+  // active, we don't auto-bounce them — we ask whether they want to
+  // continue as the current user or sign out first so they can
+  // create a fresh account. This is the "even if I have an account
+  // on my cache" flow.
+  const [existingSession, setExistingSession] = useState<{ email: string; role: string } | null>(null);
+  const userContext = useContext(UserContext);
+  const logout = userContext?.logout;
 
   useEffect(() => {
+    let cancelled = false;
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
       if (session?.user) {
-        const role = session.user.user_metadata?.tier || 'individual';
-        const destination = getRedirectPath(role);
-        router.replace(destination);
-      } else {
-        setAuthLoading(false);
+        setExistingSession({
+          email: session.user.email ?? '',
+          role: session.user.user_metadata?.tier || 'individual',
+        });
       }
+      setAuthLoading(false);
     };
     checkSession();
-  }, [router]);
+    return () => { cancelled = true; };
+  }, []);
+
+  // Sign out the existing session so the registration form becomes
+  // usable. Same pattern as /login — hand off to UserContext.logout
+  // which hard-navigates back to /register with cleared state.
+  const switchAccount = async () => {
+    if (!logout) {
+      try { await supabase.auth.signOut(); } catch { /* network may be down */ }
+      window.location.assign("/register");
+      return;
+    }
+    await logout({ redirectTo: "/register" });
+  };
+
+  const continueAsCurrent = () => {
+    const dest = getRedirectPath(existingSession?.role ?? 'individual');
+    window.location.assign(dest);
+  };
 
   if (authLoading) {
     return (
@@ -283,9 +312,49 @@ export default function RegisterPage() {
           </Link>
           <div className="h-1 w-12 bg-blue-600 mx-auto mt-2 rounded-full" />
         </div>
-        <Suspense fallback={<div className="text-center py-12 text-gray-400">Loading registration form...</div>}>
-          <RegisterForm />
-        </Suspense>
+        {existingSession ? (
+          // Same interstitial as /login, with copy aimed at "create a
+          // new account" since that's the page's primary intent.
+          <Card>
+            <CardHeader className="text-center space-y-2">
+              <h1 className="text-2xl font-bold text-slate-900">Create a new account</h1>
+              <p className="text-gray-500 text-sm">
+                You're already signed in as{' '}
+                <span className="font-semibold text-slate-700">{existingSession.email}</span>.
+                Sign out first to register a different account.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button
+                type="button"
+                className="w-full py-6 text-base"
+                onClick={switchAccount}
+              >
+                Sign out & create a new account
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full py-6 text-base"
+                onClick={continueAsCurrent}
+              >
+                Keep my current account & go to dashboard
+              </Button>
+            </CardContent>
+            <CardFooter className="text-center border-t border-gray-50 py-5">
+              <p className="text-sm text-gray-600">
+                Just need to sign in?{' '}
+                <Link href="/login" className="text-blue-600 font-bold hover:underline">
+                  Go to sign in
+                </Link>
+              </p>
+            </CardFooter>
+          </Card>
+        ) : (
+          <Suspense fallback={<div className="text-center py-12 text-gray-400">Loading registration form...</div>}>
+            <RegisterForm />
+          </Suspense>
+        )}
       </div>
     </div>
   );
