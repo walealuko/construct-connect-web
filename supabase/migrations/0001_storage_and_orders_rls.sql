@@ -7,6 +7,89 @@
 -- Tested against Supabase Postgres 15+.
 
 -- ============================================================
+-- 0. Helper functions used by the orders / order_items policies
+--    below. Defined first so the policies can reference them
+--    regardless of textual order — `create policy` evaluates the
+--    expression at creation time, so the function must already
+--    exist on a fresh database.
+--
+--    These helpers break the orders ↔ order_items RLS recursion
+--    cycle. The pre-existing policies on those two tables each
+--    reference the other via `exists(...)` subqueries, which
+--    Postgres rejects at query time with "infinite recursion
+--    detected in policy for relation 'orders'". The functions
+--    run as the function owner (SECURITY DEFINER) and bypass RLS
+--    on the inner reads; security is preserved because each
+--    helper compares against `auth.uid()`, so it can only confirm
+--    ownership for the current user.
+-- ============================================================
+
+create or replace function public.is_buyer_of_order(_order_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.orders
+    where id = _order_id
+      and buyer_id = auth.uid()
+  );
+$$;
+
+grant execute on function public.is_buyer_of_order(uuid) to authenticated;
+
+create or replace function public.is_seller_of_order(_order_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.order_items oi
+    join public.products p on p.id = oi.product_id
+    where oi.order_id = _order_id
+      and p.seller_id = auth.uid()
+  );
+$$;
+
+grant execute on function public.is_seller_of_order(uuid) to authenticated;
+
+create or replace function public.is_seller_of_product(_product_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.products
+    where id = _product_id
+      and seller_id = auth.uid()
+  );
+$$;
+
+grant execute on function public.is_seller_of_product(uuid) to authenticated;
+
+create or replace function public.product_exists(_product_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.products
+    where id = _product_id
+  );
+$$;
+
+grant execute on function public.product_exists(uuid) to authenticated;
+
+-- ============================================================
 -- 1. Storage: product-images bucket
 -- ============================================================
 
@@ -66,29 +149,21 @@ using ( bucket_id = 'artisan-portfolio' );
 
 -- ============================================================
 -- 4. Orders: sellers can update orders containing their products
+--
+-- All cross-table checks on the orders / order_items pair go
+-- through SECURITY DEFINER helper functions (defined in section 0)
+-- so the planner never has to re-evaluate orders' policies from
+-- inside order_items' (or vice versa). Without the helpers the
+-- two policies form a recursion cycle that Postgres rejects at
+-- query time with "infinite recursion detected in policy for
+-- relation 'orders'".
 -- ============================================================
 
 drop policy if exists "sellers can update orders with their products" on public.orders;
 create policy "sellers can update orders with their products"
 on public.orders for update to authenticated
-using (
-  exists (
-    select 1
-    from public.order_items oi
-    join public.products p on p.id = oi.product_id
-    where oi.order_id = orders.id
-      and p.seller_id = auth.uid()
-  )
-)
-with check (
-  exists (
-    select 1
-    from public.order_items oi
-    join public.products p on p.id = oi.product_id
-    where oi.order_id = orders.id
-      and p.seller_id = auth.uid()
-  )
-);
+using ( public.is_seller_of_order(orders.id) )
+with check ( public.is_seller_of_order(orders.id) );
 
 -- ============================================================
 -- 5. Profiles: users can upsert their own row
@@ -158,75 +233,55 @@ with check (
 --    another buyer's order. quantity must be positive and the product
 --    must exist. Stock enforcement lives in the app layer (RLS can't
 --    express atomic decrement).
+--
+-- Every cross-table check goes through a SECURITY DEFINER helper
+-- (defined in section 0) so the orders / order_items policies
+-- don't form a recursion cycle (orders reads order_items;
+-- order_items reads orders).
 -- ============================================================
 
+-- Order_items: sellers can read rows for their products.
 drop policy if exists "sellers can read order_items for their products" on public.order_items;
 create policy "sellers can read order_items for their products"
 on public.order_items for select to authenticated
-using (
-  exists (
-    select 1 from public.products p
-    where p.id = order_items.product_id
-      and p.seller_id = auth.uid()
-  )
-);
+using ( public.is_seller_of_product(order_items.product_id) );
 
--- Buyers can read their own order_items.
+-- Order_items: buyers can read their own.
 drop policy if exists "buyers can read their own order_items" on public.order_items;
 create policy "buyers can read their own order_items"
 on public.order_items for select to authenticated
-using (
-  exists (
-    select 1 from public.orders o
-    where o.id = order_items.order_id
-      and o.buyer_id = auth.uid()
-  )
-);
+using ( public.is_buyer_of_order(order_items.order_id) );
 
--- Buyers can only insert line items for their own orders, and only for
--- products that actually exist. Replaces the prior with-check-true
--- policy flagged by the RLS linter.
+-- Order_items: buyers can insert into their own orders, only for
+-- products that exist, and only with a positive quantity.
 drop policy if exists "buyers can insert order_items for their own orders" on public.order_items;
 create policy "buyers can insert order_items for their own orders"
 on public.order_items for insert to authenticated
 with check (
   quantity > 0
-  and exists (
-    select 1 from public.orders o
-    where o.id = order_items.order_id
-      and o.buyer_id = auth.uid()
-  )
-  and exists (
-    select 1 from public.products p
-    where p.id = order_items.product_id
-  )
+  and public.is_buyer_of_order(order_items.order_id)
+  and public.product_exists(order_items.product_id)
 );
 
--- Orders: a seller can read orders containing their products.
+-- Orders: sellers can read orders containing their products.
 drop policy if exists "sellers can read orders with their products" on public.orders;
 create policy "sellers can read orders with their products"
 on public.orders for select to authenticated
-using (
-  exists (
-    select 1 from public.order_items oi
-    join public.products p on p.id = oi.product_id
-    where oi.order_id = orders.id
-      and p.seller_id = auth.uid()
-  )
-);
+using ( public.is_seller_of_order(orders.id) );
 
--- Buyers can read their own orders.
+-- Orders: buyers can read their own.
 drop policy if exists "buyers can read their own orders" on public.orders;
 create policy "buyers can read their own orders"
 on public.orders for select to authenticated
 using ( buyer_id = auth.uid() );
 
--- Buyers can create their own orders. The checkout flow
+-- Orders: buyers can create their own orders. The checkout flow
 -- (app/checkout/page.tsx) inserts a row with `buyer_id = auth.uid()`
 -- and `status = 'pending'`, then attaches `order_items`. Without this
 -- policy the orders insert is rejected with
 -- "new row violates row-level security policy for table 'orders'"
--- and the buyer can never reach Paystack.
+-- and the buyer can never reach Paystack. The flat buyer_id check
+-- is non-recursive, so no helper is needed.
 drop policy if exists "buyers can insert their own orders" on public.orders;
 create policy "buyers can insert their own orders"
 on public.orders for insert to authenticated
