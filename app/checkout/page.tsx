@@ -45,10 +45,16 @@ export default function Checkout() {
 
       // 2. Create the order. The DB has a separate order_items table — we
       //    create the order row first, then attach the line items.
+      //    `total_amount` is NOT NULL on the orders table, so we have to
+      //    snapshot it here from the cart total. We use the SAME number
+      //    for the orders row, the line items (via price_at_purchase ×
+      //    quantity), and the Paystack initialization — three values
+      //    from one source so they can't drift.
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           buyer_id: user.id,
+          total_amount: totalPrice,
           status: 'pending',
         })
         .select()

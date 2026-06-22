@@ -44,35 +44,19 @@ export default function BuyerDashboard() {
         .maybeSingle();
       setProfile(profileData ?? null);
 
-      // The orders schema has a separate `order_items` table, so totals
-      // have to be computed by joining — fetch the orders and their items
-      // in two steps and stitch the totals on.
+      // The orders schema has a separate `order_items` table. The
+      // canonical total lives on the orders row itself in
+      // `total_amount` (set at checkout from the cart total), so we
+      // don't need to re-sum line items here — just read the
+      // snapshot. This is also what the API verify route compares
+      // against the Paystack amount, so the two stay in lockstep.
       const { data: ordersData } = await supabase
         .from('orders')
         .select('*')
         .eq('buyer_id', user?.id)
         .order('created_at', { ascending: false });
       const ordersList = ordersData || [];
-      if (ordersList.length > 0) {
-        const orderIds = ordersList.map((o) => o.id);
-        const { data: items } = await supabase
-          .from('order_items')
-          .select('order_id, price_at_purchase, quantity')
-          .in('order_id', orderIds);
-        const totals = new Map<string, number>();
-        for (const it of items || []) {
-          totals.set(
-            it.order_id,
-            (totals.get(it.order_id) || 0) +
-              Number(it.price_at_purchase || 0) * Number(it.quantity || 0)
-          );
-        }
-        setOrders(
-          ordersList.map((o) => ({ ...o, total_price: totals.get(o.id) ?? 0 }))
-        );
-      } else {
-        setOrders([]);
-      }
+      setOrders(ordersList.map((o) => ({ ...o, total_price: Number((o as any).total_amount ?? 0) })));
 
       const { data: viewedData } = await supabase
         .from('viewed_products')

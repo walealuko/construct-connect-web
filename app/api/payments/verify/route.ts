@@ -52,7 +52,7 @@ export async function GET(req: Request) {
     //    decrement for an order they have no claim on.
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
-      .select('id, buyer_id, status')
+      .select('id, buyer_id, status, total_amount')
       .eq('id', orderId)
       .maybeSingle();
 
@@ -76,31 +76,23 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Payment customer does not match order buyer' }, { status: 403 });
     }
 
-    // Amount paid (kobo from Paystack) must match the order total
-    // (sum of order_items.price_at_purchase * quantity). We compare in
-    // kobo to avoid float drift.
-    const { data: orderItems, error: itemsError } = await supabaseAdmin
-      .from('order_items')
-      .select('price_at_purchase, quantity')
-      .eq('order_id', orderId);
-
-    if (itemsError) {
-      return NextResponse.json({ error: itemsError.message }, { status: 500 });
-    }
-
-    const expectedKobo = Math.round(
-      (orderItems || []).reduce(
-        (sum, it) => sum + Number(it.price_at_purchase || 0) * Number(it.quantity || 0),
-        0
-      ) * 100
-    );
+    // Amount paid (kobo from Paystack) must match the order total.
+    // We trust `orders.total_amount` as the canonical snapshot rather
+    // than re-summing `order_items` — the column is set at checkout
+    // from the same number that's posted to Paystack at initialize
+    // time, so the verify-side check is comparing like-for-like. If
+    // anyone ever edits a line item's price_at_purchase after the
+    // order is placed, the order's stored total is still what the
+    // customer actually paid.
+    const expectedKobo = Math.round(Number(order.total_amount || 0) * 100);
     const paidKobo = Number(data.data.amount || 0);
 
     if (expectedKobo === 0) {
-      // Order has no line items or they all summed to zero. Treating
-      // this as success would create a completed order with no items
-      // and zero revenue — refuse instead.
-      return NextResponse.json({ error: 'Order has no payable line items' }, { status: 400 });
+      // Treat a zero-total order as a programming error rather than
+      // a free order — the checkout flow always sets total_amount
+      // from the cart, so a 0 here means a row got created without
+      // going through checkout.
+      return NextResponse.json({ error: 'Order has no payable total' }, { status: 400 });
     }
     if (paidKobo < expectedKobo) {
       return NextResponse.json(

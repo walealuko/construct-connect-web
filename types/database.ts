@@ -78,6 +78,14 @@ export interface OrderItem {
 export interface Order {
   id: string;
   buyer_id: string;
+  // Total at the time the order was placed. The DB has this column
+  // NOT NULL on the orders table (regenerated from the live schema
+  // in types/supabase.ts), so the checkout flow must compute and
+  // persist a value here. We deliberately keep it as a snapshot
+  // rather than re-deriving from order_items on every read — that
+  // way the row is self-contained even if a line item is later
+  // edited or removed.
+  total_amount: number;
   status: 'pending' | 'completed' | 'cancelled' | 'shipped' | 'delivered';
   created_at: string;
   profiles?: {
