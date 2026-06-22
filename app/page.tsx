@@ -113,14 +113,29 @@ function IndividualHub() {
 export default function HomePage() {
   const userContext = useContext(UserContext);
   const router = useRouter();
-  const { user, loading } = userContext || { user: null, loading: true };
+  // Default to `loading: true` when the context provider is missing
+  // so we don't briefly render the public landing page to a user
+  // who is actually signed in. The provider is mounted at the root,
+  // so this is purely defensive.
+  const { user, loading } = userContext ?? { user: null, loading: true };
 
   useEffect(() => {
     if (!loading && user) {
-      if (user.role === 'business') {
-        router.replace('/seller-dashboard');
-      } else if (user.role === 'artisan') {
-        router.replace('/artisan-dashboard');
+      // Send every non-individual signed-in user straight to their
+      // role dashboard so they don't see the marketing landing page.
+      // The proxy already redirects /dashboard to the role-specific
+      // path; this is the matching client-side redirect for / itself.
+      switch (user.role) {
+        case 'business':
+          router.replace('/seller-dashboard');
+          break;
+        case 'artisan':
+          router.replace('/artisan-dashboard');
+          break;
+        case 'admin':
+          router.replace('/admin-dashboard');
+          break;
+        // individual users fall through to the IndividualHub below.
       }
     }
   }, [user, loading, router]);
@@ -140,18 +155,22 @@ export default function HomePage() {
     );
   }
 
+  // Non-individual roles are still in flight to their dashboard via
+  // the effect above — show a spinner rather than flash the wrong
+  // page. This handles the rare case where the redirect takes more
+  // than a frame (slow network on the dashboard prefetch).
+  if (user && user.role !== 'individual') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
   if (user && user.role === 'individual') {
     return <IndividualHub />;
   }
 
-  if (!user) {
-    return <LandingPage />;
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
-    </div>
-  );
+  return <LandingPage />;
 }
 

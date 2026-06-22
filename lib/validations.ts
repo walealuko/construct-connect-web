@@ -12,10 +12,29 @@ export const registerSchema = z.object({
   businessName: z.string().optional(),
   businessType: z.string().optional(),
   location: z.string().min(1, 'Location is required'),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Passwords do not match',
-  path: ['confirmPassword'],
-});
+})
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
+  .refine(
+    (data) =>
+      data.tier === 'individual' ||
+      (typeof data.businessName === 'string' && data.businessName.trim().length >= 2),
+    {
+      message: 'Business name is required for business and artisan accounts',
+      path: ['businessName'],
+    }
+  )
+  .refine(
+    (data) =>
+      data.tier === 'individual' ||
+      (typeof data.businessType === 'string' && data.businessType.length > 0),
+    {
+      message: 'Business type is required for business and artisan accounts',
+      path: ['businessType'],
+    }
+  );
 
 // Product creation/edit validation lives in `app/actions/products.ts`
 // (Zod `ProductSchema`). It owns the `images: string[]` shape since the

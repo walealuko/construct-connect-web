@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useContext, useRef } from "react";
 import { usePathname } from "next/navigation";
+import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
 
 // Public routes where auth verification should NOT redirect away.
@@ -9,26 +10,40 @@ import { supabase } from "@/lib/supabase";
 // blocks the very pages a user needs to authenticate from.
 const PUBLIC_PATHS = new Set(["/login", "/register"]);
 
+// Force a re-verification of the session token at most this often.
+// Without this throttle, every Link/router.push to a protected page
+// would fire a supabase.auth.getUser() round-trip and show a spinner
+// in the meantime. Trusting the in-memory UserContext for short
+// navigations keeps the app snappy; the long-term re-verify catches
+// the case where the token expired in another tab.
+const REVERIFY_AFTER_MS = 60_000;
+
 /**
- * Re-runs `supabase.auth.getUser()` on every navigation. If the token
- * is invalid, expired, revoked, or missing, hard-navigates to
- * `/login?redirect=<currentPath>` so the user comes back here after
- * signing in.
+ * Re-runs `supabase.auth.getUser()` for protected pages when the
+ * cached session is stale or missing. Hard-navigates to
+ * `/login?redirect=<currentPath>` if the token is invalid, expired,
+ * revoked, or missing.
  *
  * Server-side enforcement lives in `proxy.ts` — this is the
  * client-side counterpart that catches cases where the proxy didn't
  * run (cached navigations, prefetched routes, client-side router
  * transitions that skip the network round-trip).
  *
- * During verification, renders a spinner so protected content never
- * flashes for an unauthenticated visitor.
+ * We prefer the in-memory UserContext for short navigations so the
+ * UI doesn't flash a spinner on every page change. The expensive
+ * `getUser()` re-check only fires once per REVERIFY_AFTER_MS.
  */
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const userContext = useContext(UserContext);
   const [ready, setReady] = useState(false);
   // Track the last verified path so we don't re-verify the same path
   // twice in a row (e.g. on initial mount followed by a setReady flip).
   const lastVerifiedRef = useRef<string | null>(null);
+  // Track the last timestamp we ran a full supabase.auth.getUser()
+  // round-trip, so back-to-back navigations only pay the network cost
+  // once per REVERIFY_AFTER_MS.
+  const lastReverifyAtRef = useRef<number>(0);
 
   useEffect(() => {
     if (PUBLIC_PATHS.has(pathname)) {
@@ -37,7 +52,16 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (lastVerifiedRef.current === pathname) {
+    // If the in-memory user is known and we've verified the session
+    // recently, skip the network round-trip entirely. This is the
+    // common case for short navigations between protected pages.
+    if (
+      userContext &&
+      !userContext.loading &&
+      userContext.user &&
+      lastVerifiedRef.current === pathname &&
+      Date.now() - lastReverifyAtRef.current < REVERIFY_AFTER_MS
+    ) {
       setReady(true);
       return;
     }
@@ -59,6 +83,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           return;
         }
 
+        lastReverifyAtRef.current = Date.now();
         lastVerifiedRef.current = pathname;
         setReady(true);
       } catch (e) {
@@ -73,7 +98,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [pathname]);
+  }, [pathname, userContext]);
 
   if (!ready) {
     return (

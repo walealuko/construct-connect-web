@@ -19,10 +19,21 @@ export async function registerUserAction(formData: any) {
 
     const { firstName, lastName, email, password, tier, businessName, businessType, location, phone } = validated.data;
 
-    // 2. Sign up the user
+    // 2. Sign up the user. Pass tier + full_name as initial user_metadata
+    //    so the proxy/role-gate can route the user correctly on their
+    //    first request, even before the admin update below has a chance
+    //    to run. If admin.updateUserById is unavailable (e.g. the
+    //    service role key isn't set in this deployment), the signup
+    //    metadata is the only copy of `tier` we'll have.
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          tier,
+          full_name: `${firstName} ${lastName}`,
+        },
+      },
     });
 
     if (authError) throw authError;
@@ -51,7 +62,14 @@ export async function registerUserAction(formData: any) {
     if (profileError) throw profileError;
 
     // 4. CRITICAL: Sync the role to Auth Metadata
-    // This allows the middleware to redirect users immediately without database lookups
+    // This allows the middleware to redirect users immediately without database lookups.
+    // The signup call above already seeded user_metadata with `tier` and
+    // `full_name`; this admin write is a defensive re-sync in case the
+    // server's service-role key wasn't set at signup time (the signup
+    // options.data may have been silently ignored without it). We don't
+    // fall back to `supabase.auth.updateUser` here — that would update
+    // the *current* session, not the freshly-registered user, and after
+    // signUp there's typically no current session.
     const { error: metaError } = await supabase.auth.admin.updateUserById(user.id, {
       user_metadata: {
         tier,
@@ -59,15 +77,10 @@ export async function registerUserAction(formData: any) {
       }
     });
 
-    // If admin update fails (e.g. lacking service role), try the standard updateUser
     if (metaError) {
-      console.warn("Admin update failed, trying standard user update:", metaError.message);
-      await supabase.auth.updateUser({
-        data: {
-          tier,
-          full_name: `${firstName} ${lastName}`
-        }
-      });
+      // The signup options.data above is the durable copy. Log and
+      // continue — the proxy will read the metadata we set there.
+      console.warn("Admin metadata sync skipped:", metaError.message);
     }
 
     revalidatePath('/login');

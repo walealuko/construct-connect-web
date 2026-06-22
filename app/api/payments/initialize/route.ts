@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 
 export async function POST(req: Request) {
   try {
@@ -7,6 +8,50 @@ export async function POST(req: Request) {
 
     if (!email || !amount || !orderId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Ownership check: the caller must be signed in AND the order
+    // they want to pay for must belong to them. Without this, anyone
+    // who knows an orderId could trigger a Paystack init and capture
+    // payment flow for an order they don't own. We trust the
+    // server-side session (cookies) over the request body's email.
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('id, buyer_id, status')
+      .eq('id', orderId)
+      .maybeSingle();
+
+    if (orderError) {
+      return NextResponse.json({ error: orderError.message }, { status: 500 });
+    }
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+    if (order.buyer_id !== user.id) {
+      // Don't reveal the order exists if it's not theirs.
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+    if (order.status === 'completed') {
+      return NextResponse.json({ error: 'Order is already paid' }, { status: 409 });
+    }
+    if (order.status !== 'pending') {
+      return NextResponse.json(
+        { error: `Order is in status '${order.status}', cannot pay` },
+        { status: 409 }
+      );
+    }
+
+    // The body-supplied email must match the signed-in user's email.
+    // If it doesn't, the buyer is trying to send someone else's email
+    // to Paystack — refuse.
+    if (email.toLowerCase() !== (user.email || '').toLowerCase()) {
+      return NextResponse.json({ error: 'Email does not match signed-in user' }, { status: 403 });
     }
 
     const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
