@@ -214,13 +214,13 @@ export default function BuyerDashboard() {
                   <div className="py-8 text-center text-gray-400 text-sm">No orders found. Start shopping!</div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-gray-50 text-gray-500 uppercase text-[10px] font-bold tracking-wider">
+                    <table className="w-full text-left text-base">
+                      <thead className="bg-gray-50 text-gray-500 uppercase text-xs font-bold tracking-wider">
                         <tr>
-                          <th className="px-4 py-3">Order</th>
-                          <th className="px-4 py-3">Total</th>
-                          <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3 text-right">Date</th>
+                          <th className="px-5 py-4">Order</th>
+                          <th className="px-5 py-4">Total</th>
+                          <th className="px-5 py-4">Status</th>
+                          <th className="px-5 py-4 text-right">Date</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
@@ -236,18 +236,23 @@ export default function BuyerDashboard() {
                                 router.push(`/orders/${order.id}`);
                               }
                             }}
+                            /* py-5 (was py-3) and text-base (was
+                               text-sm) so the rows are easier to
+                               scan and the totals don't feel like
+                               footnotes. */
                             className="hover:bg-slate-50 transition-colors cursor-pointer"
                           >
-                            <td className="px-4 py-3 font-medium text-blue-600 hover:underline">#{order.id.slice(-6)}</td>
-                            <td className="px-4 py-3 font-bold text-slate-900">{formatNaira(order.total_price)}</td>
-                            <td className="px-4 py-3">
+                            <td className="px-5 py-5 font-semibold text-blue-600 hover:underline">#{order.id.slice(-6)}</td>
+                            <td className="px-5 py-5 font-bold text-slate-900 text-lg">{formatNaira(order.total_price)}</td>
+                            <td className="px-5 py-5">
                               <Badge
                                 variant={order.status === 'completed' ? 'success' : order.status === 'shipped' ? 'info' : order.status === 'cancelled' ? 'default' : 'warning'}
+                                className="text-sm px-3 py-1"
                               >
                                 {order.status}
                               </Badge>
                             </td>
-                            <td className="px-4 py-3 text-right text-gray-400 text-xs">
+                            <td className="px-5 py-5 text-right text-gray-500 text-sm">
                               {new Date(order.created_at).toLocaleDateString()}
                             </td>
                           </tr>
@@ -331,8 +336,8 @@ export default function BuyerDashboard() {
           <Card>
             <CardContent className="p-6">
               {loading && viewedProducts.length === 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {[...Array(4)].map((_, i) => (
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6">
+                  {[...Array(5)].map((_, i) => (
                     <Skeleton key={i} className="aspect-square w-full rounded-xl" />
                   ))}
                 </div>
@@ -342,28 +347,31 @@ export default function BuyerDashboard() {
                   <p className="text-gray-400 text-sm">You haven't viewed any products yet. Start exploring!</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6">
                   {viewedProducts.map(product => (
-                    <div key={product.id} className="relative group p-3 bg-white rounded-xl border border-gray-100 hover:border-blue-300 transition-all shadow-sm">
+                    <div key={product.id} className="relative group bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all shadow-sm overflow-hidden">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 bg-white/80 backdrop-blur-sm text-red-500 p-1 rounded-full hover:bg-red-50 transition-all shadow-sm"
+                        className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 bg-white/90 backdrop-blur-sm text-red-500 w-8 h-8 rounded-full hover:bg-red-50 transition-all shadow"
                         onClick={() => handleRemoveView(product.id)}
                         title="Remove from history"
+                        aria-label="Remove from history"
                       >
-                        <span className="text-xs font-bold">✕</span>
+                        <span className="text-base font-bold leading-none">✕</span>
                       </Button>
-                      <Link href={`/product/${product.id}`} className="block space-y-2">
-                        <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+                      <Link href={`/product/${product.id}`} className="block">
+                        <div className="relative aspect-square overflow-hidden bg-gray-100">
                           {primaryImage(product) ? (
                             <SafeImage src={resolveImageUrl(primaryImage(product), 'product-images')} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-2xl">🏗️</div>
                           )}
                         </div>
-                        <p className="text-xs font-bold text-slate-900 truncate">{product.name}</p>
-                        <p className="text-xs text-blue-600 font-semibold">{formatNaira(product.price)}</p>
+                        <div className="p-3 space-y-1">
+                          <p className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug">{product.name}</p>
+                          <p className="text-base text-blue-600 font-bold">{formatNaira(product.price)}</p>
+                        </div>
                       </Link>
                     </div>
                   ))}

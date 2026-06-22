@@ -165,9 +165,9 @@ export default function SellerDashboard() {
               <Card>
                 <CardContent className="p-6">
                   {loading && products.length === 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {[...Array(4)].map((_, i) => (
-                        <Skeleton key={i} className="h-24 w-full rounded-xl" />
+                        <Skeleton key={i} className="h-72 w-full rounded-xl" />
                       ))}
                     </div>
                   ) : products.length === 0 ? (
@@ -179,7 +179,7 @@ export default function SellerDashboard() {
                     </div>
                   ) : (
                     <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {products.map((product) => (
                           <ProductCard
                             key={product.id}

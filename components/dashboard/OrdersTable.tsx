@@ -46,21 +46,25 @@ export function OrdersTable({ orders, loading, onStatusChange, emptyMessage = "N
   return (
     <Card className="overflow-hidden">
       <div className="overflow-x-auto">
-        <div className="grid grid-cols-4 bg-slate-50 border-b border-gray-100 text-gray-500 uppercase text-xs font-bold tracking-wider">
-          <div className="px-6 py-4">Buyer</div>
-          <div className="px-6 py-4">Date</div>
-          <div className="px-6 py-4">Status</div>
-          <div className="px-6 py-4 text-right">Action</div>
+        {/* The previous header used `text-xs` and `py-4` — readable
+            on a phone but cramped on a desktop. Bumping to `text-sm`
+            and `py-5` makes the column labels line up with the
+            bigger row height below. */}
+        <div className="grid grid-cols-4 bg-slate-50 border-b border-gray-200 text-gray-500 uppercase text-sm font-bold tracking-wider">
+          <div className="px-6 py-5">Buyer</div>
+          <div className="px-6 py-5">Date</div>
+          <div className="px-6 py-5">Status</div>
+          <div className="px-6 py-5 text-right">Action</div>
         </div>
         <div className="divide-y divide-gray-100">
           {loading && orders.length === 0 ? (
             <div className="p-6 space-y-3">
               {[...Array(3)].map((_, i) => (
-                <Skeleton key={i} className="h-8 w-full" />
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
           ) : orders.length === 0 ? (
-            <div className="p-6 text-center text-gray-400">{emptyMessage}</div>
+            <div className="p-8 text-center text-gray-500 text-base">{emptyMessage}</div>
           ) : (
             orders.map((order) => (
               <div
@@ -74,9 +78,15 @@ export function OrdersTable({ orders, loading, onStatusChange, emptyMessage = "N
                     router.push(`/orders/${order.id}`);
                   }
                 }}
-                className="grid grid-cols-4 hover:bg-slate-50 transition-colors text-sm items-center cursor-pointer"
+                /* Each row is now a `py-5` cell with `text-base` —
+                   was `py-4 text-sm` before, which made the table
+                   feel cramped and the dates too small to read at
+                   a glance. The bigger padding also gives the
+                   status select enough room to render at a usable
+                   size. */
+                className="grid grid-cols-4 hover:bg-slate-50 transition-colors text-base items-center cursor-pointer"
               >
-                <div className="px-6 py-4 text-slate-900 font-medium">
+                <div className="px-6 py-5 text-slate-900 font-semibold">
                   <Link
                     href={`/profile/${order.buyer_id}`}
                     onClick={(e) => e.stopPropagation()}
@@ -85,13 +95,15 @@ export function OrdersTable({ orders, loading, onStatusChange, emptyMessage = "N
                     {buyerName(order)}
                   </Link>
                 </div>
-                <div className="px-6 py-4 text-slate-500 text-xs">
+                <div className="px-6 py-5 text-slate-600 text-sm">
                   {new Date(order.created_at).toLocaleDateString()}
                 </div>
-                <div className="px-6 py-4">
-                  <Badge variant={statusVariant(order.status)}>{order.status}</Badge>
+                <div className="px-6 py-5">
+                  <Badge variant={statusVariant(order.status)} className="text-sm px-3 py-1">
+                    {order.status}
+                  </Badge>
                 </div>
-                <div className="px-6 py-4 text-right">
+                <div className="px-6 py-5 text-right">
                   <select
                     value={order.status}
                     onClick={(e) => e.stopPropagation()}
@@ -99,7 +111,7 @@ export function OrdersTable({ orders, loading, onStatusChange, emptyMessage = "N
                       e.stopPropagation();
                       onStatusChange(order.id, e.target.value);
                     }}
-                    className="p-1 text-xs border rounded bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white font-medium outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {STATUS_OPTIONS.map((s) => (
                       <option key={s.value} value={s.value}>

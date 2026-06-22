@@ -18,75 +18,97 @@ interface ProductCardProps {
  * One row in the product inventory grid.
  * Pure presentation; the parent owns the edit/delete handlers.
  *
- * Image + name link to the public product page; edit/delete buttons are
- * kept outside the link so their onClick handlers don't bubble.
+ * Vertical layout (image on top, content below) — the previous
+ * horizontal layout squashed everything into a tiny 80×80
+ * thumbnail to the left, which made the cards hard to scan
+ * when a seller had more than a handful of products. Now the
+ * image fills the card width, the product name and price are
+ * large, and the edit/delete actions sit underneath on their
+ * own row.
+ *
+ * Image + name link to the public product page; edit/delete
+ * buttons are kept outside the link so their onClick handlers
+ * don't bubble.
  */
 export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
   const primary = primaryImage(product);
   const extraCount = Math.max(0, (product.images?.length ?? 0) - 1);
   return (
-    <div className="bg-white p-4 rounded-xl border border-gray-200 flex gap-4 items-center group hover:border-blue-300 transition-all shadow-sm">
-      <div className="relative shrink-0">
-        <Link href={`/product/${product.id}`} aria-label={`View ${product.name}`}>
-          {primary ? (
-            <SafeImage
-              src={resolveImageUrl(primary, "product-images")}
-              alt={product.name}
-              width={80}
-              height={80}
-              className="w-20 h-20 object-cover rounded-lg shadow-sm"
-            />
-          ) : (
-            <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">
-              No Image
-            </div>
-          )}
-        </Link>
+    <div className="bg-white rounded-xl border border-gray-200 flex flex-col group hover:border-blue-300 hover:shadow-md transition-all shadow-sm overflow-hidden">
+      <Link
+        href={`/product/${product.id}`}
+        aria-label={`View ${product.name}`}
+        className="block relative"
+      >
+        {primary ? (
+          <SafeImage
+            src={resolveImageUrl(primary, "product-images")}
+            alt={product.name}
+            width={400}
+            height={400}
+            className="w-full aspect-square object-cover group-hover:scale-105 transition-transform"
+          />
+        ) : (
+          <div className="w-full aspect-square bg-gray-100 flex items-center justify-center text-gray-400 text-sm">
+            No Image
+          </div>
+        )}
         {extraCount > 0 && (
-          <span className="absolute -bottom-1 -right-1 bg-blue-600 text-white text-[10px] font-bold rounded-full w-6 h-6 flex items-center justify-center shadow">
+          <span className="absolute top-3 right-3 bg-blue-600 text-white text-xs font-bold rounded-full w-7 h-7 flex items-center justify-center shadow">
             +{extraCount}
           </span>
         )}
-      </div>
-      <Link href={`/product/${product.id}`} className="flex-1 min-w-0 hover:text-blue-700">
-        <h4 className="font-bold text-slate-900 truncate text-sm">{product.name}</h4>
-        <div className="flex items-center gap-2 mt-1">
-          <p className="text-blue-600 font-bold text-xs">{formatNaira(product.price)}</p>
-          {product.category && (
-            <Badge variant="outline" className="text-[10px] py-0 px-1.5">
-              {product.category}
-            </Badge>
-          )}
-        </div>
-        <p className="text-gray-400 text-[10px] mt-1">Stock: {product.stock}</p>
       </Link>
-      <div className="flex gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-          onClick={(e) => {
-            e.preventDefault();
-            onEdit(product);
-          }}
-          title="Edit Product"
-          aria-label="Edit product"
+
+      <div className="flex-1 p-4 flex flex-col gap-3">
+        <Link
+          href={`/product/${product.id}`}
+          className="block hover:text-blue-700"
         >
-          ✏️
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-gray-300 hover:text-red-600 hover:bg-red-50 transition-colors"
-          onClick={(e) => {
-            e.preventDefault();
-            onDelete(product.id);
-          }}
-          title="Delete Product"
-          aria-label="Delete product"
-        >
-          🗑️
-        </Button>
+          <h4 className="font-bold text-slate-900 text-base leading-snug line-clamp-2">
+            {product.name}
+          </h4>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <p className="text-blue-600 font-bold text-lg">{formatNaira(product.price)}</p>
+            {product.category && (
+              <Badge variant="outline" className="text-xs">
+                {product.category}
+              </Badge>
+            )}
+          </div>
+          <p className="text-gray-500 text-sm mt-2">
+            <span className="font-semibold text-slate-700">Stock:</span> {product.stock}
+          </p>
+        </Link>
+
+        <div className="flex gap-2 mt-auto pt-2 border-t border-gray-100">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 font-semibold"
+            onClick={(e) => {
+              e.preventDefault();
+              onEdit(product);
+            }}
+            title="Edit Product"
+            aria-label="Edit product"
+          >
+            ✏️ Edit
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 font-semibold text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+            onClick={(e) => {
+              e.preventDefault();
+              onDelete(product.id);
+            }}
+            title="Delete Product"
+            aria-label="Delete product"
+          >
+            🗑️ Delete
+          </Button>
+        </div>
       </div>
     </div>
   );
