@@ -220,3 +220,14 @@ drop policy if exists "buyers can read their own orders" on public.orders;
 create policy "buyers can read their own orders"
 on public.orders for select to authenticated
 using ( buyer_id = auth.uid() );
+
+-- Buyers can create their own orders. The checkout flow
+-- (app/checkout/page.tsx) inserts a row with `buyer_id = auth.uid()`
+-- and `status = 'pending'`, then attaches `order_items`. Without this
+-- policy the orders insert is rejected with
+-- "new row violates row-level security policy for table 'orders'"
+-- and the buyer can never reach Paystack.
+drop policy if exists "buyers can insert their own orders" on public.orders;
+create policy "buyers can insert their own orders"
+on public.orders for insert to authenticated
+with check ( buyer_id = auth.uid() );
