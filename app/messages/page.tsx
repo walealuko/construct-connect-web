@@ -1,24 +1,27 @@
 "use client";
 
 import React, { useState, useEffect, useContext } from "react";
-import Link from "next/link";
-import { supabase } from "@/lib/supabase";
 import { UserContext } from "@/components/UserContext";
 import { toast } from "sonner";
-import { Message, Conversation, Profile } from "@/types/chat";
+import { Message, Conversation } from "@/types/chat";
 import { useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Skeleton } from "@/components/ui/Skeleton";
-import { Badge } from "@/components/ui/Badge";
-import { createConversationAction, deleteMessageAction, clearConversationAction, sendMessageAction } from "@/app/actions/chat";
+import {
+  createConversationAction,
+  deleteMessageAction,
+  clearConversationAction,
+  sendMessageAction,
+} from "@/app/actions/chat";
+import { supabase } from "@/lib/supabase";
+import { loadConversations, loadMessages, getOtherParticipant } from "@/lib/messages-client";
+import { ConversationList } from "@/components/messages/ConversationList";
+import { ChatWindow } from "@/components/messages/ChatWindow";
 
 function ChatContent() {
   const userContext = useContext(UserContext);
   const user = userContext?.user;
   const searchParams = useSearchParams();
-  const projectId = searchParams.get('project');
-  const targetUserId = searchParams.get('userId');
+  const projectId = searchParams.get("project");
+  const targetUserId = searchParams.get("userId");
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<Conversation | null>(null);
@@ -37,124 +40,90 @@ function ChatContent() {
 
   useEffect(() => {
     if (!user) return;
-    loadConversations();
+    loadConversations().then(setConversations).catch(() => {
+      toast.error("Failed to load conversations");
+    });
 
     if (targetUserId) {
       handleInitiateChat(targetUserId, projectId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, targetUserId, projectId]);
 
   const handleInitiateChat = async (userId: string, projId?: string | null) => {
     try {
       const result = await createConversationAction(userId, projId || undefined);
       if (result.success && result.conversationId) {
-        await loadConversations();
-        const conv = conversations.find(c => c.id === result.conversationId);
+        const fresh = await loadConversations().catch(() => conversations);
+        setConversations(fresh);
+        const conv = fresh.find((c) => c.id === result.conversationId);
         if (conv) setActiveConv(conv);
       } else if (result.error) {
         toast.error(result.error);
       }
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to start conversation");
     }
   };
 
-  const loadConversations = async () => {
+  // Sidebar refresh — wraps the lib helper so we can update the
+  // loading state and surface errors uniformly. Used after every
+  // mutating action that affects the conversation snapshot.
+  const refreshConversations = async () => {
     setLoading(true);
     try {
-      // The `participant_ids` column is a uuid[] — PostgREST can't auto-embed
-      // an array relation. Fetch the conversations, then fetch the
-      // participants separately and stitch them in.
-      const { data, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .order('last_message_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Collect every unique participant id across all conversations.
-      const idSet = new Set<string>();
-      for (const c of data || []) {
-        for (const pid of c.participant_ids || []) idSet.add(pid);
-      }
-      const ids = Array.from(idSet);
-
-      let profileById: Record<string, Profile> = {};
-      if (ids.length > 0) {
-        const { data: profiles, error: pError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, avatar_url')
-          .in('id', ids);
-        if (pError) {
-          console.error("Failed to load conversation participants:", pError);
-        } else {
-          for (const p of profiles || []) profileById[p.id] = p as Profile;
-        }
-      }
-
-      const enriched = (data || []).map(c => ({
-        ...c,
-        profiles: (c.participant_ids || [])
-          .map((pid: string) => profileById[pid])
-          .filter(Boolean),
-      }));
-      setConversations(enriched as Conversation[]);
-    } catch (err: any) {
+      const fresh = await loadConversations();
+      setConversations(fresh);
+    } catch {
       toast.error("Failed to load conversations");
     } finally {
       setLoading(false);
     }
   };
 
-  const loadMessages = async (convId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', convId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setMessages(data || []);
-    } catch (err: any) {
-      toast.error("Failed to load messages");
-    }
-  };
-
   useEffect(() => {
-    if (activeConv) {
-      loadMessages(activeConv.id);
+    if (!activeConv) return;
+    loadMessages(activeConv.id).then(setMessages).catch(() => {
+      toast.error("Failed to load messages");
+    });
 
-      const channel = supabase
-        .channel(`conv-${activeConv.id}`)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
+    const channel = supabase
+      .channel(`conv-${activeConv.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
           filter: `conversation_id=eq.${activeConv.id}`,
-        }, (payload) => {
+        },
+        (payload) => {
           setMessages((prev) => [...prev, payload.new as Message]);
-        })
-        .on('postgres_changes', {
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
           // Mirror a remote delete (either participant's) into the
           // local state so the other side sees the bubble disappear
           // in real time without a refresh.
-          event: 'DELETE',
-          schema: 'public',
-          table: 'messages',
+          event: "DELETE",
+          schema: "public",
+          table: "messages",
           filter: `conversation_id=eq.${activeConv.id}`,
-        }, (payload) => {
+        },
+        (payload) => {
           const oldId = (payload.old as Partial<Message>)?.id;
-          if (typeof oldId === 'string') {
+          if (typeof oldId === "string") {
             setMessages((prev) => prev.filter((m) => m.id !== oldId));
           }
-        })
-        .subscribe();
+        },
+      )
+      .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [activeConv]);
 
   const sendMessage = async (e: React.FormEvent) => {
@@ -223,7 +192,7 @@ function ChatContent() {
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
       // Refresh the sidebar so the conversation's last_message
       // snapshot updates without waiting for the next realtime push.
-      await loadConversations();
+      await refreshConversations();
     } catch (err: any) {
       toast.error(err.message || "Failed to delete message");
     } finally {
@@ -239,9 +208,11 @@ function ChatContent() {
   // the participant with an empty preview ("Start a conversation…").
   const clearConversation = async () => {
     if (!user || !activeConv) return;
-    if (!window.confirm(
-      "Empty this conversation? All messages will be removed for both participants. This cannot be undone."
-    )) {
+    if (
+      !window.confirm(
+        "Empty this conversation? All messages will be removed for both participants. This cannot be undone.",
+      )
+    ) {
       return;
     }
     setClearing(true);
@@ -256,11 +227,11 @@ function ChatContent() {
       // optimistic clear avoids the user seeing the messages fade out
       // one-by-one.
       setMessages([]);
-      await loadConversations();
+      await refreshConversations();
       toast.success(
         result.deleted
           ? `Emptied ${result.deleted} message${result.deleted === 1 ? "" : "s"}`
-          : "Conversation emptied"
+          : "Conversation emptied",
       );
     } catch (err: any) {
       toast.error(err.message || "Failed to empty conversation");
@@ -269,163 +240,47 @@ function ChatContent() {
     }
   };
 
-  const getOtherParticipant = (conv: Conversation) => {
-    const other = conv.participant_ids.find(id => id !== user?.id);
-    const profile = conv.profiles?.find((p: Profile) => p.id === other);
-    return profile || { first_name: "Unknown", last_name: "" };
-  };
+  // Used by the empty-state pane so we can show the participant's
+  // name when the user lands via ?userId=… and a conversation is
+  // created but not yet selected.
+  const previewsOther = activeConv ? getOtherParticipant(activeConv, user?.id) : null;
 
   return (
     <div className="flex h-[calc(100vh-70px)] bg-white overflow-hidden">
-      {/* Sidebar */}
-      <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50">
-        <div className="p-4 border-b border-gray-200 bg-white space-y-3">
-          <Link
-            href="/dashboard"
-            className="text-gray-500 text-xs inline-flex items-center gap-1 hover:text-blue-600 transition-colors"
-          >
-            ← Back to Dashboard
-          </Link>
-          <h2 className="text-xl font-bold text-slate-900">Messages</h2>
-        </div>
+      <ConversationList
+        conversations={conversations}
+        activeConv={activeConv}
+        loading={loading}
+        currentUserId={user?.id}
+        onSelect={setActiveConv}
+      />
 
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="p-4 space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full rounded-xl" />
-              ))}
-            </div>
-          ) : conversations.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-sm">
-              No conversations yet. <br /> Start chatting with sellers!
-            </div>
-          ) : (
-            conversations.map(conv => {
-              const other = getOtherParticipant(conv);
-              return (
-                <div
-                  key={conv.id}
-                  onClick={() => setActiveConv(conv)}
-                  className={`p-4 cursor-pointer transition-colors flex items-center gap-3 border-b border-gray-100 ${
-                    activeConv?.id === conv.id ? "bg-blue-50 border-l-4 border-l-blue-600" : "hover:bg-gray-100"
-                  }`}
-                >
-                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                    {other.first_name[0]}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline">
-                      <p className="text-sm font-bold text-slate-900 truncate">
-                        {other.first_name} {other.last_name}
-                      </p>
-                      <span className="text-[10px] text-gray-400">
-                        {new Date(conv.last_message_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 truncate">{conv.last_message || "Start a conversation..."}</p>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {/* Chat Window */}
       <div className="flex-1 flex flex-col">
         {activeConv ? (
-          <>
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                  {getOtherParticipant(activeConv).first_name[0]}
-                </div>
-                <h3 className="font-bold text-slate-900">
-                  {getOtherParticipant(activeConv).first_name} {getOtherParticipant(activeConv).last_name}
-                </h3>
-              </div>
-              <div className="flex items-center gap-2">
-                {activeConv.project_id && (
-                  <Badge variant="info" className="px-3">
-                    Project Context: {activeConv.project_id.slice(0, 8)}...
-                  </Badge>
-                )}
-                {/* Empty the conversation. Either participant can do
-                    this; the action is RLS-gated and confirms before
-                    firing. Disabled while a clear is in flight. */}
-                <button
-                  type="button"
-                  onClick={clearConversation}
-                  disabled={clearing || messages.length === 0}
-                  aria-label="Empty conversation"
-                  title="Empty this conversation"
-                  className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg border border-gray-200 text-gray-500 hover:text-red-600 hover:border-red-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {clearing ? "Emptying…" : "Empty"}
-                </button>
-              </div>
+          <ChatWindow
+            activeConv={activeConv}
+            messages={messages}
+            currentUserId={user?.id}
+            deletingId={deletingId}
+            clearing={clearing}
+            newMessage={newMessage}
+            onNewMessageChange={setNewMessage}
+            onSend={sendMessage}
+            onDelete={deleteMessage}
+            onClear={clearConversation}
+          />
+        ) : previewsOther && previewsOther.first_name !== "Unknown" ? (
+          // A conversation was just created via the ?userId=… flow
+          // but state hasn't caught up yet. Show a quick "starting…"
+          // pane rather than the generic empty state.
+          <div className="flex-1 flex items-center justify-center text-center p-8">
+            <div className="max-w-xs space-y-4">
+              <div className="text-6xl">💬</div>
+              <h3 className="text-xl font-bold text-slate-900">
+                Starting conversation with {previewsOther.first_name}…
+              </h3>
             </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
-              {messages.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-center">
-                  <div className="space-y-2 max-w-xs">
-                    <div className="text-4xl">💬</div>
-                    <p className="text-gray-500 text-sm font-medium">
-                      No messages yet. Say hi to break the ice.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                messages.map(msg => {
-                  const isMine = msg.sender_id === user?.id;
-                const isDeleting = deletingId === msg.id;
-                return (
-                  <div key={msg.id} className={`group flex ${isMine ? "justify-end" : "justify-start"}`}>
-                    <div className="relative max-w-md">
-                      <div className={`p-3 rounded-2xl text-sm ${
-                        isMine
-                          ? "bg-blue-600 text-white rounded-tr-none shadow-sm"
-                          : "bg-white text-gray-800 shadow-sm border border-gray-100 rounded-tl-none"
-                      }`}>
-                        {msg.content}
-                        <div className={`text-[10px] mt-1 text-right ${isMine ? "text-blue-200" : "text-gray-400"}`}>
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </div>
-                      {/* Delete button. Hidden until hover/focus so the
-                          chat stays clean. Either party can delete any
-                          message in the conversation (RLS-gated). */}
-                      <button
-                        type="button"
-                        onClick={() => deleteMessage(msg.id)}
-                        disabled={isDeleting}
-                        aria-label="Delete message"
-                        title="Delete message"
-                        className={`absolute -top-2 ${isMine ? "-left-2" : "-right-2"} w-7 h-7 rounded-full bg-white shadow-md border border-gray-200 text-gray-400 hover:text-red-600 hover:border-red-300 transition-all flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 focus:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed`}
-                      >
-                        {isDeleting ? "…" : "🗑"}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-              )}
-            </div>
-
-            <form onSubmit={sendMessage} className="p-4 bg-white border-t border-gray-200 flex gap-3">
-              <Input
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type a message..."
-                className="flex-1"
-              />
-              <Button type="submit" disabled={!newMessage.trim()}>
-                Send
-              </Button>
-            </form>
-          </>
+          </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-center p-8">
             <div className="max-w-xs space-y-4">
@@ -449,4 +304,3 @@ export default function ChatPage() {
     </React.Suspense>
   );
 }
-
