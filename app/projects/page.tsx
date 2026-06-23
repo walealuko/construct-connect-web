@@ -150,7 +150,7 @@ export default function ProjectsPage() {
                     size="sm"
                     asChild
                   >
-                    <Link href={`/messages?project=${project.id}`}>Message</Link>
+                    <Link href={`/messages?userId=${project.user_id}&project=${project.id}`}>Message</Link>
                   </Button>
                   <Button
                     variant="primary"

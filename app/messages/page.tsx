@@ -22,6 +22,18 @@ function ChatContent() {
   const searchParams = useSearchParams();
   const projectId = searchParams.get("project");
   const targetUserId = searchParams.get("userId");
+  // Deep-link target. Three callers set this:
+  //   - MessageSellerButton: ?convId=<existing or newly-created id>
+  //   - buyer-dashboard:     ?convId=<id from the conversation list>
+  //   - direct paste / link share
+  // When set, we resolve the conversation from the loaded list and
+  // select it. We do NOT auto-create from convId — that would be
+  // a security hole (anyone who guesses a uuid could land in
+  // someone else's thread if it happens to be theirs). The page
+  // only auto-creates from ?userId= (an explicit "start a chat
+  // with this person" intent), and from there the server action
+  // returns a real id and the URL is rewritten via setActiveConv.
+  const convIdFromUrl = searchParams.get("convId");
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<Conversation | null>(null);
@@ -40,7 +52,21 @@ function ChatContent() {
 
   useEffect(() => {
     if (!user) return;
-    loadConversations().then(setConversations).catch(() => {
+    loadConversations().then((fresh) => {
+      setConversations(fresh);
+      // Deep-link: if the URL names a conversation, select it. This
+      // runs once on first load and again whenever the convId
+      // changes (e.g. the user clicks another conversation row
+      // somewhere on the site and the link is followed).
+      if (convIdFromUrl) {
+        const target = fresh.find((c) => c.id === convIdFromUrl);
+        // RLS means the user can only see conversations they
+        // participate in. If the id is in the loaded list, it's
+        // theirs. If not, silently skip — the user just sees the
+        // empty state rather than an error toast for a 404.
+        if (target) setActiveConv(target);
+      }
+    }).catch(() => {
       toast.error("Failed to load conversations");
     });
 
@@ -48,7 +74,7 @@ function ChatContent() {
       handleInitiateChat(targetUserId, projectId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, targetUserId, projectId]);
+  }, [user, targetUserId, projectId, convIdFromUrl]);
 
   const handleInitiateChat = async (userId: string, projId?: string | null) => {
     try {
