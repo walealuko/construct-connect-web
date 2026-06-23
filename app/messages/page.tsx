@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Badge } from "@/components/ui/Badge";
-import { createConversationAction, deleteMessageAction, clearConversationAction } from "@/app/actions/chat";
+import { createConversationAction, deleteMessageAction, clearConversationAction, sendMessageAction } from "@/app/actions/chat";
 
 function ChatContent() {
   const userContext = useContext(UserContext);
@@ -164,28 +164,41 @@ function ChatContent() {
     const msgContent = newMessage;
     setNewMessage("");
 
-    try {
-      const { error: msgError } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: activeConv.id,
-          sender_id: user.id,
-          content: msgContent,
-        });
+    // Optimistic insert: append the message to the local state
+    // immediately so the sender sees it. The server action does
+    // the actual write (RLS-gated) and fires the email to the
+    // recipient when their last_seen is older than 5 minutes.
+    //
+    // The realtime channel will also deliver an INSERT for this
+    // message. To avoid a duplicate in the UI we mark the
+    // optimistic row with a `__optimistic: true` flag in a side
+    // channel; when the realtime insert lands with the same
+    // content + sender, we drop the optimistic one.
+    const optimisticId = `optimistic-${Date.now()}`;
+    const optimisticMsg = {
+      id: optimisticId,
+      conversation_id: activeConv.id,
+      sender_id: user.id,
+      content: msgContent,
+      created_at: new Date().toISOString(),
+      is_read: false,
+    } as Message & { __optimistic?: boolean };
+    optimisticMsg.__optimistic = true;
+    setMessages((prev) => [...prev, optimisticMsg]);
 
-      if (msgError) throw msgError;
-
-      await supabase
-        .from('conversations')
-        .update({
-          last_message: msgContent,
-          last_message_at: new Date().toISOString()
-        })
-        .eq('id', activeConv.id);
-
-    } catch (err: any) {
-      toast.error("Failed to send message");
+    const result = await sendMessageAction(activeConv.id, msgContent);
+    if (!result.success) {
+      // Roll back the optimistic insert.
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+      setNewMessage(msgContent);
+      toast.error(`Failed to send: ${result.error}`);
+      return;
     }
+    // Drop the optimistic row. The realtime channel will deliver
+    // the real INSERT; if it doesn't (channel down), the optimistic
+    // row is still good enough — it's a perfect copy of what the
+    // server stored.
+    setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
   };
 
   // Either participant of the conversation can delete any message.

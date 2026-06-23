@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Order, Product, Profile } from "@/types/database";
 import { UserContext } from "@/components/UserContext";
+import { updateOrderStatusAction } from "@/app/actions/orders";
 
 interface DashboardStats {
   revenue: number;
@@ -239,6 +240,10 @@ export function useDashboardData(): UseDashboardDataResult {
       const movingToCompleted = newStatus === "completed";
       const wasCompleted = previousStatusById.get(orderId) === "completed";
       if (movingToCompleted !== wasCompleted) {
+        // The stats recompute can stay client-side because the
+        // caller (the dashboard) already has the order_items it
+        // needs to compute the delta — we don't need a server
+        // round-trip just for the stat display.
         const { data: items } = await supabase
           .from("order_items")
           .select("price_at_purchase, quantity")
@@ -254,13 +259,14 @@ export function useDashboardData(): UseDashboardDataResult {
         }));
       }
 
-      const { error } = await supabase
-        .from("orders")
-        .update({ status: newStatus })
-        .eq("id", orderId);
-      if (error) {
+      // Server-side update + email trigger (the buyer's "your order
+      // shipped" email). The previous client-side write was moved
+      // into updateOrderStatusAction so the email can run in the
+      // same handler.
+      const result = await updateOrderStatusAction(orderId, newStatus);
+      if (!result.success) {
         setOrders(previous);
-        toast.error(`Failed to update order: ${error.message}`);
+        toast.error(`Failed to update order: ${result.error}`);
         load();
         return;
       }

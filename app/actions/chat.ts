@@ -1,7 +1,17 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
+import { createClient } from "@/utils/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { log } from "@/lib/logger";
+import { sendEmail } from "@/lib/email";
+import { messageReceivedEmail } from "@/lib/email-templates";
+import { shouldEmailForPresence } from "@/lib/presence";
+
+// The presence helper is imported from "@/lib/presence" because
+// "use server" files can only export async functions. The chat
+// trigger uses it inline; tests import it from "@/lib/presence"
+// directly.
 
 export async function createConversationAction(participantId: string, projectId?: string) {
   const supabase = await createClient();
@@ -164,4 +174,162 @@ export async function clearConversationAction(conversationId: string) {
 
   revalidatePath("/messages");
   return { success: true, deleted: count ?? 0 };
+}
+
+/**
+ * Insert a message and update the conversation's last_message
+ * snapshot. Server-side so the email trigger can run in the same
+ * handler. Replaces the previous client-side insert in
+ * app/messages/page.tsx.
+ *
+ * Email policy: when a message arrives, email the recipient — but
+ * only if they haven't been active on the app recently. The
+ * presence gate is `shouldEmailForPresence` (testable, pure).
+ *
+ * The conversation participant list is a uuid[] array column.
+ * PostgREST can't auto-embed an array relation, so we read the
+ * conversation row first, then look up the recipient's profile
+ * directly. The sender's profile is read the same way.
+ */
+export async function sendMessageAction(
+  conversationId: string,
+  content: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Not signed in" };
+
+  const trimmed = content.trim();
+  if (!trimmed) return { success: false, error: "Message is empty" };
+
+  // 1. Insert the message. RLS enforces that the caller is a
+  //    participant of the conversation.
+  const { error: msgError } = await supabase
+    .from("messages")
+    .insert({
+      conversation_id: conversationId,
+      sender_id: user.id,
+      content: trimmed,
+    });
+  if (msgError) return { success: false, error: msgError.message };
+
+  // 2. Update the conversation's last_message snapshot. Same shape
+  //    the previous client code did.
+  const { error: convError } = await supabase
+    .from("conversations")
+    .update({
+      last_message: trimmed,
+      last_message_at: new Date().toISOString(),
+    })
+    .eq("id", conversationId);
+
+  if (convError) {
+    // Non-fatal — the message is in, the sidebar preview will be
+    // stale until the next message is sent. The client optimistically
+    // updates its local state, so the sender doesn't notice.
+    log.error("chat_conv_snapshot_failed", {
+      conversationId,
+      message: convError.message,
+    });
+  }
+
+  // 3. Fire the email. Look up the recipient (the participant who
+  //    isn't the sender), then check their last_seen before
+  //    sending. We use the admin client to read auth.users for the
+  //    recipient's email — the cookie-bound client can only see the
+  //    caller's own row.
+  void (async () => {
+    try {
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (!supabaseServiceKey || !supabaseUrl) {
+        log.error("email_chat_admin_env_missing", { conversationId });
+        return;
+      }
+      const admin = createAdminClient(supabaseUrl, supabaseServiceKey);
+
+      const { data: conv, error: convLookupError } = await admin
+        .from("conversations")
+        .select("participant_ids")
+        .eq("id", conversationId)
+        .maybeSingle();
+      if (convLookupError || !conv) {
+        log.error("email_chat_conv_lookup_failed", {
+          conversationId,
+          message: convLookupError?.message,
+        });
+        return;
+      }
+      const recipientId = (conv.participant_ids ?? []).find((id: string) => id !== user.id);
+      if (!recipientId) {
+        // Self-conversation or degenerate case — no email.
+        return;
+      }
+
+      // Skip if the recipient is currently active.
+      const { data: recipientProfile, error: profileError } = await admin
+        .from("profiles")
+        .select("first_name, last_name, last_seen")
+        .eq("id", recipientId)
+        .maybeSingle();
+      if (profileError) {
+        log.error("email_chat_profile_lookup_failed", {
+          conversationId,
+          message: profileError.message,
+        });
+        return;
+      }
+      if (!shouldEmailForPresence(Date.now(), recipientProfile?.last_seen)) {
+        // Recipient is online — no email.
+        return;
+      }
+
+      const { data: recipient, error: recipientError } = await admin.auth.admin.getUserById(recipientId);
+      if (recipientError || !recipient?.user?.email) {
+        log.error("email_chat_recipient_email_missing", {
+          conversationId,
+          recipientId,
+        });
+        return;
+      }
+
+      // Sender name — same lookup, but for the sender.
+      const { data: senderProfile } = await admin
+        .from("profiles")
+        .select("first_name, last_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      const senderName =
+        [senderProfile?.first_name, senderProfile?.last_name].filter(Boolean).join(" ").trim() ||
+        "Someone";
+      const recipientName =
+        [recipientProfile?.first_name, recipientProfile?.last_name].filter(Boolean).join(" ").trim() ||
+        "there";
+
+      // Preview = the message text, capped so a wall of text doesn't
+      // blow out the email body. 240 chars is enough to know what
+      // the message is about without being the whole thing.
+      const preview = trimmed.length > 240 ? trimmed.slice(0, 240) + "…" : trimmed;
+
+      const tpl = messageReceivedEmail({
+        recipientName,
+        senderName,
+        preview,
+        conversationId,
+      });
+      await sendEmail({
+        to: recipient.user.email,
+        subject: tpl.subject,
+        html: tpl.html,
+      });
+    } catch (e) {
+      log.error("email_chat_threw", {
+        conversationId,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  })();
+
+  revalidatePath("/messages");
+  return { success: true };
 }

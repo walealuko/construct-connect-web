@@ -1,6 +1,31 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { log } from '@/lib/logger';
+import { sendEmail } from '@/lib/email';
+import { orderPlacedEmail, orderReceivedBySellerEmail } from '@/lib/email-templates';
+
+/**
+ * Type of a line item row as it comes back from PostgREST. Each
+ * field is optional because PostgREST's `select('product_id, ...')`
+ * returns the columns typed, but the surrounding `data` is a
+ * `data: T[] | null` where T is the row shape.
+ */
+type LineItem = { product_id?: string; quantity?: number; price_at_purchase?: number };
+
+/**
+ * Drop any line item that's missing one of the three fields the
+ * email template needs. The cast at the end narrows the array
+ * element type so the downstream `.map` doesn't have to repeat
+ * the `typeof` checks.
+ */
+function completeLineItems(lineItems: LineItem[] | null | undefined) {
+  return (lineItems ?? []).filter(
+    (li): li is { product_id: string; quantity: number; price_at_purchase: number } =>
+      typeof li.product_id === 'string' &&
+      typeof li.quantity === 'number' &&
+      typeof li.price_at_purchase === 'number',
+  );
+}
 
 /**
  * Pure helper — exposed so the kobo/naira math can be unit-tested
@@ -171,6 +196,132 @@ export async function GET(req: Request) {
           .eq('id', item.product_id);
       }
     }
+
+    // 6. Clear the buyer's cart. Without this, the items they just
+    //    paid for stay in the cart and re-merge on the next sign-in.
+    //    Best-effort: a failure to clear shouldn't fail the payment.
+    const { error: cartClearError } = await supabaseAdmin
+      .from('cart_items')
+      .delete()
+      .eq('user_id', order.buyer_id);
+    if (cartClearError) {
+      log.error('cart_clear_after_payment_failed', {
+        orderId,
+        message: cartClearError.message,
+      });
+    }
+
+    // 7. Send transactional emails. Fire-and-forget — the payment
+    //    is finalized either way. A failure here is logged but
+    //    doesn't surface to the buyer (their payment succeeded).
+    void (async () => {
+      try {
+        // Read product names + seller ids in one query so the
+        // emails below have real names, not uuids.
+        const productIds = (lineItems || [])
+          .map((li: { product_id?: string }) => li.product_id)
+          .filter(Boolean) as string[];
+        let productNames = new Map<string, string>();
+        let sellerByProduct = new Map<string, string>();
+        if (productIds.length > 0) {
+          const { data: products } = await supabaseAdmin
+            .from('products')
+            .select('id, name, seller_id')
+            .in('id', productIds);
+          for (const p of products || []) {
+            productNames.set(p.id, p.name);
+            sellerByProduct.set(p.id, p.seller_id);
+          }
+        }
+
+        // 7a. Order placed → buyer.
+        const { data: buyerProfile } = await supabaseAdmin
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', order.buyer_id)
+          .maybeSingle();
+        const buyerName =
+          [buyerProfile?.first_name, buyerProfile?.last_name]
+            .filter(Boolean)
+            .join(' ')
+            .trim() || 'there';
+
+        const placedTpl = orderPlacedEmail({
+          buyerName,
+          orderId,
+          items: completeLineItems(lineItems).map((li) => ({
+            name: productNames.get(li.product_id) || 'Item',
+            quantity: li.quantity,
+            price: li.price_at_purchase,
+          })),
+          total: order.total_amount,
+        });
+        // The earlier `buyerError || !buyer?.user?.email` check
+        // already returned 404 if either was missing, but TS doesn't
+        // carry the narrowing into this nested async closure.
+        if (!buyer.user.email) {
+          log.error('email_verify_no_buyer_email', { orderId });
+        } else {
+          await sendEmail({ to: buyer.user.email, subject: placedTpl.subject, html: placedTpl.html });
+        }
+
+        // 7b. New sale → each distinct seller. One seller may have
+        //     multiple products in the same order — sum them up.
+        const sellerIds = new Set<string>();
+        const sellerProducts = new Map<string, { productName: string; quantity: number; amount: number }>();
+        for (const li of completeLineItems(lineItems)) {
+          const sellerId = sellerByProduct.get(li.product_id);
+          if (!sellerId) continue;
+          sellerIds.add(sellerId);
+          const prev = sellerProducts.get(sellerId);
+          const itemAmount = li.price_at_purchase * li.quantity;
+          if (prev) {
+            sellerProducts.set(sellerId, {
+              productName: `${prev.productName} + ${productNames.get(li.product_id) || 'Item'}`,
+              quantity: prev.quantity + li.quantity,
+              amount: prev.amount + itemAmount,
+            });
+          } else {
+            sellerProducts.set(sellerId, {
+              productName: productNames.get(li.product_id) || 'Item',
+              quantity: li.quantity,
+              amount: itemAmount,
+            });
+          }
+        }
+
+        for (const sellerId of sellerIds) {
+          const { data: sellerAuth } = await supabaseAdmin.auth.admin.getUserById(sellerId);
+          if (!sellerAuth?.user?.email) continue;
+          const { data: sellerProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', sellerId)
+            .maybeSingle();
+          const sellerName =
+            [sellerProfile?.first_name, sellerProfile?.last_name]
+              .filter(Boolean)
+              .join(' ')
+              .trim() || 'there';
+          const sp = sellerProducts.get(sellerId);
+          if (!sp) continue;
+          const tpl = orderReceivedBySellerEmail({
+            sellerName,
+            orderId,
+            productName: sp.productName,
+            quantity: sp.quantity,
+            amount: sp.amount,
+            buyerName,
+          });
+          await sendEmail({ to: sellerAuth.user.email, subject: tpl.subject, html: tpl.html });
+        }
+      } catch (e) {
+        log.error('email_verify_threw', {
+          orderId,
+          message: e instanceof Error ? e.message : String(e),
+        });
+      }
+    })();
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -161,6 +161,18 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
           email: session.user.email!,
           role: role
         });
+        // Mark the user as recently active. The chat message-
+        // received email uses profiles.last_seen to decide whether
+        // to send (skips notifications for users who are clearly
+        // online). A future slice can add a periodic heartbeat;
+        // for now, sign-in time is good enough.
+        void supabase
+          .from("profiles")
+          .update({ last_seen: new Date().toISOString() })
+          .eq("id", session.user.id)
+          .then(({ error }) => {
+            if (error) console.warn("[Auth] last_seen write failed:", error.message);
+          });
       } else if (event === 'SIGNED_OUT') {
         // Signed out from this tab, another tab, or by the server.
         // Wipe state and hard-navigate so the next page is rendered
