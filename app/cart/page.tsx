@@ -1,14 +1,19 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/CartContext";
 import Link from "next/link";
 import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
 import { CartItem, primaryImage } from "@/types/database";
 import MessageSellerButton from "@/components/MessageSellerButton";
+import SellerChip from "@/components/SellerChip";
 import { resolveImageUrl } from "@/lib/storage";
 import { formatNaira } from "@/lib/format";
+import {
+  loadSellerRatings,
+  type SellerRatingsMap,
+} from "@/lib/seller-ratings";
 
 export default function Cart() {
   const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
@@ -17,6 +22,33 @@ export default function Cart() {
     (sum: number, item: CartItem) => sum + item.price * item.quantity,
     0
   );
+
+  // One fetch for all sellers in the cart, regardless of how many
+  // items or how many distinct sellers. The map is keyed by
+  // sellerId so each <SellerChip> can look up its own row's rating
+  // without a per-row query. Refresh on cart change so adding /
+  // removing items keeps the rating set in sync with what's
+  // actually in the cart.
+  const [ratings, setRatings] = useState<SellerRatingsMap>(new Map());
+  const sellerIds = useMemo(
+    () => Array.from(new Set(cart.map((item) => item.seller_id).filter(Boolean))),
+    [cart],
+  );
+  useEffect(() => {
+    let cancelled = false;
+    if (sellerIds.length === 0) {
+      setRatings(new Map());
+      return () => {
+        cancelled = true;
+      };
+    }
+    loadSellerRatings(sellerIds).then((map) => {
+      if (!cancelled) setRatings(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sellerIds]);
 
   if (cart.length === 0) {
     return (
@@ -85,6 +117,15 @@ export default function Cart() {
                   <h3 className="text-lg font-bold text-slate-900 truncate">{item.name}</h3>
                 </Link>
                 <p className="text-blue-600 font-bold">{formatNaira(item.price)}</p>
+
+                <div className="mt-1.5">
+                  <SellerChip
+                    sellerId={item.seller_id}
+                    sellerName={item.seller_name}
+                    sellerLocation={item.seller_location}
+                    rating={ratings.get(item.seller_id)}
+                  />
+                </div>
 
                 <div className="flex items-center gap-4 mt-3">
                   <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
