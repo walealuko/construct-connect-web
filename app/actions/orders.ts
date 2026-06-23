@@ -7,6 +7,154 @@ import { log } from "@/lib/logger";
 import { sendEmail } from "@/lib/email";
 import { orderStatusChangedEmail } from "@/lib/email-templates";
 
+interface PlaceOrderItem {
+  productId: string;
+  quantity: number;
+}
+
+/**
+ * Server-side order placement. The previous flow had the client
+ * computing the total from `cartItem.price` and writing the orders
+ * row with that total — which meant a buyer who tampered with their
+ * localStorage cart could pay any amount they liked (or zero) and
+ * still get an order row created. This action ignores the client's
+ * cart and re-fetches the canonical price for every product from
+ * the database. The total_amount written to the orders row is the
+ * sum of those server-fetched prices, and that same number is the
+ * only one the client gets back to send to Paystack.
+ *
+ * Stock is checked inline by reading the products row. The
+ * decrement itself is atomic on the verify route (via the
+ * `decrement_product_stock` RPC, see migration 0013), so the
+ * check-then-decrement window is closed there. Here we just need
+ * a quick yes/no for the buyer before we burn a Paystack init.
+ *
+ * Returns the new order id and the canonical total so the client
+ * can pass them to the Paystack initialize endpoint.
+ */
+export async function placeOrderAction(
+  items: PlaceOrderItem[],
+): Promise<
+  | { success: true; orderId: string; totalAmount: number }
+  | { success: false; error: string }
+> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Not signed in" };
+
+  if (!items || items.length === 0) {
+    return { success: false, error: "Cart is empty" };
+  }
+
+  // Coalesce duplicate product ids. The cart is a client-side store
+  // and a buyer could in theory add the same product twice via two
+  // browser tabs. Server-side we want one row per product.
+  const byProduct = new Map<string, number>();
+  for (const item of items) {
+    if (!item.productId || !Number.isFinite(item.quantity) || item.quantity < 1) {
+      return { success: false, error: "Invalid cart item" };
+    }
+    byProduct.set(
+      item.productId,
+      (byProduct.get(item.productId) ?? 0) + Math.floor(item.quantity),
+    );
+  }
+  const productIds = Array.from(byProduct.keys());
+
+  // Re-read every product from the database in one round-trip. This
+  // is the canonical price + stock check; we deliberately do not
+  // trust any price the client sent.
+  const { data: products, error: productsError } = await supabase
+    .from("products")
+    .select("id, price, stock, name")
+    .in("id", productIds);
+
+  if (productsError) return { success: false, error: productsError.message };
+  if (!products || products.length !== productIds.length) {
+    // Either a product was deleted, the user is probing, or RLS hid
+    // a row. Don't leak which one — just say a product is missing.
+    return { success: false, error: "One or more products are no longer available" };
+  }
+
+  // Validate stock and compute the canonical total.
+  let totalAmount = 0;
+  const lineItems: { product_id: string; quantity: number; price_at_purchase: number }[] = [];
+  for (const product of products) {
+    const qty = byProduct.get(product.id) ?? 0;
+    if (qty <= 0) continue;
+    if ((product.stock ?? 0) < qty) {
+      return {
+        success: false,
+        error: `Insufficient stock for ${product.name}. Only ${product.stock ?? 0} left.`,
+      };
+    }
+    // `Number(price)` defensively: prices in the DB are numeric and
+    // should always be numbers, but a hand-edited row could be a
+    // string. Math on a string silently coerces to NaN which would
+    // propagate through the total — refuse rather than send NaN to
+    // Paystack.
+    const price = Number(product.price);
+    if (!Number.isFinite(price) || price < 0) {
+      log.error("place_order_invalid_price", { productId: product.id, price: product.price });
+      return { success: false, error: `Invalid price for ${product.name}` };
+    }
+    totalAmount += price * qty;
+    lineItems.push({
+      product_id: product.id,
+      quantity: qty,
+      price_at_purchase: price,
+    });
+  }
+
+  if (lineItems.length === 0) {
+    return { success: false, error: "Cart is empty" };
+  }
+
+  // Create the order row first, then the line items. RLS gates the
+  // insert: a buyer can only insert an order with their own id.
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .insert({
+      buyer_id: user.id,
+      total_amount: totalAmount,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+
+  if (orderError || !order) {
+    return {
+      success: false,
+      error: orderError?.message ?? "Failed to create order",
+    };
+  }
+
+  const orderItemsWithOrderId = lineItems.map((li) => ({
+    ...li,
+    order_id: order.id,
+  }));
+  const { error: itemsError } = await supabase
+    .from("order_items")
+    .insert(orderItemsWithOrderId);
+
+  if (itemsError) {
+    // The order row exists but the line items didn't. Best-effort
+    // cleanup: mark the order as cancelled so the buyer doesn't see
+    // a paid-looking order with no contents. The verify route's
+    // already-completed short-circuit won't trigger because we set
+    // status='cancelled' (not 'completed') and the route only
+    // short-circuits on 'completed'.
+    log.error("place_order_items_insert_failed", {
+      orderId: order.id,
+      message: itemsError.message,
+    });
+    await supabase.from("orders").update({ status: "cancelled" }).eq("id", order.id);
+    return { success: false, error: "Failed to record order items" };
+  }
+
+  return { success: true, orderId: order.id, totalAmount };
+}
+
 /**
  * Server-side order status update. Replaces the previous client-side
  * `supabase.from('orders').update(...)` call in useDashboardData.

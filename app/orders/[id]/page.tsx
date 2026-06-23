@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { UserContext } from "@/components/UserContext";
+import { updateOrderStatusAction } from "@/app/actions/orders";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -121,14 +122,13 @@ export default function OrderDetailPage() {
     if (!order) return;
     setUpdating(true);
     const previous = order.status;
+    // Optimistic local update so the seller sees the new status
+    // immediately. If the server action fails, we revert.
     setOrder({ ...order, status: newStatus as OrderDetail["status"] });
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: newStatus })
-      .eq("id", order.id);
-    if (error) {
+    const result = await updateOrderStatusAction(order.id, newStatus);
+    if (!result.success) {
       setOrder({ ...order, status: previous });
-      toast.error(`Failed to update order: ${error.message}`);
+      toast.error(`Failed to update order: ${result.error}`);
     } else {
       toast.success(`Order updated to ${newStatus}`);
     }

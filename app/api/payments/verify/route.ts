@@ -150,7 +150,7 @@ export async function GET(req: Request) {
     //    verify-callback retry is safe — the stock was already
     //    decremented on the first call.
     if (order.status === 'completed') {
-      return NextResponse.json({ success: true, alreadyCompleted: true });
+      return NextResponse.json({ success: true, orderId, alreadyCompleted: true });
     }
     if (order.status !== 'pending') {
       // Anything other than pending or completed is a bad state we
@@ -172,8 +172,14 @@ export async function GET(req: Request) {
 
     // 5. Decrement product stock using the order_items table (the live
     //    schema keeps items in their own table — `orders.items` does not
-    //    exist). Read each product's current stock, then update by
-    //    quantity purchased.
+    //    exist). The decrement is a SQL function that does
+    //    `update products set stock = stock - qty where id = p_id and
+    //    stock >= qty returning stock`. This is atomic — two concurrent
+    //    orders for the same product can both read stock=5 but only one
+    //    can pass the WHERE clause and get the row back.
+    //
+    //    A read-then-write here would race: both buyers read stock=5,
+    //    both write stock=4, store is now oversold by 1.
     const { data: lineItems, error: lineItemsError } = await supabaseAdmin
       .from('order_items')
       .select('product_id, quantity')
@@ -181,20 +187,48 @@ export async function GET(req: Request) {
 
     if (lineItemsError) throw lineItemsError;
 
+    const outOfStockProductIds: string[] = [];
     for (const item of lineItems || []) {
       if (!item.product_id || !item.quantity) continue;
-      const { data: product } = await supabaseAdmin
-        .from('products')
-        .select('stock')
-        .eq('id', item.product_id)
-        .single();
-
-      if (product) {
-        await supabaseAdmin
-          .from('products')
-          .update({ stock: Math.max(0, (product.stock || 0) - item.quantity) })
-          .eq('id', item.product_id);
+      // The SQL function is defined in migration 0013_decrement_stock_rpc.sql
+      // and returns the new stock on success or null when the WHERE
+      // clause (stock >= quantity) rejected the update — meaning
+      // another order beat us to those units.
+      const { data: newStock, error: decError } = await supabaseAdmin.rpc(
+        'decrement_product_stock',
+        { p_id: item.product_id, qty: item.quantity },
+      );
+      if (decError) throw decError;
+      if (newStock === null) {
+        outOfStockProductIds.push(item.product_id);
       }
+    }
+
+    if (outOfStockProductIds.length > 0) {
+      // Stock was insufficient for at least one line item even though
+      // the client-side check passed earlier (someone bought the same
+      // item between the verifyStockAction read and our decrement).
+      // Roll the order back to cancelled so it's visible to support,
+      // and the buyer's payment needs a refund. We don't auto-call
+      // Paystack's refund API here — the payment is settled, the
+      // order is in a bad state, and a human should review. The
+      // order row stays so the buyer can see the error and a refund
+      // can be issued against the same reference.
+      log.error('payment_verify_stock_insufficient', {
+        orderId,
+        outOfStockProductIds,
+      });
+      await supabaseAdmin
+        .from('orders')
+        .update({ status: 'cancelled' })
+        .eq('id', orderId);
+      return NextResponse.json(
+        {
+          error: 'One or more items in this order are out of stock',
+          outOfStockProductIds,
+        },
+        { status: 409 },
+      );
     }
 
     // 6. Clear the buyer's cart. Without this, the items they just
@@ -323,7 +357,7 @@ export async function GET(req: Request) {
       }
     })();
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, orderId });
   } catch (error: any) {
     log.error('payment_verify_failed', {
       reference,

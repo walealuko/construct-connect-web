@@ -3,22 +3,27 @@
 import React, { useState, useContext } from "react";
 import { useCart } from "@/components/CartContext";
 import { UserContext } from "@/components/UserContext";
-import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { CartItem } from "@/types/database";
-import { verifyStockAction } from "@/app/actions/products";
+import { placeOrderAction } from "@/app/actions/orders";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { formatNaira } from "@/lib/format";
 
 export default function Checkout() {
-  const { cart, clearCart } = useCart();
+  const { cart } = useCart();
   const userContext = useContext(UserContext);
   const user = userContext?.user;
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  // The total on this page is purely a UI estimate. The actual
+  // amount charged is recomputed server-side by placeOrderAction
+  // from the canonical product prices, so a tampered localStorage
+  // cart can't make the buyer pay less (or more) than the listed
+  // price. We display this estimate for the buyer's reference, but
+  // it's never what gets sent to Paystack.
   const totalPrice = cart.reduce((sum: number, item: CartItem) => sum + item.price * item.quantity, 0);
 
   const handlePurchase = async () => {
@@ -31,58 +36,35 @@ export default function Checkout() {
     setMessage("");
 
     try {
-      // 1. Server-side stock validation
-      const stockCheck = await verifyStockAction(
+      // 1. Server-side place order. Re-fetches prices, validates
+      //    stock, creates the order + line items, returns the
+      //    canonical total. The returned totalAmount — not the
+      //    client's cart total — is what we send to Paystack.
+      const placeResult = await placeOrderAction(
         cart.map((item: CartItem) => ({
           productId: item.id,
           quantity: item.quantity || 1,
-        }))
+        })),
       );
 
-      if (!stockCheck.success) {
-        throw new Error(stockCheck.error);
+      if (!placeResult.success) {
+        throw new Error(placeResult.error);
       }
 
-      // 2. Create the order. The DB has a separate order_items table — we
-      //    create the order row first, then attach the line items.
-      //    `total_amount` is NOT NULL on the orders table, so we have to
-      //    snapshot it here from the cart total. We use the SAME number
-      //    for the orders row, the line items (via price_at_purchase ×
-      //    quantity), and the Paystack initialization — three values
-      //    from one source so they can't drift.
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          buyer_id: user.id,
-          total_amount: totalPrice,
-          status: 'pending',
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      // 3. Insert each line item into order_items with the snapshotted price.
-      const lineItems = cart.map((item: CartItem) => ({
-        order_id: order.id,
-        product_id: item.id,
-        quantity: item.quantity || 1,
-        price_at_purchase: item.price,
-      }));
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(lineItems);
-
-      if (itemsError) throw itemsError;
-
-      // 4. Initialize Payment
+      // 2. Initialize Payment. The Paystack init endpoint
+      //    independently re-checks the order's buyer_id against
+      //    the signed-in user and the order's status (already
+      //    covered in app/api/payments/initialize). We pass
+      //    `amount: placeResult.totalAmount` — never the client's
+      //    cart total — so the price shown to Paystack is the
+      //    server-canonical one.
       const paymentRes = await fetch('/api/payments/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: user.email,
-          amount: totalPrice,
-          orderId: order.id,
+          amount: placeResult.totalAmount,
+          orderId: placeResult.orderId,
         }),
       });
 

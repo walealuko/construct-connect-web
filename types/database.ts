@@ -87,6 +87,13 @@ export interface OrderItem {
   product_id: string;
   order_id: string;
   quantity: number;
+  // Price snapshotted at the time the order was placed. Required by
+  // the verify route's email templates (which render line-item prices
+  // back to the buyer/seller) and by the admin-dashboard revenue
+  // computation, which multiplies this by quantity. Without the
+  // snapshot, dashboard revenue would silently drift if a seller
+  // ever edited the product's price post-purchase.
+  price_at_purchase: number;
 }
 
 export interface Order {
