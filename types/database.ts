@@ -69,6 +69,20 @@ export interface CartItem extends Product {
   quantity: number;
 }
 
+/**
+ * One row in the server-side cart (cart_items table). Only the
+ * product id and quantity live on the server — the rest of the
+ * product fields are joined in at read time by the server action
+ * that returns a fully-populated CartItem.
+ */
+export interface CartItemRow {
+  user_id: string;
+  product_id: string;
+  quantity: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface OrderItem {
   product_id: string;
   order_id: string;
