@@ -1,5 +1,15 @@
 type Level = "info" | "warn" | "error";
 
+// Sink is captured at module init. Tests override it via
+// __setSinkForTests so they can assert on emitted JSON without
+// spying on console. The default sink writes to stdout/stderr.
+type Sink = (level: Level, line: string) => void;
+let sink: Sink = (level, line) => {
+  if (level === "error") console.error(line);
+  else if (level === "warn") console.warn(line);
+  else console.log(line);
+};
+
 function emit(level: Level, msg: string, extra?: Record<string, unknown>) {
   const line = {
     t: new Date().toISOString(),
@@ -7,10 +17,7 @@ function emit(level: Level, msg: string, extra?: Record<string, unknown>) {
     msg,
     ...(extra ?? {}),
   };
-  const out = JSON.stringify(line);
-  if (level === "error") console.error(out);
-  else if (level === "warn") console.warn(out);
-  else console.log(out);
+  sink(level, JSON.stringify(line));
 }
 
 /**
@@ -27,3 +34,16 @@ export const log = {
   warn: (msg: string, extra?: Record<string, unknown>) => emit("warn", msg, extra),
   error: (msg: string, extra?: Record<string, unknown>) => emit("error", msg, extra),
 };
+
+/**
+ * Test-only helper. Redirects log output to a custom sink so tests
+ * can capture and assert on emitted JSON. Pass `null` to restore the
+ * default stdout/stderr sink.
+ */
+export function __setSinkForTests(next: Sink | null): void {
+  sink = next ?? ((level, line) => {
+    if (level === "error") console.error(line);
+    else if (level === "warn") console.warn(line);
+    else console.log(line);
+  });
+}

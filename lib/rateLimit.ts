@@ -25,6 +25,15 @@ export function take(key: string, limit: number, windowMs: number): boolean {
   return true;
 }
 
+/**
+ * Test-only helper. Clears the in-memory bucket map so each test
+ * starts from a clean slate. Not used at runtime — the `__` prefix
+ * marks it as internal.
+ */
+export function __resetForTests(): void {
+  buckets.clear();
+}
+
 // Prune idle keys. The `setInterval` exists in Node and Edge runtime
 // both; the `unref?.()` call is a Node-only nicety that lets the
 // process exit cleanly during local dev. We only set the timer once

@@ -2,6 +2,20 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { log } from '@/lib/logger';
 
+/**
+ * Pure helper — exposed so the kobo/naira math can be unit-tested
+ * without mocking fetch, the Supabase admin client, or the global
+ * env. Returns the expected Paystack kobo amount from a naira total
+ * stored on the orders row.
+ *
+ * The round() rather than floor() matters: 1234.567 naira is
+ * 123456.7 kobo, which has to be 123457 for Paystack to accept it.
+ * A Math.floor here would silently under-charge by up to 1 kobo.
+ */
+export function expectedKoboFromTotal(totalAmount: number | null | undefined): number {
+  return Math.round(Number(totalAmount || 0) * 100);
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const reference = searchParams.get('reference');
@@ -89,7 +103,7 @@ export async function GET(req: Request) {
     // anyone ever edits a line item's price_at_purchase after the
     // order is placed, the order's stored total is still what the
     // customer actually paid.
-    const expectedKobo = Math.round(Number(order.total_amount || 0) * 100);
+    const expectedKobo = expectedKoboFromTotal(order.total_amount);
     const paidKobo = Number(data.data.amount || 0);
 
     if (expectedKobo === 0) {

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.5",
@@ -28,8 +30,10 @@
     "@types/pdfkit": "^0.17.5",
     "@types/react": "^18.2.0",
     "autoprefixer": "^10.4.16",
+    "happy-dom": "^20.10.6",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.3.6",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^4.1.9"
   }
 }
