@@ -10,15 +10,16 @@ const securityHeaders = [
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   // The app doesn't need camera/mic/geo. Lock them down.
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-  // CSP — script-src is intentionally permissive ('unsafe-inline' /
-  // 'unsafe-eval') because the app uses inline styles and the Supabase
-  // JS SDK. Tightening requires an audit of every inline script and
-  // is a follow-up. connect-src allows Supabase and Paystack.
+  // CSP — script-src keeps 'unsafe-inline' because Next.js's
+  // streaming RSC payload uses inline scripts and the Supabase JS SDK
+  // ships an inline bootstrapper. A nonce-based approach is a
+  // follow-up; removing 'unsafe-eval' is safe (no app code uses eval
+  // or new Function, and the production build emits none either).
   {
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
