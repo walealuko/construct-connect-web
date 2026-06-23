@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { take } from '@/lib/rateLimit'
 import { log } from '@/lib/logger'
+import { REDIRECT_MAP, type UserRole } from '@/lib/roles'
 
 /**
  * Generate a short per-request id and forward it both upstream
@@ -71,15 +72,14 @@ export async function proxy(request: NextRequest) {
   const url = request.nextUrl.clone()
   const path = url.pathname
 
-  const rolePaths: Record<string, string> = {
-    admin: '/admin-dashboard',
-    business: '/seller-dashboard',
-    artisan: '/artisan-dashboard',
-    individual: '/',
-  }
-
-  const userRole = user?.user_metadata?.tier || 'individual'
-  const correctPath = rolePaths[userRole] || '/'
+  const userRole = (user?.user_metadata?.tier || 'individual') as UserRole
+  // Reuse the same redirect map the auth pages use, so a role's
+  // "where do I go after sign-in" answer is consistent across the
+  // proxy (`/dashboard` -> role) and the auth flow (sign-in/sign-up
+  // -> role). Keeping the two in sync prevents an individual user
+  // from landing on `/buyer-dashboard` after sign-up but on `/`
+  // after typing `/dashboard` in the URL bar.
+  const correctPath = REDIRECT_MAP[userRole] || '/buyer-dashboard'
 
   // 1. Auth Routes - /login and /register are public; they show their
   //    own "Switch Account" / "Sign out & create" interstitials when
