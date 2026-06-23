@@ -52,42 +52,28 @@ describe("proxy — rate limit", () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
   });
 
-  it("allows the first 5 /login requests from the same IP", async () => {
+  it("does NOT rate-limit /login (browser-side sign-in, not a proxy surface)", async () => {
+    // The /login form posts via supabase.auth.signInWithPassword,
+    // which hits the Supabase auth endpoint directly — not /login.
+    // Rate-limiting /login here only broke navigation (every
+    // protected-route redirect for an unauthenticated user
+    // consumes a slot), so the bucket was removed.
     const proxy = await freshProxy();
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 20; i++) {
       const res = await proxy(makeReq("/login", "1.2.3.4"));
       expect(res.status).not.toBe(429);
     }
   });
 
-  it("returns 429 on the 6th /login request from the same IP", async () => {
+  it("does NOT rate-limit /register either", async () => {
+    // Same reasoning as /login — registration goes through a
+    // server action that hits Supabase, not through /register's
+    // page handler.
     const proxy = await freshProxy();
-    for (let i = 0; i < 5; i++) {
-      await proxy(makeReq("/login", "1.2.3.4"));
+    for (let i = 0; i < 20; i++) {
+      const res = await proxy(makeReq("/register", "5.6.7.8"));
+      expect(res.status).not.toBe(429);
     }
-    const sixth = await proxy(makeReq("/login", "1.2.3.4"));
-    expect(sixth.status).toBe(429);
-    // The 429 response should include a retry-after header.
-    expect(sixth.headers.get("retry-after")).toBe("60");
-  });
-
-  it("rate-limits /register too", async () => {
-    const proxy = await freshProxy();
-    for (let i = 0; i < 5; i++) {
-      await proxy(makeReq("/register", "5.6.7.8"));
-    }
-    const sixth = await proxy(makeReq("/register", "5.6.7.8"));
-    expect(sixth.status).toBe(429);
-  });
-
-  it("treats different IPs as independent buckets", async () => {
-    const proxy = await freshProxy();
-    for (let i = 0; i < 5; i++) {
-      await proxy(makeReq("/login", "9.9.9.9"));
-    }
-    // Different IP — fresh bucket.
-    const fresh = await proxy(makeReq("/login", "9.9.9.10"));
-    expect(fresh.status).not.toBe(429);
   });
 
   it("does NOT rate-limit other paths", async () => {

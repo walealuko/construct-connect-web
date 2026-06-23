@@ -103,22 +103,22 @@ export async function proxy(request: NextRequest) {
   const isPublicRoute = publicPaths.has(path);
   const isApiRoute = path.startsWith("/api/");
 
-  // 1.5. Rate limits — applied BEFORE the auth redirect so an
-  //      unauthenticated brute-force on /login or /register hits 429
-  //      quickly instead of bouncing through a /login redirect that
-  //      would itself count against the limit. The 5/min limit on
-  //      auth is tight enough to block automated credential stuffing
-  //      but loose enough that a user with fat-fingered credentials
-  //      isn't punished.
+  // 1.5. Rate limits — only on endpoints that actually trigger
+  //      work. The browser-side sign-in form posts to Supabase's
+  //      auth endpoint directly (supabase.auth.signInWithPassword),
+  //      NOT to /login — so rate-limiting /login at the proxy
+  //      didn't protect against credential stuffing, it only broke
+  //      navigation: an unauthenticated visitor clicking through
+  //      protected pages gets redirected to /login each time, and
+  //      the 5/min limit locked them out after five clicks. The
+  //      Supabase project has its own auth-endpoint rate limits
+  //      (configured in the Supabase dashboard); that's the right
+  //      place to harden against brute-force.
+  //
+  //      Payments still get rate-limited here because the
+  //      /api/payments/initialize route DOES go through this
+  //      proxy and represents a real money-touching surface.
   const ip = clientIp(request);
-  if (path === '/login' || path === '/register') {
-    if (!take(`auth:${ip}`, 5, 60_000)) {
-      return new NextResponse('Too many requests. Try again in a minute.', {
-        status: 429,
-        headers: { 'x-request-id': requestId, 'retry-after': '60' },
-      });
-    }
-  }
   if (path === '/api/payments/initialize' && request.method === 'POST') {
     if (!take(`pay:${ip}`, 10, 60_000)) {
       return NextResponse.json(
