@@ -27,6 +27,11 @@ function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const target = safeRedirectPath(searchParams.get("redirect"));
+  // Forced sign-out: the proxy saw profiles.session_version ahead
+  // of the JWT's embedded version, so it cleared our cookies and
+  // redirected here. The banner explains why the form is empty
+  // when the user expected to still be signed in.
+  const forced = searchParams.get("reason") === "forced";
   const userContext = useContext(UserContext);
   const logout = userContext?.logout;
 
@@ -125,6 +130,11 @@ function LoginPageInner() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-6 py-12">
       <div className="max-w-md mx-auto w-full space-y-8">
+        {forced && (
+          <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-sm">
+            You've been signed out. Please sign in again to continue.
+          </div>
+        )}
         <div className="text-center">
           <Link href="/" className="text-3xl font-black text-blue-800 tracking-tight">
             Construct Hub

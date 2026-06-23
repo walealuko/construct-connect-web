@@ -5,8 +5,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // admin client from @supabase/supabase-js is what the rest of the
 // action uses (and we want to confirm the guard short-circuits
 // before that runs).
+//
+// clearAllUserSessionsAction now writes profiles.session_version
+// (RLS-bypassed via the service-role admin client) AND
+// auth.user_metadata.session_version (so a freshly minted JWT
+// embeds the new value). The mocks cover both paths.
 const mockServerAuth = vi.fn();
 const mockServerProfileQuery = vi.fn();
+const mockAdminProfileUpdate = vi.fn();
+const mockAdminGetUserById = vi.fn();
 const mockAdminUpdate = vi.fn();
 
 vi.mock("@/utils/supabase/server", () => ({
@@ -25,8 +32,18 @@ vi.mock("@/utils/supabase/server", () => ({
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: vi.fn(() => ({
+    from: (table: string) => ({
+      update: (...args: unknown[]) => {
+        const captured: { table: string; args: unknown[] } = { table, args };
+        const chain = {
+          eq: () => Promise.resolve(mockAdminProfileUpdate(captured)),
+        };
+        return chain;
+      },
+    }),
     auth: {
       admin: {
+        getUserById: (...args: unknown[]) => mockAdminGetUserById(...args),
         updateUserById: (...args: unknown[]) => mockAdminUpdate(...args),
       },
     },
@@ -96,7 +113,7 @@ describe("clearAllUserSessionsAction — admin guard", () => {
     expect(result.error).toBe("Admin only");
   });
 
-  it("admits admin callers and reaches the admin client", async () => {
+  it("admits admin callers and rotates session_version", async () => {
     mockServerAuth.mockResolvedValueOnce({
       data: { user: { id: "admin-id" } },
       error: null,
@@ -105,12 +122,30 @@ describe("clearAllUserSessionsAction — admin guard", () => {
       data: { tier: "admin" },
       error: null,
     });
+    // profiles.session_version rotation succeeds
+    mockAdminProfileUpdate.mockResolvedValueOnce({ error: null });
+    // getUserById returns the target's existing metadata (so we can
+    // spread + add the new session_version without clobbering tier).
+    mockAdminGetUserById.mockResolvedValueOnce({
+      data: { user: { id: "target-id", user_metadata: { tier: "individual" } } },
+      error: null,
+    });
     mockAdminUpdate.mockResolvedValueOnce({ error: null });
 
     const result = await clearAllUserSessionsAction("target-id");
-    expect(result).toEqual({ success: true });
+    expect(result.success).toBe(true);
+    expect(typeof result.session_version).toBe("number");
+    expect(result.session_version).toBeGreaterThan(0);
+
+    // profiles update ran for the right row.
+    expect(mockAdminProfileUpdate).toHaveBeenCalledTimes(1);
+    // user-metadata update ran for the right row, and the new
+    // session_version is in the metadata payload.
     expect(mockAdminUpdate).toHaveBeenCalledTimes(1);
-    // The call should target the supplied userId.
     expect(mockAdminUpdate.mock.calls[0][0]).toBe("target-id");
+    const meta = mockAdminUpdate.mock.calls[0][1]?.user_metadata;
+    expect(meta?.session_version).toBe(result.session_version);
+    // Spreading preserved the prior metadata.
+    expect(meta?.tier).toBe("individual");
   });
 });

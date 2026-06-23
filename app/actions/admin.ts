@@ -37,16 +37,36 @@ export async function clearAllUserSessionsAction(userId: string) {
   const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    // Since Supabase doesn't have a direct "signOut all other sessions" Admin API,
-    // we can rotate a "session_version" in the profiles table and check it in middleware.
-    // But a simpler way is to update a metadata field that we check.
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(
-      userId,
-      { user_metadata: { ...({ session_version: Date.now() }) } }
-    );
+    // Rotate profiles.session_version. The proxy reads the JWT's
+    // embedded session_version claim and compares it to the current
+    // row value; a mismatch means an admin killed this user's
+    // sessions, so the proxy clears the cookies and redirects to
+    // /login. We picked profiles over auth.users.user_metadata
+    // because profiles is RLS-readable from the proxy without
+    // service-role and the index is one row.
+    //
+    // We also write the new version into auth.user_metadata so a
+    // freshly-minted JWT embeds the rotated value. Without this,
+    // a user who signs in again right after a kill would get a
+    // JWT with the old version and the proxy would kick them out
+    // immediately. (The proxy also re-reads profiles on every
+    // request, so this is belt-and-braces.)
+    const nextVersion = Date.now();
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update({ session_version: nextVersion })
+      .eq('id', userId);
+    if (profileError) throw profileError;
 
-    if (error) throw error;
-    return { success: true };
+    const { data: targetAuth } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const prevMetadata = (targetAuth?.user?.user_metadata as Record<string, unknown> | undefined) ?? {};
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+      userId,
+      { user_metadata: { ...prevMetadata, session_version: nextVersion } }
+    );
+    if (authError) throw authError;
+
+    return { success: true, session_version: nextVersion };
   } catch (err: any) {
     log.error('admin_clear_sessions_failed', { userId, message: err?.message });
     return { success: false, error: err.message };

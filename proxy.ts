@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { take } from '@/lib/rateLimit'
+import { log } from '@/lib/logger'
 
 /**
  * Generate a short per-request id and forward it both upstream
@@ -133,6 +134,45 @@ export async function proxy(request: NextRequest) {
       loginUrl.searchParams.set("redirect", path + url.search);
     }
     return NextResponse.redirect(loginUrl);
+  }
+
+  // 2.5. Session version check — if an admin called
+  //      clearAllUserSessionsAction(userId), profiles.session_version
+  //      is now ahead of the value embedded in the caller's JWT.
+  //      Force a sign-out by clearing the auth cookies and bouncing
+  //      to /login. The query is RLS-gated to the caller's own row,
+  //      so a forged userId can't read another user's version.
+  //
+  //      We treat a missing JWT claim as version 0 (matches the
+  //      column default) so tokens minted before this column existed
+  //      still compare against 0. A `null` row value (race with
+  //      sign-in) also compares as 0.
+  if (user && !isApiRoute) {
+    const jwtVersion = Number(user.user_metadata?.session_version ?? 0);
+    const { data: profileRow } = await supabase
+      .from('profiles')
+      .select('session_version')
+      .eq('id', user.id)
+      .maybeSingle();
+    const dbVersion = Number(profileRow?.session_version ?? 0);
+    if (dbVersion > jwtVersion) {
+      log.warn('proxy_session_version_mismatch', {
+        userId: user.id,
+        jwtVersion,
+        dbVersion,
+        path,
+      });
+      // Clear the auth cookies and redirect to /login. The signOut
+      // call below mirrors the setAll handler above so the cookies
+      // are wiped in the response.
+      const clearResponse = NextResponse.redirect(new URL('/login?reason=forced', request.url));
+      for (const c of request.cookies.getAll()) {
+        if (c.name.startsWith('sb-') || c.name.includes('auth-token')) {
+          clearResponse.cookies.delete(c.name);
+        }
+      }
+      return clearResponse;
+    }
   }
 
   // 3. Role-Based Access Control (RBAC)
