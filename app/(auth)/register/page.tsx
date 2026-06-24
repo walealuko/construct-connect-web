@@ -61,7 +61,18 @@ function RegisterForm() {
         const destination = getRedirectPath(result.tier);
         window.location.href = destination;
       } else {
-        toast.info("Please verify your email to continue.");
+        // Either the project requires email confirmation OR the
+        // auto-sign-in fallback failed. Either way, the user must
+        // verify before they can reach the dashboard. The action's
+        // optional `warning` carries the fallback's error message
+        // (e.g. "Email not confirmed") — surface it so the user
+        // understands why they didn't land on the dashboard.
+        const warn = (result as { warning?: string }).warning;
+        toast.info(
+          warn
+            ? `Account created. ${warn} Please verify your email to continue.`
+            : "Please verify your email to continue.",
+        );
         router.push('/login?registered=true');
       }
     } catch (err: any) {

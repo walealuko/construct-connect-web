@@ -10,10 +10,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mocks for the cookie-bound server client. registerUserAction uses:
 //   - auth.signUp() with options.data (initial user_metadata)
+//   - auth.signInWithPassword() — fallback when signup returns
+//     session:null (e.g. email confirmation required); we want the
+//     user to land on the dashboard without verifying first.
 //   - auth.admin.updateUserById() (re-sync metadata)
 //   - from('profiles').upsert() (professional profile)
 //   - auth.getUser() is not called by this action
 const mockSignUp = vi.fn();
+const mockSignIn = vi.fn();
 const mockAdminUpdate = vi.fn();
 const mockProfileUpsert = vi.fn();
 
@@ -21,6 +25,7 @@ vi.mock("@/utils/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     auth: {
       signUp: (...args: unknown[]) => mockSignUp(...args),
+      signInWithPassword: (...args: unknown[]) => mockSignIn(...args),
       admin: {
         updateUserById: (...args: unknown[]) => mockAdminUpdate(...args),
       },
@@ -55,8 +60,16 @@ describe("registerUserAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default happy-path mocks. Individual tests override as needed.
+    // signUp defaults to the email-confirmation-required case
+    // (session:null). signIn fallback defaults to success with a
+    // fake session so the user lands on the dashboard without
+    // verifying — the product decision is to skip verification.
     mockSignUp.mockResolvedValue({
       data: { user: { id: "new-user-id" }, session: null },
+      error: null,
+    });
+    mockSignIn.mockResolvedValue({
+      data: { user: { id: "new-user-id" }, session: { access_token: "x" } },
       error: null,
     });
     mockAdminUpdate.mockResolvedValue({ error: null });
@@ -151,30 +164,70 @@ describe("registerUserAction", () => {
     });
     const result = await registerUserAction(validForm);
     expect(result.success).toBe(true);
-    expect(result.tier).toBe("individual");
+    // The success branch of the discriminated union carries
+    // session/userId/tier/warning. Cast at the assertion site so
+    // we don't have to repeat the narrowing `if (result.success)`
+    // on every line.
+    const ok = result as Extract<typeof result, { success: true }>;
+    expect(ok.tier).toBe("individual");
   });
 
-  it("returns session:false when email confirmation is required", async () => {
-    // Supabase returns session:null when email confirm is enabled.
-    // The register page uses this to show "Please verify your
-    // email" rather than auto-redirecting to the dashboard.
+  it("falls back to signInWithPassword when signup returns no session", async () => {
+    // The Supabase project has email confirmation enabled, so
+    // signUp returns session:null. Per the product decision to
+    // skip email verification, we immediately sign the user in
+    // with the same credentials so they land on the dashboard
+    // without verifying first.
     mockSignUp.mockResolvedValueOnce({
       data: { user: { id: "new-user-id" }, session: null },
       error: null,
     });
     const result = await registerUserAction(validForm);
-    expect(result.success).toBe(true);
-    expect(result.session).toBe(false);
+    expect(mockSignIn).toHaveBeenCalledTimes(1);
+    expect(mockSignIn).toHaveBeenCalledWith({
+      email: "ada@example.com",
+      password: "supersecret",
+    });
+    const ok = result as Extract<typeof result, { success: true }>;
+    expect(ok.success).toBe(true);
+    expect(ok.session).toBe(true);
+  });
+
+  it("returns session:false and a warning when both signup and signIn fail", async () => {
+    // Rare path: email confirmation is enabled AND unverified users
+    // are blocked at sign-in too (some Supabase configs do this).
+    // The action surfaces the upstream sign-in error so the register
+    // page can show it before the verification interstitial.
+    mockSignUp.mockResolvedValueOnce({
+      data: { user: { id: "new-user-id" }, session: null },
+      error: null,
+    });
+    mockSignIn.mockResolvedValueOnce({
+      data: { user: null, session: null },
+      error: { message: "Email not confirmed" },
+    });
+    const result = await registerUserAction(validForm);
+    const ok = result as Extract<typeof result, { success: true }>;
+    expect(ok.success).toBe(true);
+    expect(ok.session).toBe(false);
+    expect(ok.warning).toBe("Email not confirmed");
+    // Profile is still written — the user has a complete account
+    // for when they verify their email and sign in.
+    expect(mockProfileUpsert).toHaveBeenCalledTimes(1);
   });
 
   it("returns session:true when email confirmation is disabled", async () => {
+    // signUp returns a real session; the fallback signIn is not
+    // called because we already have a session.
     mockSignUp.mockResolvedValueOnce({
       data: { user: { id: "new-user-id" }, session: { access_token: "x" } },
       error: null,
     });
     const result = await registerUserAction(validForm);
-    expect(result.success).toBe(true);
-    expect(result.session).toBe(true);
+    expect(mockSignIn).not.toHaveBeenCalled();
+    const ok = result as Extract<typeof result, { success: true }>;
+    expect(ok.success).toBe(true);
+    expect(ok.session).toBe(true);
   });
 
   it("returns an error when signUp itself fails", async () => {
