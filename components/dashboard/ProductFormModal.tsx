@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Modal } from "@/components/ui/Modal";
+import { Drawer } from "@/components/ui/Drawer";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Product } from "@/types/database";
@@ -245,7 +245,7 @@ export function ProductFormModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={isEdit ? "Edit Product" : "Add New Product"}>
+    <Drawer isOpen={isOpen} onClose={onClose} title={isEdit ? "Edit Product" : "Add New Product"} size="md">
       <form onSubmit={handleSubmit} className="space-y-5 py-2">
         <div className="space-y-4">
           <Input
@@ -401,6 +401,6 @@ export function ProductFormModal({
           </Button>
         </div>
       </form>
-    </Modal>
+    </Drawer>
   );
 }
