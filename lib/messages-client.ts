@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { Conversation, Message, Profile } from "@/types/chat";
+import type { Conversation, Message, Profile, ConversationRead } from "@/types/chat";
 
 /**
  * Load all conversations for the current user, with their participant
@@ -7,9 +7,15 @@ import type { Conversation, Message, Profile } from "@/types/chat";
  * PostgREST can't auto-embed an array relation, so we fetch
  * conversations then profiles in a second query.
  *
- * Throws on any Supabase error so the caller can toast it. The
- * profile-lookup failure is non-fatal: the conversation still renders
- * with "Unknown" participants, matching the previous behavior.
+ * We also fetch the caller's per-conversation `conversation_reads`
+ * rows in a third query. The result is the *user's* read marker for
+ * each conversation; missing rows are normalized to `null`, which
+ * the UI treats as "never opened" → unread.
+ *
+ * Throws on the conversations query failure so the caller can toast.
+ * The profile and read-row lookups are non-fatal: the conversation
+ * still renders with "Unknown" participants and without an unread
+ * marker, matching the previous behavior.
  */
 export async function loadConversations(): Promise<Conversation[]> {
   const { data, error } = await supabase
@@ -23,6 +29,22 @@ export async function loadConversations(): Promise<Conversation[]> {
     for (const pid of c.participant_ids || []) idSet.add(pid);
   }
   const ids = Array.from(idSet);
+  const convIds = (data || []).map((c) => c.id);
+
+  // Look up the caller's read rows for every conversation they
+  // participate in. RLS scopes this to user_id = auth.uid() so we
+  // never see another participant's marker.
+  const { data: reads, error: readsError } = await supabase
+    .from("conversation_reads")
+    .select("conversation_id, user_id, last_read_at")
+    .in("conversation_id", convIds);
+  if (readsError) {
+    // Non-fatal — every conversation gets a null last_read_at and
+    // the UI shows them all as unread. That's wrong but not broken.
+    console.error("Failed to load conversation reads:", readsError);
+  }
+  const readByConv: Record<string, ConversationRead> = {};
+  for (const r of reads || []) readByConv[r.conversation_id] = r as ConversationRead;
 
   let profileById: Record<string, Profile> = {};
   if (ids.length > 0) {
@@ -43,6 +65,9 @@ export async function loadConversations(): Promise<Conversation[]> {
     profiles: (c.participant_ids || [])
       .map((pid: string) => profileById[pid])
       .filter(Boolean),
+    // Stitch the caller's read marker. A row from the read table
+    // always belongs to the caller (RLS). Missing → null → unread.
+    last_read_at: readByConv[c.id]?.last_read_at ?? null,
   })) as Conversation[];
 }
 

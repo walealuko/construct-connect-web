@@ -10,6 +10,7 @@ import {
   deleteMessageAction,
   clearConversationAction,
   sendMessageAction,
+  markConversationReadAction,
 } from "@/app/actions/chat";
 import { supabase } from "@/lib/supabase";
 import { loadConversations, loadMessages, getOtherParticipant } from "@/lib/messages-client";
@@ -84,6 +85,19 @@ function ChatContent() {
         setConversations(fresh);
         const conv = fresh.find((c) => c.id === result.conversationId);
         if (conv) setActiveConv(conv);
+        // Rewrite the URL so a refresh / shared link goes straight to
+        // the conversation instead of re-running handleInitiateChat.
+        // We use replaceState (not pushState) because the ?userId=
+        // deep-link was an internal implementation detail, not a
+        // navigation the user performed. The path stays /messages so
+        // we don't churn the router cache.
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("userId");
+          url.searchParams.delete("project");
+          url.searchParams.set("convId", result.conversationId);
+          window.history.replaceState(null, "", url.toString());
+        }
       } else if (result.error) {
         toast.error(result.error);
       }
@@ -113,6 +127,27 @@ function ChatContent() {
       toast.error("Failed to load messages");
     });
 
+    // Mark as read for this user. Fire-and-forget so the chat renders
+    // immediately; the server-side upsert clears the unread dot in
+    // the sidebar. We also update local state optimistically so the
+    // dot disappears in this tab without waiting for the round-trip
+    // or for the realtime UPDATE on conversation_reads to bounce back.
+    const convId = activeConv.id;
+    const nowIso = new Date().toISOString();
+    setConversations((prev) =>
+      prev.map((c) => (c.id === convId ? { ...c, last_read_at: nowIso } : c)),
+    );
+    void markConversationReadAction(convId).catch((err) => {
+      // Roll back the optimistic update if the server write fails
+      // so the dot reappears. The conversation's real read state on
+      // the server hasn't changed, so the next mount will still show
+      // it as unread.
+      console.warn("Failed to mark conversation read:", err);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === convId ? { ...c, last_read_at: null } : c)),
+      );
+    });
+
     const channel = supabase
       .channel(`conv-${activeConv.id}`)
       .on(
@@ -124,7 +159,34 @@ function ChatContent() {
           filter: `conversation_id=eq.${activeConv.id}`,
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
+          const incoming = payload.new as Message;
+          setMessages((prev) => {
+            // Drop any optimistic placeholder for the same content +
+            // sender that arrived first (sendMessage adds an optimistic
+            // row, awaits the server, and then removes it — but if the
+            // realtime INSERT lands before the optimistic removal
+            // runs, we'd briefly have [optimistic, real] in the list).
+            // The optimistic row carries __optimistic: true and an id
+            // that starts with "optimistic-". If we see such a row
+            // with matching content + sender_id, replace it with the
+            // real row so the bubble doesn't double-render.
+            const optimisticIdx = prev.findIndex(
+              (m) =>
+                typeof m.id === "string" &&
+                m.id.startsWith("optimistic-") &&
+                m.sender_id === incoming.sender_id &&
+                m.content === incoming.content,
+            );
+            if (optimisticIdx >= 0) {
+              const next = prev.slice();
+              next[optimisticIdx] = incoming;
+              return next;
+            }
+            // Drop duplicates by real id (realtime can occasionally
+            // re-deliver the same INSERT, e.g. after a reconnect).
+            if (prev.some((m) => m.id === incoming.id)) return prev;
+            return [...prev, incoming];
+          });
         },
       )
       .on(
@@ -151,6 +213,79 @@ function ChatContent() {
       supabase.removeChannel(channel);
     };
   }, [activeConv]);
+
+  // Top-level conversations channel. sendMessageAction updates
+  // last_message / last_message_at on the conversation row, and
+  // clearConversationAction writes an empty last_message. We mirror
+  // those UPDATEs into the sidebar's local state so the preview
+  // ("Ada: hey there") and timestamp update without a refresh.
+  // We also listen for INSERTs so a conversation created in another
+  // tab shows up here too.
+  //
+  // RLS scopes what the channel will receive to conversations the
+  // user participates in, so we don't filter further on the client.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`conversations-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "conversations",
+        },
+        (payload) => {
+          const updated = payload.new as Conversation;
+          setConversations((prev) => {
+            const idx = prev.findIndex((c) => c.id === updated.id);
+            if (idx < 0) {
+              // Unknown conv — fall through to the INSERT handler's
+              // loadConversations() path. We don't see INSERTs from
+              // the other tab here because we only subscribed to
+              // UPDATE, so just prepend a placeholder and let the
+              // next refresh stitch the profiles.
+              return [updated, ...prev];
+            }
+            const next = prev.slice();
+            // Preserve any client-side profiles stitching; the realtime
+            // payload is a row from the table, no embedded join, so
+            // spread `updated` first then re-apply the stitched
+            // profiles from the row we already had.
+            next[idx] = {
+              ...prev[idx],
+              ...updated,
+              profiles: prev[idx].profiles,
+            };
+            return next;
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "conversations",
+        },
+        () => {
+          // Re-fetch the full list so the new row's participant
+          // profiles are stitched in. Cheap (one extra roundtrip on
+          // a brand-new conv) and avoids a partial render.
+          void loadConversations()
+            .then((fresh) => setConversations(fresh))
+            .catch(() => {
+              // Non-fatal — the user can still see the conversation
+              // on next refresh.
+            });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();

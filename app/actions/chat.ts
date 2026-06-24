@@ -157,12 +157,17 @@ export async function clearConversationAction(conversationId: string) {
 
   // Reset the snapshot so the sidebar doesn't keep showing the last
   // deleted message as a preview. After migration 0005, participants
-  // can update the conversation row's snapshot fields.
+  // can update the conversation row's snapshot fields. We also
+  // clear `last_message_sender_id` because there's no "latest
+  // message" left, and leaving the prior sender pointer would
+  // leave the unread-comparison logic comparing against an
+  // unrelated user's id.
   const { error: convError } = await supabase
     .from("conversations")
     .update({
       last_message: "",
       last_message_at: new Date().toISOString(),
+      last_message_sender_id: null,
     })
     .eq("id", conversationId);
 
@@ -174,6 +179,57 @@ export async function clearConversationAction(conversationId: string) {
 
   revalidatePath("/messages");
   return { success: true, deleted: count ?? 0 };
+}
+
+/**
+ * Mark a conversation as read for the caller. Upserts a row in
+ * `conversation_reads` keyed on (conversation_id, user_id) so the
+ * next sidebar render drops the unread badge. Idempotent — calling
+ * twice in a row is safe.
+ *
+ * RLS gates the upsert: the user can only write their own row, and
+ * the SELECT pre-check below also confirms the user is a participant
+ * of the conversation before they touch the read table.
+ */
+export async function markConversationReadAction(
+  conversationId: string,
+): Promise<{ success: true; lastReadAt: string } | { success: false; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Not signed in" };
+
+  // Confirm the caller is a participant. RLS on conversation_reads
+  // doesn't enforce this (it's per-user, not per-conv), so we check
+  // it ourselves here. Without this check a user could mark a
+  // conversation they're not in as "read" — they'd see no effect,
+  // but the row would still get written and pollute the table.
+  const { data: conv, error: convError } = await supabase
+    .from("conversations")
+    .select("participant_ids")
+    .eq("id", conversationId)
+    .maybeSingle();
+  if (convError) return { success: false, error: convError.message };
+  if (!conv || !(conv.participant_ids ?? []).includes(user.id)) {
+    return { success: false, error: "Not a participant of this conversation" };
+  }
+
+  const nowIso = new Date().toISOString();
+  const { error: upsertError } = await supabase
+    .from("conversation_reads")
+    .upsert(
+      {
+        conversation_id: conversationId,
+        user_id: user.id,
+        last_read_at: nowIso,
+      },
+      { onConflict: "conversation_id,user_id" },
+    );
+
+  if (upsertError) {
+    return { success: false, error: upsertError.message };
+  }
+
+  return { success: true, lastReadAt: nowIso };
 }
 
 /**
@@ -214,12 +270,15 @@ export async function sendMessageAction(
   if (msgError) return { success: false, error: msgError.message };
 
   // 2. Update the conversation's last_message snapshot. Same shape
-  //    the previous client code did.
+  //    the previous client code did. We also write
+  //    `last_message_sender_id` so the sidebar's "unread" check can
+  //    skip conversations where I was the most recent sender.
   const { error: convError } = await supabase
     .from("conversations")
     .update({
       last_message: trimmed,
       last_message_at: new Date().toISOString(),
+      last_message_sender_id: user.id,
     })
     .eq("id", conversationId);
 
