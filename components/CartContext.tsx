@@ -4,6 +4,7 @@ import React, { createContext, useState, useEffect, useContext, useRef, useCallb
 import { Product, CartItem } from "@/types/database";
 import { UserContext } from "@/components/UserContext";
 import { fetchCartAction, syncCartAction, clearCartAction } from "@/lib/cart-actions";
+import { mergeCarts } from "@/lib/cart";
 import { log } from "@/lib/logger";
 
 interface CartContextType {
@@ -129,25 +130,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
 
-        // 5. Both guest and server have items — merge. Local wins
-        //    for the *display*: we set local to the server's view
-        //    (which is canonical post-sign-in) plus any guest items
-        //    the server didn't know about.
-        const serverIds = new Set(server.map((s) => s.id));
-        const onlyInGuest = guest.filter((g) => !serverIds.has(g.id));
-        // For overlapping products, sum quantities (matching the
-        // server-side cap that will run on syncCartAction).
-        const byId = new Map<string, CartItem>();
-        for (const s of server) byId.set(s.id, s);
-        for (const g of guest) {
-          const existing = byId.get(g.id);
-          if (existing) {
-            byId.set(g.id, { ...existing, quantity: existing.quantity + g.quantity });
-          } else {
-            byId.set(g.id, g);
-          }
-        }
-        const merged = [...byId.values()];
+        // 5. Both guest and server have items — merge. The pure
+        //    helper in lib/cart.ts owns the math (sum quantities
+        //    for the same product id, union disjoint ids). After
+        //    merging, we write the result back through syncCartAction
+        //    so the server's stock-cap and the post-cap item shape
+        //    come back as the canonical local state.
+        const merged = mergeCarts(guest, server);
 
         // Persist the merged state.
         const res = await syncCartAction(
@@ -162,7 +151,10 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           // cart locally, leave the guest cart alone in localStorage
           // so a retry (e.g. refresh) can re-attempt the merge.
           setCart(server);
-          log.error("cart_sync_failed_on_signin", { error: res.error, guestOnlyCount: onlyInGuest.length });
+          const guestOnlyCount = guest.filter(
+            (g) => !server.some((s) => s.id === g.id),
+          ).length;
+          log.error("cart_sync_failed_on_signin", { error: res.error, guestOnlyCount });
         }
       } finally {
         mergingRef.current = false;
