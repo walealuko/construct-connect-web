@@ -79,7 +79,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     // 1. Initial session check
     const initializeAuth = async () => {
       setLoading(true);
-      console.log("[Auth] Initializing authentication...");
 
       // Create a timeout promise to prevent hanging
       const timeout = new Promise((_, reject) =>
@@ -92,7 +91,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         const { data: { session } } = result;
 
         if (!session) {
-          console.log("[Auth] No session found.");
           setUser(null);
           setLoading(false);
           return;
@@ -106,7 +104,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (authUser) {
           const role = authUser.user_metadata?.tier as UserRole || 'individual';
-          console.log(`[Auth] User found: ${authUser.email} with role: ${role}`);
           setUser({
             id: authUser.id,
             email: authUser.email!,
@@ -122,15 +119,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         // bounce to /login. This covers both an expired access token on
         // an active session and a tampered/refresh-failed case.
         if (err instanceof Error && (err.message.includes('token is expired') || err.message.includes('invalid JWT'))) {
-          console.log("[Auth] Expired session detected. Forcing sign-out + reload.");
           // We wrap signOut in a try-catch because if the token is already
           // expired, the server-side logout call returns 403. We don't
           // care — forceSignOut will clear local storage and hard-navigate
           // regardless of the server response.
           supabase.auth.signOut().catch((logoutErr) => {
-            if (logoutErr instanceof Error && logoutErr.message.includes("403")) {
-              console.log("[Auth] Server logout failed as expected for expired token. Local cleanup complete.");
-            } else {
+            if (!(logoutErr instanceof Error && logoutErr.message.includes("403"))) {
               console.error("[Auth] Unexpected logout error:", logoutErr);
             }
           });
@@ -143,7 +137,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         }
       } finally {
         setLoading(false);
-        console.log("[Auth] Initialization complete.");
       }
     };
 
@@ -177,7 +170,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         // Signed out from this tab, another tab, or by the server.
         // Wipe state and hard-navigate so the next page is rendered
         // from a clean slate (no router cache, no leftover memory).
-        console.log("[Auth] SIGNED_OUT event received. Forcing app refresh.");
         forceSignOut({});
       } else if (event === 'USER_UPDATED' || event === 'PASSWORD_RECOVERY') {
         // These events mean the user is still signed in; just refresh

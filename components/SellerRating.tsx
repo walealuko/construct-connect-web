@@ -28,16 +28,11 @@ export default function SellerRating({ sellerId }: SellerRatingProps) {
 
   const loadRatingAndReviews = async () => {
     try {
-      console.log("sellerId:", sellerId);
-
       const { data, error } = await supabase
         .from('reviews')
         .select('*, profiles:reviewer_id(first_name, last_name)')
         .eq('seller_id', sellerId)
         .order('created_at', { ascending: false });
-
-      console.log("data:", data);
-      console.log("error:", error);
 
       if (error) throw error;
 
