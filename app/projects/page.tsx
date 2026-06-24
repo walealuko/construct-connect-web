@@ -38,11 +38,16 @@ export default function ProjectsPage() {
   const loadProjects = async () => {
     setLoading(true);
     try {
+      // Cap at 60 — same rationale as the marketplace limit.
+      // PostgREST's default page size is 1000; without a cap a
+      // busy category would render 1000 rows on first paint and
+      // then a 60-row client re-fetch would visibly differ.
       const { data, error } = await supabase
         .from('projects')
         .select('*')
         .eq('status', 'open')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(60);
 
       if (error) throw error;
       setProjects(data || []);

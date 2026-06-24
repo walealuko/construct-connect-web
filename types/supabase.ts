@@ -198,30 +198,78 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
+          business_name: string | null
+          business_type: string | null
+          category: string | null
           created_at: string | null
           email: string | null
+          first_name: string | null
           full_name: string | null
           id: string
+          image: string | null
+          last_name: string | null
+          last_seen: string | null
+          location: string | null
           phone: string | null
+          portfolio: string[]
+          rate: string | null
           role: string | null
+          session_version: number | null
+          skills: string[] | null
+          state: string | null
+          tier: string | null
+          username: string | null
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
+          business_name?: string | null
+          business_type?: string | null
+          category?: string | null
           created_at?: string | null
           email?: string | null
+          first_name?: string | null
           full_name?: string | null
           id: string
+          image?: string | null
+          last_name?: string | null
+          last_seen?: string | null
+          location?: string | null
           phone?: string | null
+          portfolio?: string[]
+          rate?: string | null
           role?: string | null
+          session_version?: number | null
+          skills?: string[] | null
+          state?: string | null
+          tier?: string | null
+          username?: string | null
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
+          business_name?: string | null
+          business_type?: string | null
+          category?: string | null
           created_at?: string | null
           email?: string | null
+          first_name?: string | null
           full_name?: string | null
           id?: string
+          image?: string | null
+          last_name?: string | null
+          last_seen?: string | null
+          location?: string | null
           phone?: string | null
+          portfolio?: string[]
+          rate?: string | null
           role?: string | null
+          session_version?: number | null
+          skills?: string[] | null
+          state?: string | null
+          tier?: string | null
+          username?: string | null
         }
         Relationships: []
       }

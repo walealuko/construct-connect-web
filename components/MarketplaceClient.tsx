@@ -78,14 +78,22 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
       }
 
       if (search) {
+        // Strip PostgREST wildcards from the user-supplied search
+        // string. `%` and `_` are SQL LIKE wildcards — a buyer
+        // who types `%` matches every row, and a buyer who types
+        // `_` matches every single-character substring. The query
+        // is parameterized so this isn't a SQL-injection vector,
+        // but a search box that matches "all products" because
+        // the user typed a percent sign is a UX bug.
+        const safe = search.replace(/[%_\\]/g, (c) => "\\" + c);
         if (searchType === "all") {
-          query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%,location.ilike.%${search}%`);
+          query = query.or(`name.ilike.%${safe}%,description.ilike.%${safe}%,location.ilike.%${safe}%`);
         } else if (searchType === "name") {
-          query = query.ilike('name', `%${search}%`);
+          query = query.ilike('name', `%${safe}%`);
         } else if (searchType === "location") {
-          query = query.ilike('location', `%${search}%`);
+          query = query.ilike('location', `%${safe}%`);
         } else if (searchType === "category") {
-          query = query.ilike('category', `%${search}%`);
+          query = query.ilike('category', `%${safe}%`);
         }
       }
 
@@ -96,6 +104,13 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
       } else {
         query = query.order('created_at', { ascending: false });
       }
+
+      // PostgREST's default page size is 1000. We cap at 60 so
+      // the initial render is snappy and we don't ship a
+      // 50,000-row payload on a busy category. The previous
+      // implementation had no cap and silently truncated to
+      // 1000 with no UI feedback.
+      query = query.limit(60);
 
       const { data, error } = await query;
 

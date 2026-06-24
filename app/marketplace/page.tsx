@@ -12,11 +12,19 @@ export const metadata: Metadata = {
 };
 
 export default async function MarketplacePage() {
-  // Fetch initial products on the server for SEO and speed
+  // Fetch initial products on the server for SEO and speed.
+  // Cap at 60 to match the client-side loadProducts limit. Without
+  // this cap the server would pull 1000 rows (PostgREST default)
+  // and ship them as the page's initial payload, then the client
+  // would fetch another 60 on mount. A busy category with 5000
+  // products would render the first 1000 server-side, then the
+  // client would re-fetch the most recent 60 — visibly different
+  // result sets.
   const { data: initialProducts, error } = await supabase
     .from('products')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(60);
 
   if (error) {
     console.error("Error fetching initial products:", error);
