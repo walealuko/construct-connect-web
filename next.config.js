@@ -23,7 +23,12 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
-      "connect-src 'self' https://*.supabase.co https://api.paystack.co",
+      // connect-src covers two protocols on Supabase: https for
+      // REST/PostgREST and auth endpoints, wss for the realtime
+      // channel (postgres_changes on the messages page). Without
+      // wss, the realtime subscribe silently fails with a CSP
+      // violation and the chat falls back to no live updates.
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.paystack.co",
       "frame-src 'self' https://checkout.paystack.com",
       "base-uri 'self'",
       "form-action 'self'",
