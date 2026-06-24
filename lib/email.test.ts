@@ -5,13 +5,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // reset — except for the `RESEND_API_KEY` check, which only
 // happens once per process. For the Resend-selection test, we use
 // `vi.resetModules()` so the module re-evaluates with the new env.
+//
+// NODE_ENV is typed as the literal union "production" | "development"
+// | "test" in @types/node, so direct assignment / `delete` to it is
+// rejected by tsc. Same for RESEND_API_KEY being typed `string |
+// undefined` only — `delete` against a possibly-undefined property
+// is fine, but assigning a literal requires loosening the type.
+// The cast to `Record<string, string | undefined>` is the standard
+// escape hatch for env-var mutation in tests.
+const env = process.env as Record<string, string | undefined>;
 const setNodeEnv = (value: string | undefined) => {
-  if (value === undefined) delete process.env.NODE_ENV;
-  else process.env.NODE_ENV = value;
+  if (value === undefined) delete env.NODE_ENV;
+  else env.NODE_ENV = value;
 };
 const setResendKey = (value: string | undefined) => {
-  if (value === undefined) delete process.env.RESEND_API_KEY;
-  else process.env.RESEND_API_KEY = value;
+  if (value === undefined) delete env.RESEND_API_KEY;
+  else env.RESEND_API_KEY = value;
 };
 
 describe("selectSink (sink selection)", () => {
@@ -79,7 +88,16 @@ describe("sendEmail (sink override + failure handling)", () => {
     try {
       await mod.sendEmail({ to: "a@b.com", subject: "hi", html: "<p>x</p>" });
       expect(sink).toHaveBeenCalledOnce();
-      expect(sink.mock.calls[0][0]).toEqual({ to: "a@b.com", subject: "hi", html: "<p>x</p>" });
+      // vi.fn() infers an empty-tuple args signature from a no-arg
+      // arrow, so mock.calls[0] is typed as `[]` and indexing [0]
+      // fails under strict tsc. Widen through `unknown` first to
+      // escape the empty-tuple error, then cast to the message
+      // shape we passed in. Same shape as the `Extract<...>` casts
+      // used in auth.test.ts for discriminated-union narrowing.
+      const calledWith = sink.mock.calls[0] as unknown as [
+        { to: string; subject: string; html: string },
+      ];
+      expect(calledWith[0]).toEqual({ to: "a@b.com", subject: "hi", html: "<p>x</p>" });
     } finally {
       restore();
     }
