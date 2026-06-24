@@ -3,7 +3,6 @@ import { User } from "@/types/database";
 import { supabase } from "@/lib/supabase";
 import { UserRole } from "@/lib/roles";
 import { toast } from "sonner";
-import AuthIdleTimer from "@/components/AuthIdleTimer";
 
 interface LogoutOptions {
   /** Where to send the user after sign-out. Default: '/login'. */
@@ -20,8 +19,6 @@ interface UserContextType {
   logout: (opts?: LogoutOptions) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
-
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 // Supabase stores its auth tokens under localStorage keys shaped like
 // `sb-<project-ref>-auth-token`. We sweep them on sign-out so a stale
@@ -288,12 +285,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <UserContext.Provider value={{ user, setUser, loading, login, logout, refreshUser }}>
       {children}
-      {user ? (
-        <AuthIdleTimer
-          idleMs={IDLE_TIMEOUT_MS}
-          onTimeout={() => logout({ redirectTo: "/login", reason: "idle" })}
-        />
-      ) : null}
     </UserContext.Provider>
   );
 };

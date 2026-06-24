@@ -33,7 +33,6 @@ function RegisterForm() {
     password: '',
     confirmPassword: '',
     tier: defaultTier as 'individual' | 'business' | 'artisan',
-    businessType: '',
     businessName: '',
     location: '',
   });
@@ -118,7 +117,7 @@ function RegisterForm() {
           </div>
 
           {(formData.tier === 'business' || formData.tier === 'artisan') && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100 space-y-0">
+            <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
               <Input
                 label="Business Name"
                 name="businessName"
@@ -127,21 +126,6 @@ function RegisterForm() {
                 placeholder="e.g., Chidi Hotels Ltd"
                 required
               />
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Business Type</label>
-                <select
-                  name="businessType"
-                  value={formData.businessType}
-                  onChange={handleChange}
-                  className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
-                  required
-                >
-                  <option value="">Select type</option>
-                  <option value="sole_proprietor">Sole Proprietor</option>
-                  <option value="company">Limited Liability Company</option>
-                  <option value="partnership">Partnership</option>
-                </select>
-              </div>
             </div>
           )}
 
