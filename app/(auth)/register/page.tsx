@@ -59,7 +59,15 @@ function RegisterForm() {
       if (result.session) {
         toast.success("Account created successfully!");
         const destination = getRedirectPath(result.tier);
-        window.location.href = destination;
+        // The server action returned `session: true`, meaning
+        // signInWithPassword set the auth cookies. The browser's
+        // `supabase.auth.getSession()` reads those same cookies via
+        // its client, so the new page mount sees a live session.
+        // `window.location.replace` does a hard navigation that
+        // discards the /register URL from history (so back doesn't
+        // re-render the form) and commits the navigation atomically
+        // with the auth state.
+        window.location.replace(destination);
       } else {
         // Either the project requires email confirmation OR the
         // auto-sign-in fallback failed. Either way, the user must
