@@ -59,15 +59,33 @@ function RegisterForm() {
       if (result.session) {
         toast.success("Account created successfully!");
         const destination = getRedirectPath(result.tier);
-        // The server action returned `session: true`, meaning
-        // signInWithPassword set the auth cookies. The browser's
-        // `supabase.auth.getSession()` reads those same cookies via
-        // its client, so the new page mount sees a live session.
-        // `window.location.replace` does a hard navigation that
-        // discards the /register URL from history (so back doesn't
-        // re-render the form) and commits the navigation atomically
-        // with the auth state.
-        window.location.replace(destination);
+        // The server action used the cookie-bound Supabase client to
+        // call signInWithPassword, which set the auth cookies via
+        // Set-Cookie response headers. The browser's Supabase client,
+        // however, also stores the session in localStorage — and
+        // localStorage was NOT touched by the server action. Without
+        // a sync step, the dashboard's first render reads stale
+        // localStorage (the previous "no session" state) and the
+        // `AuthGuard` `getUser()` round-trip races with the new
+        // cookies committing. In practice this can cause the
+        // dashboard to bounce back to /login.
+        //
+        // The fix: ask the browser-side Supabase client to re-read
+        // the session from the cookies BEFORE navigating. This
+        // populates localStorage with the just-set session, so
+        // INITIAL_SESSION fires with the user on the new page.
+        // A microtask-flush via `setTimeout(0)` gives the cookie
+        // store a tick to commit before we navigate.
+        try {
+          await supabase.auth.getSession();
+        } catch {
+          // If the read fails, the navigation will still happen;
+          // the dashboard's getUser() will re-validate the cookies
+          // with the Supabase server.
+        }
+        setTimeout(() => {
+          window.location.replace(destination);
+        }, 50);
       } else {
         // Either the project requires email confirmation OR the
         // auto-sign-in fallback failed. Either way, the user must
