@@ -50,7 +50,12 @@ export async function loadConversations(): Promise<Conversation[]> {
   if (ids.length > 0) {
     const { data: profiles, error: pError } = await supabase
       .from("profiles")
-      .select("id, first_name, last_name, avatar_url")
+      // `business_name` + `tier` are needed so the inbox can show
+      // "Chidi Hotels Ltd" under the personal name for business /
+      // artisan accounts. They're cheap columns (text + indexed
+      // enum) so we always pull them; the chat surfaces only render
+      // them when tier is business/artisan.
+      .select("id, first_name, last_name, avatar_url, business_name, tier")
       .in("id", ids);
     if (pError) {
       // Non-fatal — render with "Unknown" participants.
@@ -89,6 +94,14 @@ export async function loadMessages(convId: string): Promise<Message[]> {
  * Resolve the *other* participant's profile for a conversation. Used
  * by both the sidebar and the chat header. Falls back to an
  * "Unknown" stub so callers can render unconditionally.
+ *
+ * The `displayInitial` field is the avatar letter callers should
+ * render. For individual accounts it's `first_name[0]`; for
+ * business / artisan accounts it's the first letter of the
+ * business name (when present), so a conversation with "Chidi
+ * Hotels Ltd" shows a "C" avatar instead of the seller's personal
+ * "C" — making the business identity the visual anchor, which
+ * matches what the user sees everywhere else in the app.
  */
 export function getOtherParticipant(
   conv: Conversation,
@@ -96,5 +109,16 @@ export function getOtherParticipant(
 ): Profile {
   const otherId = conv.participant_ids.find((id) => id !== currentUserId);
   const profile = conv.profiles?.find((p) => p.id === otherId);
-  return profile || { id: otherId || "", first_name: "Unknown", last_name: "" };
+  if (!profile) {
+    return { id: otherId || "", first_name: "Unknown", last_name: "" } as Profile;
+  }
+  const isBusiness = profile.tier === "business" || profile.tier === "artisan";
+  const businessInitial = profile.business_name?.trim().charAt(0).toUpperCase();
+  return {
+    ...profile,
+    displayInitial:
+      (isBusiness && businessInitial ? businessInitial : undefined) ??
+      profile.first_name?.[0]?.toUpperCase() ??
+      "?",
+  } as Profile;
 }

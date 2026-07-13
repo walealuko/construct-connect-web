@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense, useEffect, useContext } from 'react';
+import { useState, useRef, Suspense, useEffect, useContext } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
@@ -34,18 +34,48 @@ function RegisterForm() {
     confirmPassword: '',
     tier: defaultTier as 'individual' | 'business' | 'artisan',
     businessName: '',
+    businessType: '',
     location: '',
   });
   const [error, setError] = useState('');
+  // Field-level error from a Zod validation failure. Rendered
+  // as a red border + inline message on the offending <Input>.
+  // Distinct from `error` (the top-of-form banner) so a network
+  // failure and a "Business name is required" don't fight for
+  // the same slot — we only show one or the other.
+  const [fieldError, setFieldError] = useState<{ field: string; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  // ?focus=email is set by the switchAccount handler in the
+  // outer RegisterPage. When present, the form focuses the
+  // email field on mount. We use a ref (not HTML `autoFocus`)
+  // so fresh visitors don't get the mobile keyboard pop
+  // automatically — the focus only fires when the user
+  // explicitly requested it via the "Sign out & create" path.
+  const focusEmailOnMount = searchParams.get("focus") === "email";
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // Auto-focus the email field only when arriving via
+  // `?focus=email` (set by the switchAccount handler in the
+  // outer RegisterPage). requestAnimationFrame ensures the
+  // <input> is mounted by the time we call .focus() — the
+  // form has a non-trivial first paint and the input may not
+  // be in the DOM yet on the synchronous render.
+  useEffect(() => {
+    if (!focusEmailOnMount) return;
+    const id = requestAnimationFrame(() => {
+      emailInputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [focusEmailOnMount]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setFieldError(null);
 
     setLoading(true);
 
@@ -53,6 +83,16 @@ function RegisterForm() {
       const result = await registerUserAction(formData);
 
       if (!result.success) {
+        // Field-scoped error → highlight the offending input. The
+        // banner stays empty so we don't show the same message
+        // twice. If the action returned an error without a field
+        // (network, auth, profile-upsert), fall through to the
+        // generic banner.
+        if (result.field) {
+          setFieldError({ field: result.field, message: result.error });
+        } else {
+          setError(result.error);
+        }
         throw new Error(result.error);
       }
 
@@ -102,8 +142,23 @@ function RegisterForm() {
         router.push('/login?registered=true');
       }
     } catch (err: any) {
-      setError(err.message || 'Something went wrong. Please try again.');
-      toast.error(err.message || 'Registration failed');
+      // The Supabase auth client surfaces network failures as a
+      // TypeError("Failed to fetch") — same shape as the
+      // DNS-blocked / paused-project case from the original
+      // browser error. Distinguish that from real auth/validation
+      // errors so the user gets an actionable message instead of
+      // a generic "Registration failed".
+      if (
+        err instanceof TypeError &&
+        /Failed to fetch|NetworkError|Load failed/i.test(err.message)
+      ) {
+        const msg = "Can't reach the server. Check your connection — the project may be paused.";
+        setError(msg);
+        toast.error(msg);
+      } else {
+        setError(err.message || 'Something went wrong. Please try again.');
+        toast.error(err.message || 'Registration failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -154,7 +209,7 @@ function RegisterForm() {
           </div>
 
           {(formData.tier === 'business' || formData.tier === 'artisan') && (
-            <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+            <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100 space-y-4">
               <Input
                 label="Business Name"
                 name="businessName"
@@ -162,7 +217,42 @@ function RegisterForm() {
                 onChange={handleChange}
                 placeholder="e.g., Chidi Hotels Ltd"
                 required
+                error={
+                  fieldError?.field === "businessName" ? fieldError.message : undefined
+                }
               />
+              {/*
+                Business type select. Options mirror /profile/edit so
+                the column value is consistent whether it's set at
+                signup or post-signup. `required` triggers the
+                browser's native validation; server-side enforcement
+                is in the Zod refinement below (we make the form
+                HTML `required` so the user gets the cue inline
+                before they hit submit, and Zod as a backstop).
+              */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Business Type</label>
+                <select
+                  name="businessType"
+                  value={formData.businessType}
+                  onChange={handleChange}
+                  required
+                  aria-invalid={fieldError?.field === "businessType" || undefined}
+                  className={`w-full p-2 rounded-lg border text-sm outline-none focus:ring-2 ${
+                    fieldError?.field === "businessType"
+                      ? "border-red-500 focus:ring-red-600"
+                      : "border-gray-300 focus:ring-blue-600"
+                  }`}
+                >
+                  <option value="">Select type</option>
+                  <option value="sole_proprietor">Sole Proprietor</option>
+                  <option value="company">Limited Liability Company</option>
+                  <option value="partnership">Partnership</option>
+                </select>
+                {fieldError?.field === "businessType" && (
+                  <p className="text-xs text-red-500 font-medium">{fieldError.message}</p>
+                )}
+              </div>
             </div>
           )}
 
@@ -175,6 +265,7 @@ function RegisterForm() {
               placeholder="Chidi"
               required
               autoComplete="given-name"
+              error={fieldError?.field === "firstName" ? fieldError.message : undefined}
             />
             <Input
               label="Last Name"
@@ -184,6 +275,7 @@ function RegisterForm() {
               placeholder="Okonkwo"
               required
               autoComplete="family-name"
+              error={fieldError?.field === "lastName" ? fieldError.message : undefined}
             />
           </div>
 
@@ -196,6 +288,8 @@ function RegisterForm() {
             placeholder="chidi@email.com"
             required
             autoComplete="email"
+            ref={emailInputRef}
+            error={fieldError?.field === "email" ? fieldError.message : undefined}
           />
 
           <Input
@@ -207,6 +301,7 @@ function RegisterForm() {
             placeholder="08012345678"
             required
             autoComplete="tel"
+            error={fieldError?.field === "phone" ? fieldError.message : undefined}
           />
 
           <div className="space-y-1.5">
@@ -216,13 +311,21 @@ function RegisterForm() {
               value={formData.location}
               onChange={handleChange}
               required
-              className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
+              aria-invalid={fieldError?.field === "location" || undefined}
+              className={`w-full p-2 rounded-lg border text-sm outline-none focus:ring-2 ${
+                fieldError?.field === "location"
+                  ? "border-red-500 focus:ring-red-600"
+                  : "border-gray-300 focus:ring-blue-600"
+              }`}
             >
               <option value="">Select State</option>
               {NIGERIAN_STATES.map(state => (
                 <option key={state} value={state}>{state}</option>
               ))}
             </select>
+            {fieldError?.field === "location" && (
+              <p className="text-xs text-red-500 font-medium">{fieldError.message}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -235,6 +338,7 @@ function RegisterForm() {
               placeholder="At least 6 characters"
               required
               autoComplete="new-password"
+              error={fieldError?.field === "password" ? fieldError.message : undefined}
             />
             <Input
               label="Confirm Password"
@@ -245,6 +349,9 @@ function RegisterForm() {
               placeholder="Re-enter your password"
               required
               autoComplete="new-password"
+              error={
+                fieldError?.field === "confirmPassword" ? fieldError.message : undefined
+              }
             />
           </div>
 
@@ -301,13 +408,15 @@ export default function RegisterPage() {
   // Sign out the existing session so the registration form becomes
   // usable. Same pattern as /login — hand off to UserContext.logout
   // which hard-navigates back to /register with cleared state.
+  // The `?focus=email` param tells the form to auto-focus the
+  // email input on mount, saving the user a tap.
   const switchAccount = async () => {
     if (!logout) {
       try { await supabase.auth.signOut(); } catch { /* network may be down */ }
-      window.location.assign("/register");
+      window.location.assign("/register?focus=email");
       return;
     }
-    await logout({ redirectTo: "/register" });
+    await logout({ redirectTo: "/register?focus=email" });
   };
 
   const continueAsCurrent = () => {
@@ -319,7 +428,14 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-6 py-12">
       <div className="max-w-md mx-auto w-full space-y-8">
         <div className="text-center">
-          <Link href="/" className="text-3xl font-black text-blue-800 tracking-tight">
+          <Link
+            // When the user is already signed in (the "switch account"
+            // interstitial is rendered), the wordmark should take them
+            // to their actual dashboard — not the public landing page.
+            // For fresh visitors, the landing page IS the right target.
+            href={existingSession ? getRedirectPath(existingSession.role) : "/"}
+            className="text-3xl font-black text-blue-800 tracking-tight"
+          >
             Construct Hub
           </Link>
           <div className="h-1 w-12 bg-blue-600 mx-auto mt-2 rounded-full" />

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Pagination } from "@/components/ui/Pagination";
+import { ProductInventory } from "@/components/dashboard/ProductInventory";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
@@ -64,6 +65,21 @@ export default function ArtisanDashboard() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
+  // Ref to the inventory section — used to scroll the user back to
+  // the new product card after a successful create. Without this,
+  // the user has to hunt for their freshly-added card in the grid.
+  const inventorySectionRef = useRef<HTMLElement | null>(null);
+  // Local data: URL previews for portfolio files that are still
+  // uploading. The gallery renders these alongside the existing
+  // storage items so the user gets instant feedback. Each entry
+  // carries a stable id keyed on the file's identity so we can
+  // drop the right preview as each upload resolves. We only
+  // generate previews for image/* — videos (also accepted by the
+  // picker) would base64-encode to 26MB+ for a 20MB file and
+  // wouldn't be playable inline anyway.
+  const [pendingPortfolio, setPendingPortfolio] = useState<
+    { id: string; src: string }[]
+  >([]);
   const portfolioInputRef = useRef<HTMLInputElement>(null);
 
   if (authLoading) {
@@ -95,7 +111,17 @@ export default function ArtisanDashboard() {
     toast.success("Product added successfully!");
     setIsAddOpen(false);
     if (productPage !== 1) setProductPage(1);
-    refresh();
+    // Wait for the new list to land so the user can see their new
+    // card at the top of the inventory section. requestAnimationFrame
+    // defers the scroll until after the DOM commit so smooth-scroll
+    // has a target to animate to.
+    await refresh();
+    requestAnimationFrame(() => {
+      inventorySectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   };
 
   const handleUpdate = async (data: {
@@ -158,6 +184,35 @@ export default function ArtisanDashboard() {
     }
     if (accepted.length === 0) return;
 
+    // Build data: URL previews for image/* files only. Videos skip
+    // this — a 20MB video base64-encodes to ~26.7MB and browsers
+    // can't play data: URLs that size reliably, so videos keep the
+    // old "upload then render" behavior. The id is stable across
+    // re-renders and unique per file in this batch.
+    const previewById = new Map<string, { id: string; src: string }>();
+    for (const file of accepted) {
+      if (!file.type.startsWith("image/")) continue;
+      const id = `${file.name}-${file.size}-${file.lastModified}`;
+      if (previewById.has(id)) continue;
+      const src = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+        reader.onerror = () => resolve("");
+        reader.readAsDataURL(file);
+      });
+      if (!src) continue;
+      previewById.set(id, { id, src });
+    }
+    // Map every accepted file to its preview id (or undefined for
+    // video files) so the upload loop can drop the right preview.
+    const idByFile: (string | undefined)[] = accepted.map((file) => {
+      if (!file.type.startsWith("image/")) return undefined;
+      return `${file.name}-${file.size}-${file.lastModified}`;
+    });
+    if (previewById.size > 0) {
+      setPendingPortfolio((prev) => [...prev, ...Array.from(previewById.values())]);
+    }
+
     setUploadingPortfolio(true);
     // Sequential uploads — keeps per-file error reporting simple and
     // avoids hammering the bucket. We only persist to the profile on
@@ -165,7 +220,9 @@ export default function ArtisanDashboard() {
     // portfolio array referencing ghost paths.
     const uploaded: string[] = [];
     const uploadErrors: string[] = [];
-    for (const file of accepted) {
+    for (let i = 0; i < accepted.length; i++) {
+      const file = accepted[i];
+      const previewId = idByFile[i];
       const fileName = `portfolio-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from("artisan-portfolio")
@@ -175,9 +232,18 @@ export default function ArtisanDashboard() {
           ? " Check the RLS policies on the artisan-portfolio bucket."
           : "";
         uploadErrors.push(`${file.name}: ${uploadError.message}${hint}`);
+        // Drop the matching preview on failure (videos never had one).
+        if (previewId) {
+          setPendingPortfolio((prev) => prev.filter((p) => p.id !== previewId));
+        }
         continue;
       }
       uploaded.push(fileName);
+      // Drop the preview now that the real URL is about to land
+      // in `portfolio` via the addPortfolioItems call below.
+      if (previewId) {
+        setPendingPortfolio((prev) => prev.filter((p) => p.id !== previewId));
+      }
     }
 
     if (uploaded.length > 0) {
@@ -233,52 +299,28 @@ export default function ArtisanDashboard() {
           </div>
 
           <div className="lg:col-span-3 space-y-8">
-            <section>
+            <section ref={inventorySectionRef}>
               <div className="flex justify-between items-end mb-4">
                 <h3 className="text-xl font-bold text-slate-800">Product Inventory</h3>
                 <Link href="/messages" className="text-sm font-bold text-blue-600 hover:underline">
                   View Messages →
                 </Link>
               </div>
-              <Card>
-                <CardContent className="p-6">
-                  {loading && products.length === 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {[...Array(4)].map((_, i) => (
-                        <Skeleton key={i} className="h-72 w-full rounded-xl" />
-                      ))}
-                    </div>
-                  ) : products.length === 0 ? (
-                    <div className="py-12 text-center space-y-3">
-                      <div className="text-4xl">📦</div>
-                      <p className="text-gray-400 text-sm">
-                        No products listed yet. Start by adding your first product!
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {products.map((product) => (
-                          <ProductCard
-                            key={product.id}
-                            product={product}
-                            onEdit={setEditingProduct}
-                            onDelete={setDeletingId}
-                          />
-                        ))}
-                      </div>
-                      <Pagination
-                        page={productPage}
-                        pageCount={productPageCount}
-                        totalCount={productCount}
-                        pageSize={productPageSize}
-                        onPageChange={setProductPage}
-                        loading={loading}
-                      />
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+              <ProductInventory
+                products={products}
+                loading={loading}
+                onEdit={setEditingProduct}
+                onDelete={setDeletingId}
+              />
+
+              <Pagination
+                page={productPage}
+                pageCount={productPageCount}
+                totalCount={productCount}
+                pageSize={productPageSize}
+                onPageChange={setProductPage}
+                loading={loading}
+              />
             </section>
 
             <section>
@@ -289,6 +331,10 @@ export default function ArtisanDashboard() {
               <PortfolioGallery
                 items={portfolio}
                 loading={loading}
+                pendingPreviews={pendingPortfolio}
+                onRemovePending={(id) =>
+                  setPendingPortfolio((prev) => prev.filter((p) => p.id !== id))
+                }
                 onAdd={() => portfolioInputRef.current?.click()}
                 onRemove={async (path) => {
                   if (!user?.id) return;

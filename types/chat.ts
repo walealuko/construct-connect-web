@@ -54,4 +54,31 @@ export interface Profile {
   first_name: string;
   last_name: string;
   avatar_url?: string;
+  /**
+   * Business / trading name for `tier === 'business' | 'artisan'`
+   * accounts. Surfaced in the inbox so business users look
+   * professional when they message buyers — we show it as a
+   * second line under the personal name in the sidebar and as a
+   * subtitle in the chat header. Null for individual accounts
+   * and for legacy rows that pre-date the column.
+   */
+  business_name?: string | null;
+  /**
+   * Account tier at the time the profile row was fetched. We
+   * only render the business-name treatment for business and
+   * artisan tiers; for `individual` and `admin` the field is
+   * hidden even if a stray `business_name` value exists.
+   */
+  tier?: 'admin' | 'business' | 'individual' | 'artisan' | null;
+  /**
+   * Letter to render inside the avatar circle. Computed by
+   * `getOtherParticipant` so business / artisan accounts use
+   * the first letter of their business name (when present)
+   * rather than their personal first name — making the
+   * business identity the visual anchor. Optional because
+   * the field is set by the helper, not stored; the
+   * ConversationList and ChatWindow fall back to
+   * `first_name[0]` when it's missing.
+   */
+  displayInitial?: string;
 }

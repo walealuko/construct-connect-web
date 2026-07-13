@@ -90,6 +90,16 @@ export async function updateUserRoleAction(userId: string, newRole: string) {
     return { success: false, error: "Only administrators can perform this action" };
   }
 
+  // The dropdown sends the tier value directly (individual / business /
+  // artisan / admin). The previous implementation hard-coded a binary
+  // `seller ? business : individual` mapping that silently dropped
+  // artisan and demoted anyone being promoted to admin.
+  const VALID_TIERS = new Set(['individual', 'business', 'artisan', 'admin']);
+  if (!VALID_TIERS.has(newRole)) {
+    return { success: false, error: `Invalid role: ${newRole}` };
+  }
+  const tier = newRole as 'individual' | 'business' | 'artisan' | 'admin';
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
@@ -100,8 +110,6 @@ export async function updateUserRoleAction(userId: string, newRole: string) {
   const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    const tier = newRole === 'seller' ? 'business' : 'individual';
-
     // 1. Update Profile Table
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
@@ -111,9 +119,16 @@ export async function updateUserRoleAction(userId: string, newRole: string) {
     if (profileError) throw profileError;
 
     // 2. Update Auth User Metadata (This is what the middleware uses)
+    //    Spread the existing metadata so we don't clobber `session_version`
+    //    or `full_name` — clobbering `session_version` would trip the
+    //    proxy's session-version check on the user's next request and
+    //    force an unexpected sign-out. Same pattern as
+    //    clearAllUserSessionsAction below.
+    const { data: targetAuth } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const prevMetadata = (targetAuth?.user?.user_metadata as Record<string, unknown> | undefined) ?? {};
     const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
-      { user_metadata: { tier: tier } }
+      { user_metadata: { ...prevMetadata, tier } }
     );
 
     if (authError) throw authError;

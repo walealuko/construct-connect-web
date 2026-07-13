@@ -113,6 +113,59 @@ export default function BuyerDashboard() {
     }
   };
 
+  // Realtime: a seller can mark one of the buyer's orders as
+  // "shipped" / "delivered" / "completed" from their own
+  // dashboard. The buyer-dashboard's local `orders` state is the
+  // single source of truth for the Order History table, so we
+  // mirror the seller's UPDATE into it so the badge flips in
+  // real time without a refresh. RLS scopes the channel to the
+  // buyer's own rows; we still filter on the client as a
+  // belt-and-braces measure in case RLS changes.
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`buyer-orders-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `buyer_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as Order & { total_amount?: number };
+          if (!updated?.id) return;
+          setOrders((prev) => {
+            const idx = prev.findIndex((o) => o.id === updated.id);
+            if (idx < 0) return prev;
+            const next = prev.slice();
+            // Preserve the computed `total_price` mirror (loaded
+            // from `total_amount` at fetch time). The realtime
+            // payload doesn't carry that projection, so re-apply
+            // it from the existing row.
+            const previous = prev[idx];
+            next[idx] = {
+              ...previous,
+              ...updated,
+              total_price: previous.total_price,
+            };
+            // Toast the status change so the user notices even if
+            // they're scrolled past the table.
+            if (previous.status !== updated.status) {
+              toast.info(`Order ${updated.id.slice(0, 8)}: now ${updated.status}`);
+            }
+            return next;
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
   const handleRemoveView = async (productId: string) => {
     try {
       const result = await removeProductViewAction(productId);

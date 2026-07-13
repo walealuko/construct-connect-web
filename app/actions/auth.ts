@@ -12,7 +12,20 @@ type RegisterResult =
       tier: "individual" | "business" | "artisan";
       warning?: string;
     }
-  | { success: false; error: string };
+  | {
+      success: false;
+      error: string;
+      /**
+       * Name of the form field the error came from, when the
+       * failure is a Zod validation issue. The register form
+       * uses this to highlight the offending input (red border
+       * + inline message) instead of just a top-of-form banner.
+       * Undefined for non-validation failures (network errors,
+       * auth failures, profile-row upsert issues) — those are
+       * surfaced as top-of-form banners and toasts only.
+       */
+      field?: string;
+    };
 
 export async function registerUserAction(
   formData: any,
@@ -23,9 +36,16 @@ export async function registerUserAction(
     // 1. Validate input
     const validated = registerSchema.safeParse(formData);
     if (!validated.success) {
+      // Bubble the *first* Zod issue as the top-level error, but
+      // also include the field path so the form can highlight the
+      // offending input. Zod's `path[0]` is the camelCase form
+      // key (e.g. "businessName"), which matches the `name`
+      // attribute on each <Input>.
+      const first = validated.error.issues[0];
       return {
         success: false,
-        error: validated.error.issues[0].message,
+        error: first.message,
+        field: typeof first.path[0] === "string" ? first.path[0] : undefined,
       };
     }
 
@@ -151,5 +171,41 @@ export async function registerUserAction(
       success: false,
       error: message,
     };
+  }
+}
+
+/**
+ * Re-send the Supabase email-verification link. Used by the
+ * "Resend verification email" button on the login page when the
+ * user landed via /login?registered=true. Returns a discriminated
+ * union so the page can show a precise toast.
+ *
+ * SECURITY: the Supabase resend call is rate-limited server-side
+ * (the dashboard configures the per-email cooldown) — we don't
+ * gate it on the client. A no-op when the user is already
+ * confirmed; Supabase will silently succeed and the page can
+ * still toast "sent".
+ */
+export async function resendVerificationAction(
+  email: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    if (!email || !email.includes("@")) {
+      return { success: false, error: "Please enter a valid email address" };
+    }
+    // `createClient()` here is the cookie-bound SSR client, but
+    // resend() doesn't need an active session — it works for any
+    // email that has a pending signup.
+    const supabase = await createClient();
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+    });
+    if (error) throw error;
+    return { success: true };
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error ? err.message : "Failed to resend verification email";
+    return { success: false, error: message };
   }
 }

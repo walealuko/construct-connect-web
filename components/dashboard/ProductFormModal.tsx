@@ -92,6 +92,15 @@ export function ProductFormModal({
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [newPreviews, setNewPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  // Per-file upload progress. Populated when the submit handler starts
+  // the sequential upload loop so the seller can see the form is
+  // working, not hung, when uploading multiple large images. Resets
+  // when the modal opens/closes or the product changes.
+  const [uploadProgress, setUploadProgress] = useState<{
+    current: number;
+    total: number;
+    fileName: string;
+  } | null>(null);
 
   const totalImages = existingImages.length + newFiles.length;
 
@@ -108,6 +117,7 @@ export function ProductFormModal({
       setExistingImages(product.images ?? []);
       setNewFiles([]);
       setNewPreviews([]);
+      setUploadProgress(null);
     } else {
       setName("");
       setDescription("");
@@ -120,21 +130,18 @@ export function ProductFormModal({
       setExistingImages([]);
       setNewFiles([]);
       setNewPreviews([]);
+      setUploadProgress(null);
     }
   }, [isOpen, isEdit, product, fixedCategory, defaultLocation]);
 
-  // Revoke blob URLs when the modal closes to avoid memory leaks.
-  useEffect(() => {
-    if (!isOpen) {
-      newPreviews.forEach((url) => URL.revokeObjectURL(url));
-    }
-  }, [isOpen, newPreviews]);
-
-  const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // New previews are produced as data: URLs (not blob: URLs) so they
+  // pass the app's strict CSP — img-src allows data: but not blob:.
+  // Data: URLs don't need explicit revocation; they're GC'd with the
+  // component, so the old `useEffect` that revoked on close is gone.
+  const handleFilesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     e.target.value = ""; // allow re-picking the same files
     const accepted: File[] = [];
-    const previews: string[] = [];
     for (const file of files) {
       if (!file.type.startsWith("image/")) {
         toast.error(`"${file.name}" is not an image`);
@@ -145,35 +152,46 @@ export function ProductFormModal({
         continue;
       }
       accepted.push(file);
-      previews.push(URL.createObjectURL(file));
     }
     if (accepted.length === 0) return;
 
     const room = MAX_IMAGES - totalImages;
     if (room <= 0) {
       toast.error(`Maximum ${MAX_IMAGES} images per product`);
-      // Revoke any previews we made but won't use.
-      previews.forEach((u) => URL.revokeObjectURL(u));
       return;
     }
     const trimmed = accepted.slice(0, room);
-    const trimmedPreviews = previews.slice(0, room);
     if (accepted.length > room) {
       toast.error(`Only ${room} more image${room === 1 ? "" : "s"} allowed (max ${MAX_IMAGES})`);
-      // Revoke the unaccepted previews.
-      previews.slice(room).forEach((u) => URL.revokeObjectURL(u));
     }
-    setNewFiles((prev) => [...prev, ...trimmed]);
-    setNewPreviews((prev) => [...prev, ...trimmedPreviews]);
+
+    // Read each File as a data: URL via FileReader. Async because
+    // readAsDataURL is callback-based; we Promise.all to keep the
+    // preview order matching the file order. On any single-file
+    // failure we just skip that preview (the file itself is still
+    // uploaded from `newFiles` on submit).
+    const previews = await Promise.all(
+      trimmed.map(
+        (file) =>
+          new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+            reader.onerror = () => resolve("");
+            reader.readAsDataURL(file);
+          }),
+      ),
+    );
+    const filtered = trimmed.filter((_, i) => previews[i].length > 0);
+    const filteredPreviews = previews.filter((p) => p.length > 0);
+
+    setNewFiles((prev) => [...prev, ...filtered]);
+    setNewPreviews((prev) => [...prev, ...filteredPreviews]);
   };
 
   const removeNewFile = (index: number) => {
+    // Data: URLs are GC'd automatically — no revokeObjectURL needed.
     setNewFiles((prev) => prev.filter((_, i) => i !== index));
-    setNewPreviews((prev) => {
-      const removed = prev[index];
-      if (removed) URL.revokeObjectURL(removed);
-      return prev.filter((_, i) => i !== index);
-    });
+    setNewPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const removeExistingImage = (index: number) => {
@@ -213,14 +231,29 @@ export function ProductFormModal({
     try {
       // Upload all newly picked files sequentially. Sequential keeps
       // per-file error reporting simple and avoids hammering the bucket.
+      // We surface per-file progress via `uploadProgress` so the seller
+      // sees "Uploading image 2 of 5..." — without it, multi-image
+      // submissions look hung and the user clicks submit twice.
+      const total = newFiles.length;
+      if (total > 0) {
+        setUploadProgress({ current: 0, total, fileName: newFiles[0].name });
+      }
       const uploadedPaths: string[] = [];
-      for (const file of newFiles) {
+      for (let i = 0; i < newFiles.length; i++) {
+        const file = newFiles[i];
+        setUploadProgress({ current: i, total, fileName: file.name });
         const path = await uploadFile(file);
         if (!path) {
           // Abort the whole submission so the form isn't left half-uploaded.
           throw new Error("Image upload failed");
         }
         uploadedPaths.push(path);
+      }
+      // Mark the loop complete before invoking onSubmit, so the
+      // banner stays at "Uploaded 5/5" for the brief window between
+      // the last upload and the parent action returning.
+      if (total > 0) {
+        setUploadProgress({ current: total, total, fileName: "" });
       }
 
       const images = [...existingImages, ...uploadedPaths];
@@ -241,6 +274,7 @@ export function ProductFormModal({
       toast.error(err.message || `Failed to ${isEdit ? "update" : "add"} product`);
     } finally {
       setSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
@@ -391,6 +425,38 @@ export function ProductFormModal({
             )}
           </div>
         </div>
+
+        {uploadProgress && (
+          // Per-file upload banner. Only renders when there's at least
+          // one new image to upload (`total > 0` is enforced in the
+          // handler). The bar visualises current/total — at `total ===
+          // current` we show "Uploaded 5/5" for the brief window
+          // between the last upload and onSubmit returning.
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+            <div className="flex justify-between items-baseline text-xs">
+              <span className="font-bold uppercase tracking-wider text-blue-700">
+                {uploadProgress.current >= uploadProgress.total
+                  ? `Uploaded ${uploadProgress.total} of ${uploadProgress.total}`
+                  : `Uploading image ${uploadProgress.current + 1} of ${uploadProgress.total}`}
+              </span>
+              {uploadProgress.fileName && uploadProgress.current < uploadProgress.total && (
+                <span className="text-gray-500 truncate ml-2 max-w-[60%]" title={uploadProgress.fileName}>
+                  {uploadProgress.fileName}
+                </span>
+              )}
+            </div>
+            <div className="w-full h-1.5 bg-blue-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-600 transition-all duration-300"
+                style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                role="progressbar"
+                aria-valuenow={uploadProgress.current}
+                aria-valuemin={0}
+                aria-valuemax={uploadProgress.total}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
           <Button variant="outline" onClick={onClose} type="button">

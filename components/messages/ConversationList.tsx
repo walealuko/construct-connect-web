@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getOtherParticipant } from "@/lib/messages-client";
+import { formatRelativeShort } from "@/lib/formatRelativeShort";
 import type { Conversation } from "@/types/chat";
 
 interface ConversationListProps {
@@ -71,27 +72,36 @@ export function ConversationList({
           conversations.map((conv) => {
             const other = getOtherParticipant(conv, currentUserId);
             const unread = hasUnread(conv, currentUserId);
+            const isActive = activeConv?.id === conv.id;
+            // Layer backgrounds: unread + active gets the strongest tint,
+            // unread alone gets a clear blue wash, read rows stay neutral.
+            // The dot + bold name are still drawn for a redundant cue.
+            const rowBg = isActive
+              ? "bg-blue-50 border-l-4 border-l-blue-600"
+              : unread
+                ? "bg-blue-50/70 border-l-4 border-l-blue-400"
+                : "border-l-4 border-l-transparent hover:bg-gray-100";
             return (
               <div
                 key={conv.id}
                 onClick={() => onSelect(conv)}
-                className={`p-4 cursor-pointer transition-colors flex items-center gap-3 border-b border-gray-100 ${
-                  activeConv?.id === conv.id
-                    ? "bg-blue-50 border-l-4 border-l-blue-600"
-                    : "hover:bg-gray-100"
-                }`}
+                aria-label={unread ? `${other.first_name} ${other.last_name}, unread` : undefined}
+                className={`group p-4 cursor-pointer transition-colors flex items-center gap-3 border-b border-gray-100 ${rowBg}`}
               >
                 <div className="relative w-12 h-12 flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                    {other.first_name[0]}
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center font-bold transition-transform group-hover:scale-105 ${
+                      unread ? "bg-blue-600 text-white" : "bg-blue-100 text-blue-600"
+                    }`}
+                  >
+                    {other.displayInitial ?? other.first_name[0]}
                   </div>
                   {unread && (
-                    // The unread dot. aria-label makes it discoverable
-                    // to screen readers; the surrounding row is a
-                    // clickable div without a label, so the dot is the
-                    // only accessible cue. Color matches the active-row
-                    // border so the user has a visual cue that maps to
-                    // the same idea ("you're here").
+                    // The unread dot. Color matches the row's left border
+                    // so the user has a visual cue that maps to the same
+                    // idea ("you're behind on this one"). aria-label makes
+                    // it discoverable to screen readers — the row itself
+                    // is a clickable div without a label.
                     <span
                       aria-label="Unread messages"
                       className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-blue-600 border-2 border-white"
@@ -99,7 +109,7 @@ export function ConversationList({
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-baseline">
+                  <div className="flex justify-between items-baseline gap-2">
                     <p
                       className={`text-sm truncate ${
                         unread ? "font-bold text-slate-900" : "font-semibold text-slate-700"
@@ -107,10 +117,44 @@ export function ConversationList({
                     >
                       {other.first_name} {other.last_name}
                     </p>
-                    <span className="text-[10px] text-gray-400">
-                      {new Date(conv.last_message_at).toLocaleDateString()}
-                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {unread && (
+                        <span
+                          title="Unread messages"
+                          className="text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded"
+                        >
+                          New
+                        </span>
+                      )}
+                      <span
+                        className="text-[10px] text-gray-400"
+                        title={new Date(conv.last_message_at).toLocaleString()}
+                      >
+                        {formatRelativeShort(conv.last_message_at)}
+                      </span>
+                    </div>
                   </div>
+                  {/*
+                    Business-name subtitle. We only render it for
+                    `business` / `artisan` accounts; individuals (and
+                    admins) have a NULL column but tier filters those
+                    out. The briefcase glyph is the only icon in the
+                    app's vocabulary here — matches the empty-state
+                    emoji on the chat pane, and avoids pulling in an
+                    icon library.
+                  */}
+                  {(other.tier === "business" || other.tier === "artisan") &&
+                    other.business_name && (
+                      <p
+                        className={`text-[11px] truncate flex items-center gap-1 ${
+                          unread ? "text-slate-600" : "text-gray-500"
+                        }`}
+                        title={other.business_name}
+                      >
+                        <span aria-hidden="true">🏢</span>
+                        <span className="truncate">{other.business_name}</span>
+                      </p>
+                    )}
                   <p
                     className={`text-xs truncate ${
                       unread ? "text-slate-700 font-medium" : "text-gray-500"

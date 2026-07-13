@@ -25,6 +25,16 @@ export const registerSchema = z.object({
       message: 'Business name is required for business and artisan accounts',
       path: ['businessName'],
     }
+  )
+  .refine(
+    (data) =>
+      data.tier === 'individual' ||
+      (typeof data.businessType === 'string' &&
+        ['sole_proprietor', 'company', 'partnership'].includes(data.businessType)),
+    {
+      message: 'Business type is required for business and artisan accounts',
+      path: ['businessType'],
+    }
   );
 
 // Product creation/edit validation lives in `app/actions/products.ts`

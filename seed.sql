@@ -41,9 +41,9 @@ VALUES
   ('Weather-Proof Exterior Paint', 'Premium white exterior paint. 20L bucket.', 18000.00, 'paint', ARRAY['https://images.unsplash.com/photo-1562607531-f59894f30631?q=80&w=400'], '22222222-2222-2222-2222-222222222222', 'Quality Bricks & Co', 'Abuja', 'Abuja', 30, NOW()),
 
   -- Timberland Woodworks (Enugu)
-  ('Treated Hardwood Timber', 'Sustainably sourced treated timber for roofing and flooring. 12ft plank.', 4500.00, 'timber', ARRAY['https://images.unsplash.com/photo-151653307501 la-dummy?q=80&w=400'], '33333333-3333-3333-3333-333333333333', 'Timberland Woodworks', 'Enugu', 'Enugu', 80, NOW()),
-  ('Mahogany Door Frame', 'Premium carved mahogany door frame for luxury homes.', 45000.00, 'timber', ARRAY['https://images.unsplash.com/photo-151653307501 la-dummy?q=80&w=400'], '33333333-3333-3333-3333-333333333333', 'Timberland Woodworks', 'Enugu', 'Enugu', 5, NOW()),
-  ('Plywood Sheets', 'High-grade structural plywood sheets. 4ft x 8ft.', 12000.00, 'timber', ARRAY['https://images.unsplash.com/photo-151653307501 la-dummy?q=80&w=400'], '33333333-3333-3333-3333-333333333333', 'Timberland Woodworks', 'Enugu', 'Enugu', 40, NOW()),
+  ('Treated Hardwood Timber', 'Sustainably sourced treated timber for roofing and flooring. 12ft plank.', 4500.00, 'timber', ARRAY['https://images.unsplash.com/photo-1572731269670-eb52b03d0124?q=80&w=400'], '33333333-3333-3333-3333-333333333333', 'Timberland Woodworks', 'Enugu', 'Enugu', 80, NOW()),
+  ('Mahogany Door Frame', 'Premium carved mahogany door frame for luxury homes.', 45000.00, 'timber', ARRAY['https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=400'], '33333333-3333-3333-3333-333333333333', 'Timberland Woodworks', 'Enugu', 'Enugu', 5, NOW()),
+  ('Plywood Sheets', 'High-grade structural plywood sheets. 4ft x 8ft.', 12000.00, 'timber', ARRAY['https://images.unsplash.com/photo-1611288875785-f9d4d9c2c1f5?q=80&w=400'], '33333333-3333-3333-3333-333333333333', 'Timberland Woodworks', 'Enugu', 'Enugu', 40, NOW()),
   ('Hardwood Flooring Planks', 'Luxury oak flooring for modern interiors. per sq m.', 9000.00, 'flooring', ARRAY['https://images.unsplash.com/photo-1581814344855-61397211f362?q=80&w=400'], '33333333-3333-3333-3333-333333333333', 'Timberland Woodworks', 'Enugu', 'Enugu', 200, NOW()),
 
   -- PowerTool Pro (Kano)
@@ -54,6 +54,6 @@ VALUES
 
   -- Elite FinishingTouch (Port Harcourt)
   ('Luxury Interior Paint', 'Satin finish interior paint. 20L bucket.', 22000.00, 'paint', ARRAY['https://images.unsplash.com/photo-1562607531-f59894f30631?q=80&w=400'], '55555555-5555-5555-5555-555555555555', 'Elite FinishingTouch', 'Port Harcourt', 'Port Harcourt', 25, NOW()),
-  ('Aluminum Window Frame', 'Modern sliding aluminum window frame. Standard size.', 15000.00, 'roofing', ARRAY['https://images.unsplash.com/photo-160058PZ-S-dummy?q=80&w=400'], '55555555-5555-5555-5555-555555555555', 'Elite FinishingTouch', 'Port Harcourt', 'Port Harcourt', 15, NOW()),
+  ('Aluminum Window Frame', 'Modern sliding aluminum window frame. Standard size.', 15000.00, 'roofing', ARRAY['https://images.unsplash.com/photo-1604147495798-57beb5d6af73?q=80&w=400'], '55555555-5555-5555-5555-555555555555', 'Elite FinishingTouch', 'Port Harcourt', 'Port Harcourt', 15, NOW()),
   ('Ceramic Floor Tiles', 'High-gloss porcelain tiles. Price per sq m.', 7500.00, 'flooring', ARRAY['https://images.unsplash.com/photo-1581814344855-61397211f362?q=80&w=400'], '55555555-5555-5555-5555-555555555555', 'Elite FinishingTouch', 'Port Harcourt', 'Port Harcourt', 300, NOW()),
-  ('Waterproofing Membrane', 'High-performance bituminous membrane for roofs.', 12000.00, 'roofing', ARRAY['https://images.unsplash.com/photo-160058PZ-S-dummy?q=80&w=400'], '55555555-5555-5555-5555-555555555555', 'Elite FinishingTouch', 'Port Harcourt', 'Port Harcourt', 20, NOW());
+  ('Waterproofing Membrane', 'High-performance bituminous membrane for roofs.', 12000.00, 'roofing', ARRAY['https://images.unsplash.com/photo-1503387762-592deb58ef4e?q=80&w=400'], '55555555-5555-5555-5555-555555555555', 'Elite FinishingTouch', 'Port Harcourt', 'Port Harcourt', 20, NOW());

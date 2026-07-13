@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useContext, useMemo, useState } from "react";
+import React, { useContext, useMemo, useRef, useState } from "react";
 import { UserContext } from "@/components/UserContext";
 import { Product } from "@/types/database";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Pagination } from "@/components/ui/Pagination";
+import { ProductInventory } from "@/components/dashboard/ProductInventory";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
@@ -59,6 +60,10 @@ export default function SellerDashboard() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Ref to the inventory section — used to scroll the user back to the
+  // new product card after a successful create. Without this, the user
+  // has to hunt for their freshly-added card in the grid.
+  const inventorySectionRef = useRef<HTMLElement | null>(null);
 
   if (authLoading) {
     return (
@@ -89,7 +94,19 @@ export default function SellerDashboard() {
     toast.success("Product added successfully!");
     setIsAddOpen(false);
     if (productPage !== 1) setProductPage(1);
-    refresh();
+    // refresh() is async — wait for the new list to land so the user
+    // can see their new card at the top of the inventory section. We
+    // scroll the section into view rather than a specific card because
+    // the new product is always page 1 (forced above) and lives at the
+    // top of the grid. requestAnimationFrame defers the scroll until
+    // after the DOM commit so smooth-scroll has a target to animate to.
+    await refresh();
+    requestAnimationFrame(() => {
+      inventorySectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   };
 
   const handleUpdate = async (data: {
@@ -154,7 +171,7 @@ export default function SellerDashboard() {
           </div>
 
           <div className="lg:col-span-3 space-y-8">
-            <section>
+            <section ref={inventorySectionRef}>
               <div className="flex justify-between items-end mb-4">
                 <h3 className="text-xl font-bold text-slate-800">Product Inventory</h3>
                 <Link href="/messages" className="text-sm font-bold text-blue-600 hover:underline">
@@ -162,45 +179,21 @@ export default function SellerDashboard() {
                 </Link>
               </div>
 
-              <Card>
-                <CardContent className="p-6">
-                  {loading && products.length === 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {[...Array(4)].map((_, i) => (
-                        <Skeleton key={i} className="h-72 w-full rounded-xl" />
-                      ))}
-                    </div>
-                  ) : products.length === 0 ? (
-                    <div className="py-12 text-center space-y-3">
-                      <div className="text-4xl">📦</div>
-                      <p className="text-gray-400 text-sm">
-                        No products listed yet. Start by adding your first product!
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {products.map((product) => (
-                          <ProductCard
-                            key={product.id}
-                            product={product}
-                            onEdit={setEditingProduct}
-                            onDelete={setDeletingId}
-                          />
-                        ))}
-                      </div>
-                      <Pagination
-                        page={productPage}
-                        pageCount={productPageCount}
-                        totalCount={productCount}
-                        pageSize={productPageSize}
-                        onPageChange={setProductPage}
-                        loading={loading}
-                      />
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+              <ProductInventory
+                products={products}
+                loading={loading}
+                onEdit={setEditingProduct}
+                onDelete={setDeletingId}
+              />
+
+              <Pagination
+                page={productPage}
+                pageCount={productPageCount}
+                totalCount={productCount}
+                pageSize={productPageSize}
+                onPageChange={setProductPage}
+                loading={loading}
+              />
             </section>
 
             <section>

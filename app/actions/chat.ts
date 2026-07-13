@@ -26,13 +26,26 @@ export async function createConversationAction(participantId: string, projectId?
     return { success: false, error: "You cannot start a conversation with yourself" };
   }
 
-  // 2. Check if a conversation already exists between these two users
-  // (This is a simplified check, in production we'd query the participants junction table)
+  // 2. Check if a 2-person conversation already exists between these
+  //    two users. We need both the containment check (both ids in
+  //    the array) AND a length check (no third participant).
+  //
+  //    The previous version used two `.contains()` calls, which
+  //    match a 3-person group containing both user+target as well
+  //    as a 2-person conversation. Today that's a footgun, not an
+  //    exploit (no group-chat UI ships), but the day group chats
+  //    land this would silently route a new chat to a group thread.
+  //
+  //    The single `@>` with a 2-element array is one containment
+  //    check, and the `.filter('cardinality', 'eq', 2)` is a length
+  //    guard. PostgREST translates the filter into
+  //    `coalesce(array_length(participant_ids, 1), 0) = 2` which
+  //    also handles null arrays as "empty" → no match.
   const { data: existingConv } = await supabase
     .from('conversations')
     .select('id')
-    .contains('participant_ids', [user.id])
-    .contains('participant_ids', [participantId])
+    .contains('participant_ids', [user.id, participantId])
+    .filter('cardinality', 'eq', 2)
     .maybeSingle();
 
   if (existingConv) {

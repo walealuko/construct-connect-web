@@ -140,7 +140,7 @@ export default function AdminDashboard() {
         throw new Error(result.error || "Failed to update role");
       }
 
-      setUsers(users.map((u) => (u.id === userId ? { ...u, tier: newRole === 'seller' ? 'business' : 'individual' } : u)));
+      setUsers(users.map((u) => (u.id === userId ? { ...u, tier: newRole as Profile['tier'] } : u)));
       setMessage("User role successfully updated!");
       toast.success("Role updated successfully");
     } catch (err: any) {
@@ -255,12 +255,20 @@ export default function AdminDashboard() {
                   <td className="px-6 py-4 text-gray-500">{u.email}</td>
                   <td className="px-6 py-4">
                     <select
+                      // Pass the tier value through unchanged. The
+                      // action accepts individual / business / artisan /
+                      // admin directly. The previous handler
+                      // (`e.target.value === 'business' ? 'seller' : 'buyer'`)
+                      // sent a non-tier string AND silently demoted
+                      // anyone selecting Admin to "buyer" (individual),
+                      // because Admin fell into the `else` branch.
                       value={u.tier}
-                      onChange={(e) => updateUserRole(u.id, e.target.value === 'business' ? 'seller' : 'buyer')}
+                      onChange={(e) => updateUserRole(u.id, e.target.value)}
                       className="p-1 text-xs border rounded bg-white outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="individual">Buyer</option>
                       <option value="business">Seller</option>
+                      <option value="artisan">Artisan</option>
                       <option value="admin">Admin</option>
                     </select>
                   </td>

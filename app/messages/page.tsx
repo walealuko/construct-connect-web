@@ -50,6 +50,10 @@ function ChatContent() {
   // Tracks whether a "clear all" operation is in flight on the active
   // conversation so the Empty button shows a spinner / is disabled.
   const [clearing, setClearing] = useState(false);
+  // id of the other participant who's currently typing, if anyone.
+  // Reset to null on conversation switch, on send, and after a
+  // 3s idle window (see the typing-channel effect below).
+  const [otherTyping, setOtherTyping] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -214,6 +218,46 @@ function ChatContent() {
     };
   }, [activeConv]);
 
+  // Typing indicator — broadcast channel scoped per active
+  // conversation. The composer fires a `typing` event on the
+  // first keystroke (debounced) and the receiver shows
+  // "{name} is typing…" for 3s, refreshed on every new event.
+  //
+  // We use a broadcast channel (not a postgres_changes listener)
+  // because typing isn't durable — there's no row to update. Each
+  // event is ephemeral; if it's missed, no harm done. The
+  // channel name is keyed on the conv id so the two participants
+  // of conversation A don't see typing events from
+  // conversation B.
+  useEffect(() => {
+    if (!activeConv || !user) return;
+    setOtherTyping(null);
+    const convId = activeConv.id;
+    const myId = user.id;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const channel = supabase
+      .channel(`typing-${convId}`, {
+        config: { broadcast: { self: false, ack: false } },
+      })
+      .on("broadcast", { event: "typing" }, (payload) => {
+        const senderId = (payload.payload as { userId?: string } | undefined)?.userId;
+        if (!senderId || senderId === myId) return; // ignore self
+        setOtherTyping(senderId);
+        if (idleTimer) clearTimeout(idleTimer);
+        // 3s without a new event ⇒ hide the indicator. Matches
+        // the typical "user stopped typing" window used by
+        // WhatsApp / iMessage.
+        idleTimer = setTimeout(() => setOtherTyping(null), 3000);
+      })
+      .subscribe();
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      supabase.removeChannel(channel);
+    };
+  }, [activeConv, user]);
+
   // Top-level conversations channel. sendMessageAction updates
   // last_message / last_message_at on the conversation row, and
   // clearConversationAction writes an empty last_message. We mirror
@@ -331,6 +375,24 @@ function ChatContent() {
     setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
   };
 
+  // Broadcast a "typing" event to the other participant. Debounced
+  // to the first call only — we don't repeat-fire on every
+  // keystroke (would saturate the channel). The receiver-side
+  // 3s idle timer is the source of truth for "stopped typing";
+  // this sender-side debounce is just to keep the wire quiet.
+  const typingSentAtRef = React.useRef<number>(0);
+  const sendTyping = React.useCallback(() => {
+    if (!activeConv || !user) return;
+    const now = Date.now();
+    if (now - typingSentAtRef.current < 1500) return;
+    typingSentAtRef.current = now;
+    void supabase.channel(`typing-${activeConv.id}`).send({
+      type: "broadcast",
+      event: "typing",
+      payload: { userId: user.id },
+    });
+  }, [activeConv, user]);
+
   // Either participant of the conversation can delete any message.
   // The action layer talks to the server (which enforces RLS); the
   // realtime channel mirrors the row removal into local state.
@@ -429,6 +491,12 @@ function ChatContent() {
             onSend={sendMessage}
             onDelete={deleteMessage}
             onClear={clearConversation}
+            onTyping={sendTyping}
+            otherTypingName={
+              otherTyping
+                ? `${getOtherParticipant(activeConv, user?.id).first_name} ${getOtherParticipant(activeConv, user?.id).last_name}`.trim()
+                : null
+            }
           />
         ) : previewsOther && previewsOther.first_name !== "Unknown" ? (
           // A conversation was just created via the ?userId=… flow
@@ -437,9 +505,18 @@ function ChatContent() {
           <div className="flex-1 flex items-center justify-center text-center p-8">
             <div className="max-w-xs space-y-4">
               <div className="text-6xl">💬</div>
-              <h3 className="text-xl font-bold text-slate-900">
-                Starting conversation with {previewsOther.first_name}…
-              </h3>
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">
+                  Starting conversation with {previewsOther.first_name}…
+                </h3>
+                {(previewsOther.tier === "business" || previewsOther.tier === "artisan") &&
+                  previewsOther.business_name && (
+                    <p className="text-sm text-slate-500 mt-1 flex items-center justify-center gap-1">
+                      <span aria-hidden="true">🏢</span>
+                      <span>{previewsOther.business_name}</span>
+                    </p>
+                  )}
+              </div>
             </div>
           </div>
         ) : (

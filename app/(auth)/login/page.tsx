@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useContext, Suspense } from 'react';
+import { useState, useEffect, useContext, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
@@ -10,6 +10,7 @@ import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { getRedirectPath } from '@/lib/roles';
+import { resendVerificationAction } from '@/app/actions/auth';
 
 // Open-redirect guard: the URL may carry ?redirect=<path> from the
 // proxy/middleware when a protected page bounced an anonymous visitor.
@@ -32,6 +33,12 @@ function LoginPageInner() {
   // redirected here. The banner explains why the form is empty
   // when the user expected to still be signed in.
   const forced = searchParams.get("reason") === "forced";
+  // The user just signed up and was redirected here because the
+  // server couldn't start a session automatically (email
+  // confirmation enabled). We surface a "Resend verification" CTA
+  // so they can recover without logging out and retrying.
+  const justRegistered = searchParams.get("registered") === "true";
+  const [resendStatus, setResendStatus] = useState<"idle" | "sending" | "sent">("idle");
   const userContext = useContext(UserContext);
   const logout = userContext?.logout;
 
@@ -44,6 +51,17 @@ function LoginPageInner() {
   // Showing an interstitial gives them a choice instead of silently
   // bouncing them back to their dashboard.
   const [existingSession, setExistingSession] = useState<{ email: string; role: string } | null>(null);
+  // Ref to the email input so the post-sign-out auto-focus
+  // effect can grab it. We don't use HTML `autoFocus` because
+  // that would pop the keyboard on every page load, including
+  // fresh visitors who'd prefer to read the marketing copy
+  // first.
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+  // ?focus=email is set by the "Sign out & use a different
+  // account" interstitial. When present, the page focuses the
+  // email field on mount so the user can start typing
+  // immediately instead of tapping the field first.
+  const focusEmailOnMount = searchParams.get("focus") === "email";
 
   useEffect(() => {
     let cancelled = false;
@@ -66,6 +84,21 @@ function LoginPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, target]);
 
+  // Auto-focus the email field only when arriving via
+  // `?focus=email` (set by the switchAccount handler). On a
+  // fresh visit we leave focus alone so the marketing copy
+  // above the form stays readable and mobile keyboards don't
+  // pop automatically. We schedule via requestAnimationFrame
+  // so the input is in the DOM (the form is conditional on
+    // `existingSession` and may mount after first paint).
+  useEffect(() => {
+    if (!focusEmailOnMount) return;
+    const id = requestAnimationFrame(() => {
+      emailInputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [focusEmailOnMount]);
+
   // Sign out the existing session so the form below becomes usable.
   // We hand control to UserContext.logout, which clears supabase auth
   // storage, fires the SIGNED_OUT listener (deduped via redirectingRef),
@@ -78,13 +111,20 @@ function LoginPageInner() {
       try {
         await supabase.auth.signOut();
       } catch { /* network may be down */ }
-      window.location.assign("/login");
+      // Append `?focus=email` so the post-sign-out page focuses
+      // the email field. Without this, the user has to tap the
+      // input before typing — small but high-frequency friction
+      // on the switch-account flow.
+      window.location.assign("/login?focus=email");
       return;
     }
     // Default redirectTo is "/login" — same page, fresh load. Pass
     // `redirectTo` explicitly so the forced nav lands somewhere usable
-    // even if the user context's default changes in future.
-    await logout({ redirectTo: "/login" });
+    // even if the user context's default changes in future. The
+    // `?focus=email` query string is preserved by the post-logout
+    // hard nav because we hard-navigate (not push) and the path
+    // we hand to `logout` already includes it.
+    await logout({ redirectTo: "/login?focus=email" });
   };
 
   const continueAsCurrent = () => {
@@ -107,8 +147,21 @@ function LoginPageInner() {
       });
 
       if (signInError) {
-        setError(signInError.message);
-        toast.error(signInError.message);
+        // Supabase's auth client throws "Failed to fetch" as a
+        // TypeError when the network request never lands (DNS,
+        // paused project, offline). That message is misleading —
+        // we show a clearer hint that distinguishes "wrong
+        // credentials" from "can't reach the server".
+        if (
+          signInError instanceof TypeError &&
+          /Failed to fetch|NetworkError|Load failed/i.test(signInError.message)
+        ) {
+          setError("Can't reach the server. Check your connection — the project may be paused.");
+          toast.error("Can't reach the server. Check your connection.");
+        } else {
+          setError(signInError.message);
+          toast.error(signInError.message);
+        }
         setLoading(false);
         return;
       }
@@ -120,10 +173,43 @@ function LoginPageInner() {
         router.replace(dest);
       }
     } catch (err: any) {
-      setError('Something went wrong. Please try again.');
-      toast.error('Something went wrong. Please try again.');
+      // The catch above the await is for sync throws. Async fetch
+      // failures inside supabase.auth.signInWithPassword are
+      // surfaced via the signInError branch — this catch is a
+      // belt-and-braces net for anything that escapes it.
+      if (
+        err instanceof TypeError &&
+        /Failed to fetch|NetworkError|Load failed/i.test(err.message)
+      ) {
+        setError("Can't reach the server. Check your connection — the project may be paused.");
+        toast.error("Can't reach the server. Check your connection.");
+      } else {
+        setError('Something went wrong. Please try again.');
+        toast.error('Something went wrong. Please try again.');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Triggered by the post-signup "Resend verification email" CTA.
+  // We pre-fill from the email field if the user has already typed
+  // it, otherwise ask them to type it. Supabase rate-limits resends
+  // server-side; the action returns the same error string on hit.
+  const handleResend = async (typedEmail: string) => {
+    const target = typedEmail.trim();
+    if (!target) {
+      toast.error("Enter your email above first, then tap Resend.");
+      return;
+    }
+    setResendStatus("sending");
+    const result = await resendVerificationAction(target);
+    if (result.success) {
+      setResendStatus("sent");
+      toast.success("Verification email sent. Check your inbox (and spam folder).");
+    } else {
+      setResendStatus("idle");
+      toast.error(result.error || "Failed to resend verification email");
     }
   };
 
@@ -136,7 +222,12 @@ function LoginPageInner() {
           </div>
         )}
         <div className="text-center">
-          <Link href="/" className="text-3xl font-black text-blue-800 tracking-tight">
+          <Link
+            // When already signed in, take the user to their dashboard
+            // — the landing page is for fresh visitors only.
+            href={existingSession ? getRedirectPath(existingSession.role) : "/"}
+            className="text-3xl font-black text-blue-800 tracking-tight"
+          >
             Construct Hub
           </Link>
           <div className="h-1 w-12 bg-blue-600 mx-auto mt-2 rounded-full" />
@@ -188,6 +279,32 @@ function LoginPageInner() {
                 <p className="text-gray-500 text-sm">Enter your details to access your account</p>
               </CardHeader>
               <CardContent>
+                {justRegistered && (
+                  // Post-signup interstitial. The server action
+                  // couldn't start a session (likely because the
+                  // Supabase project has email confirmation
+                  // enabled), so we route the user here with a
+                  // one-click recovery path instead of leaving
+                  // them stuck on "verify your email" with no
+                  // obvious next step.
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-sm flex flex-col gap-2">
+                    <p className="font-medium">
+                      Account created. Check your inbox to verify your email before signing in.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleResend(email)}
+                      disabled={resendStatus === "sending" || resendStatus === "sent"}
+                      className="self-start text-xs font-bold uppercase tracking-wider text-blue-700 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {resendStatus === "sending"
+                        ? "Sending…"
+                        : resendStatus === "sent"
+                          ? "Sent ✓"
+                          : "Resend verification email"}
+                    </button>
+                  </div>
+                )}
                 {error && (
                   <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm font-medium">
                     {error}
@@ -203,6 +320,7 @@ function LoginPageInner() {
                     placeholder="you@example.com"
                     required
                     autoComplete="email"
+                    ref={emailInputRef}
                   />
                   <Input
                     label="Password"

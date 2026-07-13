@@ -1,16 +1,11 @@
 import { supabase } from "@/lib/supabase";
 import { Product } from "@/types/database";
 import Link from "next/link";
-import Image from "next/image";
-import SafeImage from "@/components/ui/SafeImage";
 import ProductImageGallery from "@/components/ui/ProductImageGallery";
 import SellerRating from "@/components/SellerRating";
 import ReviewButton from "@/components/ReviewButton";
 import ProductAddToCart from "@/components/ProductAddToCart";
 import MessageSellerButton from "@/components/MessageSellerButton";
-import { UserContext } from "@/components/UserContext";
-import { useContext } from "react";
-import { resolveImageUrl } from "@/lib/storage";
 import { formatNaira } from "@/lib/format";
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
@@ -29,7 +24,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const p = product as Product;
 
   return (
-    <div className="p-8 max-w-[1100px] mx-auto">
+    <div className="p-8 pb-24 md:pb-8 max-w-[1100px] mx-auto">
       <Link
         href="/marketplace"
         className="text-gray-500 no-underline text-sm inline-flex items-center gap-1 mb-6 hover:text-blue-700 transition-colors"
@@ -84,6 +79,30 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             <span>🏷️ Category: <span className="capitalize">{p.category}</span></span>
             <span>🕐 Listed: {new Date(p.created_at).toLocaleDateString()}</span>
           </div>
+        </div>
+      </div>
+
+      {/*
+        Mobile-only sticky CTA bar. The product description can
+        run long enough that the inline Add-to-Cart and
+        Message-Seller buttons end up mid-scroll on phones; the
+        buyer reads the description, then has to scroll back up
+        to take action. The sticky bar keeps both buttons
+        reachable with one tap. Hidden on md+ where the inline
+        layout is already discoverable.
+
+        We render an entirely separate copy of the buttons
+        rather than repositioning the inline ones, because the
+        sticky bar must be a direct child of <body> for `fixed`
+        to work cleanly across long pages and to avoid
+        `overflow: hidden` ancestors on ancestor containers.
+      */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 p-3 flex gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+        <div className="flex-1 [&_button]:w-full">
+          <ProductAddToCart product={p} />
+        </div>
+        <div className="flex-1 [&_button]:w-full">
+          <MessageSellerButton sellerId={p.seller_id} />
         </div>
       </div>
     </div>
