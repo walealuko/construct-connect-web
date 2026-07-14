@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { Profile, Order, Product, primaryImage } from "@/types/database";
 import SafeImage from "@/components/ui/SafeImage";
 import { removeProductViewAction } from "@/app/actions/products";
+import { deleteOrderAction } from "@/app/actions/orders";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
@@ -27,6 +28,18 @@ export default function BuyerDashboard() {
   const [viewedProducts, setViewedProducts] = useState<Product[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  // Tracks the order id currently being soft-deleted so the row's
+  // ✕ button shows a spinner and the confirm button disables while
+  // the round-trip is in flight. The realtime UPDATE on orders
+  // (the buyer-side RLS now hides the row, so the channel won't
+  // deliver it to us anyway) doesn't need to be mirrored — we
+  // splice the row out optimistically below.
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
+  // Soft-delete confirmation. We hold the candidate order id in
+  // state and show a modal — same pattern as
+  // components/dashboard/ConfirmDeleteModal on the seller side,
+  // but rendered inline here because we only have one consumer.
+  const [confirmOrderDelete, setConfirmOrderDelete] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -78,6 +91,19 @@ export default function BuyerDashboard() {
       // table has a uuid[] `participant_ids` column that PostgREST
       // can't auto-embed, so we use the array-overlap operator and
       // then fetch participant profiles in a second query.
+      //
+      // We also filter out conversations the user has hidden from
+      // their inbox (per-user hide rows in `conversation_hides`,
+      // RLS-gated to user_id = auth.uid()). Otherwise the "Messages"
+      // widget on this dashboard would re-show conversations the
+      // user already hid from /messages.
+      const { data: hides } = await supabase
+        .from("conversation_hides")
+        .select("conversation_id");
+      const hiddenIds = new Set<string>(
+        (hides || []).map((h) => h.conversation_id),
+      );
+
       const { data: convs } = await supabase
         .from('conversations')
         .select('*')
@@ -85,9 +111,11 @@ export default function BuyerDashboard() {
         .order('last_message_at', { ascending: false })
         .limit(5);
 
-      if (convs && convs.length > 0) {
+      const visibleConvs = (convs || []).filter((c) => !hiddenIds.has(c.id));
+
+      if (visibleConvs.length > 0) {
         const idSet = new Set<string>();
-        for (const c of convs) {
+        for (const c of visibleConvs) {
           for (const pid of c.participant_ids || []) idSet.add(pid);
         }
         const { data: profiles } = await supabase
@@ -96,7 +124,7 @@ export default function BuyerDashboard() {
           .in('id', Array.from(idSet));
         const byId: Record<string, ChatProfile> = {};
         for (const p of profiles || []) byId[p.id] = p as ChatProfile;
-        const enriched = convs.map((c) => ({
+        const enriched = visibleConvs.map((c) => ({
           ...c,
           profiles: (c.participant_ids || [])
             .map((pid: string) => byId[pid])
@@ -180,6 +208,38 @@ export default function BuyerDashboard() {
     }
   };
 
+  // Soft-delete: flip deleted_at on the orders row, then splice
+  // it out of local state. The buyer-side RLS (from migration
+  // 0015) filters `deleted_at IS NULL` so the row disappears
+  // from any future read. The seller-side RLS is unchanged, so the
+  // seller's view of the order is unaffected.
+  const handleDeleteOrder = async (orderId: string) => {
+    setConfirmOrderDelete(null);
+    setDeletingOrderId(orderId);
+    // Optimistic remove — the row is gone from the buyer's view
+    // in the next render regardless. The realtime channel
+    // would also deliver the UPDATE, but with `deleted_at IS NULL`
+    // gating the buyer-side RLS, the channel payload wouldn't
+    // reach this client (PostgREST skips rows RLS hides). So we
+    // do the splice ourselves.
+    const previous = orders;
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    try {
+      const result = await deleteOrderAction(orderId);
+      if (!result.success) {
+        setOrders(previous);
+        toast.error(result.error || "Failed to remove order");
+        return;
+      }
+      toast.success("Order removed from your history");
+    } catch (err: any) {
+      setOrders(previous);
+      toast.error(err.message || "Failed to remove order");
+    } finally {
+      setDeletingOrderId(null);
+    }
+  };
+
   return (
     <DashboardLayout userRole="individual">
       <div className="space-y-10">
@@ -258,6 +318,7 @@ export default function BuyerDashboard() {
                           <th className="px-5 py-4">Total</th>
                           <th className="px-5 py-4">Status</th>
                           <th className="px-5 py-4 text-right">Date</th>
+                          <th className="px-3 py-4 w-10" aria-label="Actions" />
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
@@ -277,7 +338,7 @@ export default function BuyerDashboard() {
                                text-sm) so the rows are easier to
                                scan and the totals don't feel like
                                footnotes. */
-                            className="hover:bg-slate-50 transition-colors cursor-pointer"
+                            className="group hover:bg-slate-50 transition-colors cursor-pointer"
                           >
                             <td className="px-5 py-5 font-semibold text-blue-600 hover:underline">#{order.id.slice(-6)}</td>
                             <td className="px-5 py-5 font-bold text-slate-900 text-lg">{formatNaira(order.total_price)}</td>
@@ -291,6 +352,30 @@ export default function BuyerDashboard() {
                             </td>
                             <td className="px-5 py-5 text-right text-gray-500 text-sm">
                               {new Date(order.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="px-3 py-5 w-10 text-right">
+                              {/* Hover-revealed "remove from my
+                                  history" button. stopPropagation so
+                                  the row's onClick (which navigates
+                                  to the order detail) doesn't fire
+                                  when the user just wants to remove
+                                  the order from their history. The
+                                  modal asks for explicit confirm —
+                                  this is a destructive action and
+                                  we don't want a single misclick to
+                                  wipe the row. */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConfirmOrderDelete(order.id);
+                                }}
+                                aria-label="Remove order from history"
+                                title="Remove from history"
+                                className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-full text-red-500 hover:bg-red-50 transition-all inline-flex items-center justify-center"
+                              >
+                                <span className="text-sm font-bold leading-none">✕</span>
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -431,6 +516,48 @@ export default function BuyerDashboard() {
             </Button>
         </div>
       </div>
+
+      {/* Confirm modal for "remove from history" on an order. We
+          render the modal inline (no shared component) because
+          it's a one-off pattern for the buyer dashboard and a
+          one-button confirm doesn't justify a shared
+          ConfirmDeleteModal mount. */}
+      {confirmOrderDelete && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-delete-order-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+        >
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+            <h3 id="confirm-delete-order-title" className="text-lg font-bold text-slate-900">
+              Remove this order from your history?
+            </h3>
+            <p className="text-sm text-gray-600">
+              The order will be hidden from your view, but the seller still has the
+              records they need to fulfil it. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setConfirmOrderDelete(null)}
+                disabled={!!deletingOrderId}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleDeleteOrder(confirmOrderDelete)}
+                isLoading={!!deletingOrderId}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Remove
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

@@ -269,3 +269,37 @@ export async function updateOrderStatusAction(
   revalidatePath(`/orders/${orderId}`);
   return { success: true };
 }
+
+/**
+ * Remove an order from the buyer's own history. Soft delete — we set
+ * `deleted_at` on the orders row rather than actually DELETE it,
+ * because the seller's order_items join, revenue computation, and
+ * any future analytics all need the row data.
+ *
+ * RLS does the membership + soft-delete gate:
+ *   - The buyer-side SELECT policy now filters `deleted_at IS NULL`
+ *     so the row immediately disappears from the buyer's history.
+ *   - The dedicated UPDATE policy from migration 0015 lets the buyer
+ *     write to their own row.
+ *
+ * Only the buyer of the order can soft-delete it. The action is
+ * idempotent: if the order is already deleted, the second call is a
+ * no-op (the timestamp just gets re-stamped; we never reveal the
+ * deleted row back to the caller either way).
+ */
+export async function deleteOrderAction(
+  orderId: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Not signed in" };
+
+  const { error } = await supabase
+    .from("orders")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", orderId);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/buyer-dashboard");
+  return { success: true };
+}

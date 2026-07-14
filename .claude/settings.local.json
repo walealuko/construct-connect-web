@@ -58,7 +58,16 @@
       "PowerShell(Get-NetTCPConnection *)",
       "Bash(git check-ignore *)",
       "Bash(git restore *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(grep -E '^\\(vitest|tsc|next\\)$')",
+      "Bash(npx vitest *)",
+      "Bash(git -c user.name=walealuko -c user.email=walealuko@users.noreply.github.com commit -m 'Auth UX, messaging, product form, admin role fixes *)",
+      "Bash(tasklist //FI \"PID ne 0\")",
+      "Bash(tasklist //v //fi \"imagename eq node.exe\")",
+      "Read(//c/Windows/System32/**)",
+      "Bash(powershell.exe -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Select-Object Id, ProcessName, StartTime\")",
+      "Bash(powershell.exe *)",
+      "Bash(node *)"
     ]
   }
 }

@@ -102,20 +102,22 @@ export default function ArtisanDashboard() {
   }) => {
     const result = await createProductAction(data);
     if (!result.success) {
-      // Surface the failure inline instead of throwing — the modal doesn't
-      // need to catch, and a thrown error here would trip the React error
-      // boundary. Always jump to page 1 so the new product is visible.
       toast.error(result.error || "Failed to add product");
       return;
     }
     toast.success("Product added successfully!");
     setIsAddOpen(false);
-    if (productPage !== 1) setProductPage(1);
-    // Wait for the new list to land so the user can see their new
-    // card at the top of the inventory section. requestAnimationFrame
-    // defers the scroll until after the DOM commit so smooth-scroll
-    // has a target to animate to.
-    await refresh();
+
+    // Always re-fetch the canonical product list + count +
+    // stats after a successful create. The optimistic splice
+    // on page 1 was unreliable in practice — `result.product`
+    // was missing in some rounds, leaving the inventory and
+    // "Active Listings" stat stale until the user manually
+    // refreshed. A single round-trip here is cheaper than the
+    // 4-roundtrip initial load.
+    void refresh();
+    // requestAnimationFrame defers the scroll until after the
+    // DOM commit so smooth-scroll has a target to animate to.
     requestAnimationFrame(() => {
       inventorySectionRef.current?.scrollIntoView({
         behavior: "smooth",
@@ -148,7 +150,10 @@ export default function ArtisanDashboard() {
       if (!result.success) throw new Error(result.error);
       toast.success("Product deleted successfully");
       setDeletingId(null);
-      refresh();
+      // Refresh the canonical list so inventory, count, and
+      // stat all update from the server's view. Same
+      // rationale as the seller dashboard.
+      void refresh();
     } catch (err: any) {
       toast.error(err.message || "Failed to delete product");
     } finally {

@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import type { Product } from "@/types/database";
 
 const MAX_IMAGES = 10;
 
@@ -26,7 +27,12 @@ const ProductSchema = z.object({
 
 export type ProductInput = z.infer<typeof ProductSchema>;
 
-export async function createProductAction(formData: any) {
+export async function createProductAction(
+  formData: any,
+): Promise<
+  | { success: true; product: Product }
+  | { success: false; error: string }
+> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -50,7 +56,11 @@ export async function createProductAction(formData: any) {
     console.error("Error fetching seller profile:", profileError);
   }
 
-  const { error } = await supabase
+  // `.insert().select().single()` returns the inserted row so the
+  // caller can optimistically render it in the inventory list
+  // without a full dashboard re-fetch. The new id is also the
+  // anchor for the post-create scroll-to-section.
+  const { data: created, error } = await supabase
     .from('products')
     .insert({
       seller_id: user.id,
@@ -61,18 +71,31 @@ export async function createProductAction(formData: any) {
       // is only a fallback for legacy callers.
       seller_location: validated.data.location || profile?.location || undefined,
       ...validated.data,
-    });
+    })
+    .select("*")
+    .single();
 
   if (error) {
     console.error("createProductAction insert error:", error);
     return { success: false, error: error.message };
   }
 
+  // Defense in depth: a `success: true` response with no
+  // inserted row would let the dashboard's optimistic splice
+  // silently no-op (the `result.product` check fails and the
+  // page-1 fallback runs `refresh()`, which masks the bug).
+  // Refuse to return success in that case so the caller shows
+  // a real error.
+  if (!created) {
+    console.error("createProductAction: insert returned no row");
+    return { success: false, error: "Product was not created — please try again" };
+  }
+
   revalidatePath('/seller-dashboard');
   revalidatePath('/artisan-dashboard');
   revalidatePath('/marketplace');
 
-  return { success: true };
+  return { success: true, product: created as Product };
 }
 
 export async function deleteProductAction(productId: string) {

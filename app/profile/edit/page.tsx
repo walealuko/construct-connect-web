@@ -2,19 +2,31 @@
 
 import React, { useState, useEffect, useContext } from 'react';
 import { UserContext } from '@/components/UserContext';
-import { updateProfile } from '@/app/actions/user';
+import { updateProfile, deleteAccountAction } from '@/app/actions/user';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 
 export default function EditProfilePage() {
   const userContext = useContext(UserContext);
   const user = userContext?.user;
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // Delete-account flow. The "Delete Account" button just opens
+  // the confirm modal; the modal gates on the user typing their
+  // own email and disables the confirm button until it matches.
+  // Once the action returns success, the auth session is gone
+  // and we route the user to / (the home page) — the cookie-
+  // bound client can't sign in again because the user no longer
+  // exists.
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [confirmDeleteEmail, setConfirmDeleteEmail] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -77,6 +89,40 @@ export default function EditProfilePage() {
       toast.error("An unexpected error occurred");
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Delete the caller's account. The action handles the
+  // confirmation-email check (case-insensitive match against
+  // the session email) and runs the full cleanup. On success,
+  // the auth session is gone — push the user to the home page
+  // so they're not staring at a broken /profile/edit render.
+  const handleDeleteAccount = async () => {
+    if (!user?.email) return;
+    setDeleting(true);
+    try {
+      const result = await deleteAccountAction(confirmDeleteEmail);
+      if (!result.success) {
+        toast.error(result.error || "Failed to delete account");
+        return;
+      }
+      // Best-effort local signout. The auth.users row is already
+      // gone so the call is a no-op, but cleaning the local
+      // session storage prevents a stale JWT from lingering in
+      // the tab.
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // Non-fatal.
+      }
+      toast.success("Account deleted");
+      router.push("/");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete account");
+    } finally {
+      setDeleting(false);
+      setConfirmDeleteOpen(false);
+      setConfirmDeleteEmail("");
     }
   };
 
@@ -196,7 +242,99 @@ export default function EditProfilePage() {
             </form>
           </CardContent>
         </Card>
+
+        {/* Danger zone — permanent account deletion. Sits below the
+            main profile card so a casual scroll-past doesn't
+            surface the destructive action too prominently, but
+            it's reachable in one click for someone who knows
+            where to look. The confirm modal gates on the user
+            re-typing their email — the standard "are you sure"
+            pattern for irreversible actions. */}
+        <Card className="border-red-200">
+          <CardHeader className="border-b border-red-100 bg-red-50/50">
+            <div>
+              <p className="text-xs font-bold text-red-600 uppercase tracking-widest">Danger Zone</p>
+              <h2 className="text-lg font-bold text-slate-900">Delete Account</h2>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 space-y-3">
+            <p className="text-sm text-gray-600">
+              Permanently delete your account, listings, orders, and conversations.
+              This action cannot be undone. The other side of every conversation you
+              have will still see the conversation row but with you listed as a
+              removed participant.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setConfirmDeleteOpen(true)}
+              className="bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+            >
+              Delete Account
+            </Button>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Delete-account confirm modal. We gate the destructive
+          action on a typed-email match — the form below shows a
+          live validation error if the typed value doesn't match
+          the session email (case-insensitive, whitespace-
+          trimmed). The server action also re-validates the email
+          match, so the gate is enforced on both sides. */}
+      {confirmDeleteOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-delete-account-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+        >
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h3 id="confirm-delete-account-title" className="text-lg font-bold text-slate-900">
+              Delete your account permanently?
+            </h3>
+            <p className="text-sm text-gray-600">
+              This will remove your profile, every product you listed, every order
+              you placed, and every message you sent. Type your email
+              (<span className="font-semibold text-slate-800">{user?.email}</span>)
+              to confirm.
+            </p>
+            <Input
+              label="Confirm email"
+              value={confirmDeleteEmail}
+              onChange={(e) => setConfirmDeleteEmail(e.target.value)}
+              placeholder={user?.email ?? ""}
+              autoComplete="off"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setConfirmDeleteOpen(false);
+                  setConfirmDeleteEmail("");
+                }}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleDeleteAccount}
+                isLoading={deleting}
+                disabled={
+                  deleting ||
+                  confirmDeleteEmail.trim().toLowerCase() !==
+                    (user?.email ?? "").toLowerCase()
+                }
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Delete Account
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -13,6 +13,10 @@ interface ConversationListProps {
   loading: boolean;
   currentUserId: string | undefined;
   onSelect: (conv: Conversation) => void;
+  onHide: (conv: Conversation) => void;
+  // Set of conversation ids currently being hidden, so the trash
+  // button shows a spinner / is disabled during the round-trip.
+  hidingId?: string | null;
 }
 
 /**
@@ -44,6 +48,8 @@ export function ConversationList({
   loading,
   currentUserId,
   onSelect,
+  onHide,
+  hidingId,
 }: ConversationListProps) {
   return (
     <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50">
@@ -163,6 +169,32 @@ export function ConversationList({
                     {conv.last_message || "Start a conversation..."}
                   </p>
                 </div>
+                {/* Hover-revealed "remove from my inbox" button.
+                    stopPropagation so the row's onClick (which
+                    selects the conversation) doesn't fire when the
+                    user just wants to hide it. The other
+                    participant is unaffected — we write to
+                    `conversation_hides` per-user, and the sidebar
+                    query filters hidden rows out for the caller
+                    only. Hidden via opacity rather than display
+                    so the row layout doesn't shift on hover. */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onHide(conv);
+                  }}
+                  disabled={hidingId === conv.id}
+                  aria-label={`Remove ${other.first_name} ${other.last_name} from inbox`}
+                  title="Remove from inbox"
+                  className="opacity-0 group-hover:opacity-100 disabled:opacity-100 w-8 h-8 rounded-full text-red-500 hover:bg-red-50 transition-all inline-flex items-center justify-center flex-shrink-0"
+                >
+                  {hidingId === conv.id ? (
+                    <span className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <span className="text-sm font-bold leading-none">✕</span>
+                  )}
+                </button>
               </div>
             );
           })

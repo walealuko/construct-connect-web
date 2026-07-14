@@ -11,6 +11,7 @@ import {
   clearConversationAction,
   sendMessageAction,
   markConversationReadAction,
+  hideConversationAction,
 } from "@/app/actions/chat";
 import { supabase } from "@/lib/supabase";
 import { loadConversations, loadMessages, getOtherParticipant } from "@/lib/messages-client";
@@ -50,6 +51,11 @@ function ChatContent() {
   // Tracks whether a "clear all" operation is in flight on the active
   // conversation so the Empty button shows a spinner / is disabled.
   const [clearing, setClearing] = useState(false);
+  // id of the conversation currently being hidden from the caller's
+  // inbox sidebar. The trash button shows a spinner / disables while
+  // the round-trip is in flight. We splice the row out optimistically
+  // on success (and roll back on error).
+  const [hidingId, setHidingId] = useState<string | null>(null);
   // id of the other participant who's currently typing, if anyone.
   // Reset to null on conversation switch, on send, and after a
   // 3s idle window (see the typing-channel effect below).
@@ -463,6 +469,48 @@ function ChatContent() {
     }
   };
 
+  // Hide a conversation from the caller's own sidebar. The other
+  // participant is unaffected — the row in `conversations` is
+  // untouched, no messages are deleted, the other side keeps
+  // seeing the conversation. We just write a row in
+  // `conversation_hides` and the sidebar query filters it out
+  // for the caller.
+  const hideConversation = async (conv: Conversation) => {
+    if (!user) return;
+    if (
+      !window.confirm(
+        "Remove this conversation from your inbox? The other person will still see it.",
+      )
+    ) {
+      return;
+    }
+    const convId = conv.id;
+    const wasActive = activeConv?.id === convId;
+    setHidingId(convId);
+    // Optimistic remove from sidebar and clear the active
+    // selection if the hidden one was open.
+    const previous = conversations;
+    setConversations((prev) => prev.filter((c) => c.id !== convId));
+    if (wasActive) setActiveConv(null);
+    try {
+      const result = await hideConversationAction(convId);
+      if (!result.success) {
+        // Roll back the optimistic splice.
+        setConversations(previous);
+        if (wasActive) setActiveConv(conv);
+        toast.error(result.error || "Failed to remove from inbox");
+        return;
+      }
+      toast.success("Removed from your inbox");
+    } catch (err: any) {
+      setConversations(previous);
+      if (wasActive) setActiveConv(conv);
+      toast.error(err.message || "Failed to remove from inbox");
+    } finally {
+      setHidingId(null);
+    }
+  };
+
   // Used by the empty-state pane so we can show the participant's
   // name when the user lands via ?userId=… and a conversation is
   // created but not yet selected.
@@ -476,6 +524,8 @@ function ChatContent() {
         loading={loading}
         currentUserId={user?.id}
         onSelect={setActiveConv}
+        onHide={hideConversation}
+        hidingId={hidingId}
       />
 
       <div className="flex-1 flex flex-col">

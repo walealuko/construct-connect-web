@@ -195,6 +195,61 @@ export async function clearConversationAction(conversationId: string) {
 }
 
 /**
+ * Hide a conversation from the caller's own sidebar. The other
+ * participant still sees it — the row in `conversations` is not
+ * touched, no messages are deleted, no other participant's view
+ * is affected. We just write a row in `conversation_hides`
+ * keyed on (conversation_id, user_id) and the sidebar query
+ * filters it out for the caller.
+ *
+ * RLS does the membership check: a user can only insert a hide
+ * row for their own user_id. The action additionally checks
+ * that the user is a participant of the conversation before
+ * writing, so a typo in the conversation id is rejected with a
+ * clean error rather than leaving an orphan row.
+ *
+ * Idempotent — calling twice is a no-op (PK conflict on
+ * (conversation_id, user_id) is treated as success by upsert).
+ */
+export async function hideConversationAction(
+  conversationId: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Not signed in" };
+
+  // Confirm membership before writing the hide row. RLS would
+  // also block it (the row's user_id is the caller, but we don't
+  // want an orphan hide for a conversation the user can't see),
+  // and a clean error message is more helpful than a silent
+  // RLS-induced 403.
+  const { data: conv, error: convError } = await supabase
+    .from("conversations")
+    .select("participant_ids")
+    .eq("id", conversationId)
+    .maybeSingle();
+  if (convError) return { success: false, error: convError.message };
+  if (!conv || !(conv.participant_ids ?? []).includes(user.id)) {
+    return { success: false, error: "Not a participant of this conversation" };
+  }
+
+  const { error: hideError } = await supabase
+    .from("conversation_hides")
+    .upsert(
+      {
+        conversation_id: conversationId,
+        user_id: user.id,
+        hidden_at: new Date().toISOString(),
+      },
+      { onConflict: "conversation_id,user_id" },
+    );
+  if (hideError) return { success: false, error: hideError.message };
+
+  revalidatePath("/messages");
+  return { success: true };
+}
+
+/**
  * Mark a conversation as read for the caller. Upserts a row in
  * `conversation_reads` keyed on (conversation_id, user_id) so the
  * next sidebar render drops the unread badge. Idempotent — calling

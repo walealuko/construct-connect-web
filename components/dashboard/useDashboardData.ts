@@ -45,6 +45,16 @@ interface UseDashboardDataResult {
   addPortfolioItem: (path: string) => Promise<void>;
   addPortfolioItems: (paths: string[]) => Promise<void>;
   removePortfolioItem: (path: string) => Promise<void>;
+  // Optimistic-update helpers. Callers (the dashboard pages) can
+  // splice a freshly-created product into the visible list and
+  // bump the product count without re-running the full load().
+  // We expose the underlying setters rather than wrapping them
+  // because the optimistic shape (prepend to products, +1 to
+  // productCount, +1 to stats.productsCount) is the same across
+  // both dashboards.
+  setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+  setProductCount: React.Dispatch<React.SetStateAction<number>>;
+  setStats: React.Dispatch<React.SetStateAction<DashboardStats>>;
 }
 
 const PRODUCT_PAGE_SIZE = 10;
@@ -350,5 +360,8 @@ export function useDashboardData(): UseDashboardDataResult {
     addPortfolioItem,
     addPortfolioItems,
     removePortfolioItem,
+    setProducts,
+    setProductCount,
+    setStats,
   };
 }

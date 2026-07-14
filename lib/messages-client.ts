@@ -12,10 +12,15 @@ import type { Conversation, Message, Profile, ConversationRead } from "@/types/c
  * each conversation; missing rows are normalized to `null`, which
  * the UI treats as "never opened" → unread.
  *
+ * Conversations the caller has hidden via `hideConversationAction`
+ * (per-user hide rows in `conversation_hides`) are filtered out
+ * here so the sidebar doesn't render them. The other participant's
+ * view is unaffected — each user has their own hide set.
+ *
  * Throws on the conversations query failure so the caller can toast.
- * The profile and read-row lookups are non-fatal: the conversation
- * still renders with "Unknown" participants and without an unread
- * marker, matching the previous behavior.
+ * The profile, read-row, and hide-row lookups are non-fatal: the
+ * conversation still renders with "Unknown" participants, without
+ * an unread marker, and without hide filtering.
  */
 export async function loadConversations(): Promise<Conversation[]> {
   const { data, error } = await supabase
@@ -24,12 +29,31 @@ export async function loadConversations(): Promise<Conversation[]> {
     .order("last_message_at", { ascending: false });
   if (error) throw error;
 
+  // Look up the caller's hide rows. RLS scopes this to
+  // user_id = auth.uid() so the result is only the caller's
+  // own hides — never another user's. We use a Set for O(1)
+  // membership in the filter below.
+  const { data: hides, error: hidesError } = await supabase
+    .from("conversation_hides")
+    .select("conversation_id");
+  if (hidesError) {
+    // Non-fatal — every conversation is treated as visible.
+    console.error("Failed to load conversation hides:", hidesError);
+  }
+  const hiddenIds = new Set<string>(
+    (hides || []).map((h) => h.conversation_id),
+  );
+
+  // Drop hidden conversations before the participant lookup
+  // so we don't waste a query on their profiles.
+  const visible = (data || []).filter((c) => !hiddenIds.has(c.id));
+
   const idSet = new Set<string>();
-  for (const c of data || []) {
+  for (const c of visible) {
     for (const pid of c.participant_ids || []) idSet.add(pid);
   }
   const ids = Array.from(idSet);
-  const convIds = (data || []).map((c) => c.id);
+  const convIds = visible.map((c) => c.id);
 
   // Look up the caller's read rows for every conversation they
   // participate in. RLS scopes this to user_id = auth.uid() so we
@@ -65,7 +89,7 @@ export async function loadConversations(): Promise<Conversation[]> {
     }
   }
 
-  return (data || []).map((c) => ({
+  return visible.map((c) => ({
     ...c,
     profiles: (c.participant_ids || [])
       .map((pid: string) => profileById[pid])

@@ -87,20 +87,26 @@ export default function SellerDashboard() {
     if (!result.success) {
       // Surface the failure inline instead of throwing — the modal doesn't
       // need to catch, and a thrown error here would trip the React error
-      // boundary. Always jump to page 1 so the new product is visible.
+      // boundary.
       toast.error(result.error || "Failed to add product");
       return;
     }
     toast.success("Product added successfully!");
     setIsAddOpen(false);
-    if (productPage !== 1) setProductPage(1);
-    // refresh() is async — wait for the new list to land so the user
-    // can see their new card at the top of the inventory section. We
-    // scroll the section into view rather than a specific card because
-    // the new product is always page 1 (forced above) and lives at the
-    // top of the grid. requestAnimationFrame defers the scroll until
-    // after the DOM commit so smooth-scroll has a target to animate to.
-    await refresh();
+
+    // Always re-fetch the canonical product list + count + stats
+    // after a successful create. The optimistic splice on page 1
+    // was unreliable in practice — `result.product` was missing in
+    // some rounds, leaving the inventory and "Total Products" stat
+    // stale until the user manually refreshed. A single round-trip
+    // here is cheaper than the 4-roundtrip initial load (the
+    // `load` in useDashboardData also refetches profile, portfolio,
+    // and orders; we keep all of it in one place so the data
+    // can never go out of sync).
+    void refresh();
+    // requestAnimationFrame defers the scroll until after the
+    // DOM commit so smooth-scroll has a target to animate to.
+    // The section ref is on the inventory wrapper.
     requestAnimationFrame(() => {
       inventorySectionRef.current?.scrollIntoView({
         behavior: "smooth",
@@ -133,7 +139,14 @@ export default function SellerDashboard() {
       if (!result.success) throw new Error(result.error);
       toast.success("Product deleted successfully");
       setDeletingId(null);
-      refresh();
+      // Refresh the canonical list so the inventory, the
+      // productCount, and the "Total Products" stat all
+      // update from the server's view. The previous optimistic
+      // splice + count-bump pattern was fragile in the same
+      // way as the create flow: the local state could fall
+      // out of sync with the DB. A single round-trip is
+      // simpler and always correct.
+      void refresh();
     } catch (err: any) {
       toast.error(err.message || "Failed to delete product");
     } finally {
