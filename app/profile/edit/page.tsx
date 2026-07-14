@@ -168,6 +168,7 @@ export default function EditProfilePage() {
                   value={formData.first_name}
                   onChange={handleChange}
                   required
+                  autoComplete="given-name"
                 />
                 <Input
                   label="Last Name"
@@ -175,6 +176,7 @@ export default function EditProfilePage() {
                   value={formData.last_name}
                   onChange={handleChange}
                   required
+                  autoComplete="family-name"
                 />
               </div>
 
@@ -184,24 +186,33 @@ export default function EditProfilePage() {
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
+                  autoComplete="tel"
                 />
                 <Input
                   label="Location"
                   name="location"
                   value={formData.location}
                   onChange={handleChange}
+                  autoComplete="address-level2"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Bio</label>
+                <label
+                  htmlFor="profile-bio"
+                  className="text-xs font-bold text-gray-400 uppercase tracking-wider"
+                >
+                  Bio
+                </label>
                 <textarea
+                  id="profile-bio"
                   name="bio"
                   value={formData.bio}
                   onChange={handleChange}
                   rows={3}
                   className="w-full p-3 rounded-xl border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
                   placeholder="Tell the community about yourself..."
+                  autoComplete="off"
                 />
               </div>
 
@@ -213,14 +224,22 @@ export default function EditProfilePage() {
                     name="business_name"
                     value={formData.business_name}
                     onChange={handleChange}
+                    autoComplete="organization"
                   />
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Business Type</label>
+                    <label
+                      htmlFor="profile-business-type"
+                      className="text-xs font-bold text-gray-400 uppercase tracking-wider"
+                    >
+                      Business Type
+                    </label>
                     <select
+                      id="profile-business-type"
                       name="business_type"
                       value={formData.business_type}
                       onChange={handleChange}
                       className="w-full p-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-600"
+                      autoComplete="off"
                     >
                       <option value="">Select type</option>
                       <option value="sole_proprietor">Sole Proprietor</option>
@@ -299,13 +318,37 @@ export default function EditProfilePage() {
               (<span className="font-semibold text-slate-800">{user?.email}</span>)
               to confirm.
             </p>
-            <Input
-              label="Confirm email"
-              value={confirmDeleteEmail}
-              onChange={(e) => setConfirmDeleteEmail(e.target.value)}
-              placeholder={user?.email ?? ""}
+            {/* `autoComplete="off"` on the parent form suppresses
+                Chrome's autofill heuristics for the email-shaped
+                input below. Putting it on the form (not the input)
+                is the spec-compliant way to opt out: Chrome ignores
+                `off` on individual email/password fields, but
+                honors it on the wrapping form. The form id is
+                unique to this modal so the suppression doesn't
+                leak to other forms on the page. */}
+            <form
+              id="delete-account-confirm-form"
               autoComplete="off"
-            />
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleDeleteAccount();
+              }}
+            >
+              <Input
+                label="Confirm email"
+                name="delete-account-confirm"
+                value={confirmDeleteEmail}
+                onChange={(e) => setConfirmDeleteEmail(e.target.value)}
+                placeholder={user?.email ?? ""}
+                // `type="text"` (not "email") so the browser doesn't
+                // apply email-specific validation or autofill hints
+                // to a field whose purpose is "type the same string
+                // you see above", not "enter an email address".
+                type="text"
+                inputMode="email"
+                autoComplete="off"
+              />
+            </form>
             <div className="flex justify-end gap-2 pt-2">
               <Button
                 type="button"
