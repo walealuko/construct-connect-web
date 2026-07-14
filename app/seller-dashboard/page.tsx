@@ -48,6 +48,9 @@ export default function SellerDashboard() {
     orderCount,
     orderPageSize,
     setOrderPage,
+    setProducts,
+    setProductCount,
+    setStats,
   } = useDashboardData();
 
   // Client-side slice of the orders list for the current page.
@@ -94,15 +97,27 @@ export default function SellerDashboard() {
     toast.success("Product added successfully!");
     setIsAddOpen(false);
 
-    // Always re-fetch the canonical product list + count + stats
-    // after a successful create. The optimistic splice on page 1
-    // was unreliable in practice — `result.product` was missing in
-    // some rounds, leaving the inventory and "Total Products" stat
-    // stale until the user manually refreshed. A single round-trip
-    // here is cheaper than the 4-roundtrip initial load (the
-    // `load` in useDashboardData also refetches profile, portfolio,
-    // and orders; we keep all of it in one place so the data
-    // can never go out of sync).
+    // Belt-and-suspenders: update the local state synchronously so
+    // the inventory and "Total Products" stat reflect the new row
+    // THIS render, then re-fetch from the server to converge on
+    // the canonical state. The optimistic update is what makes the
+    // UI feel instant; the refresh() is what makes it correct.
+    //
+    // We only do the optimistic splice when we have the inserted
+    // row back from the action AND we're on page 1 (the new
+    // product is ordered by created_at desc, so it lands on page
+    // 1). On other pages the count still bumps but the list does
+    // not change, which is the right behavior.
+    if (result.product && productPage === 1) {
+      setProducts((prev) => [result.product, ...prev]);
+    }
+    setProductCount((prev) => prev + 1);
+    setStats((s) => ({ ...s, productsCount: s.productsCount + 1 }));
+
+    // Then converge on the server's exact view. If the optimistic
+    // update raced with a concurrent delete (or our splice was
+    // wrong because the page changed during the action), the
+    // refresh() corrects the visible list and count.
     void refresh();
     // requestAnimationFrame defers the scroll until after the
     // DOM commit so smooth-scroll has a target to animate to.
@@ -139,13 +154,12 @@ export default function SellerDashboard() {
       if (!result.success) throw new Error(result.error);
       toast.success("Product deleted successfully");
       setDeletingId(null);
-      // Refresh the canonical list so the inventory, the
-      // productCount, and the "Total Products" stat all
-      // update from the server's view. The previous optimistic
-      // splice + count-bump pattern was fragile in the same
-      // way as the create flow: the local state could fall
-      // out of sync with the DB. A single round-trip is
-      // simpler and always correct.
+      // Optimistic: drop the card and bump counts down so the
+      // UI is correct THIS render. The refresh() then converges
+      // on the server's exact view. Same pattern as handleCreate.
+      setProducts((prev) => prev.filter((p) => p.id !== deletingId));
+      setProductCount((prev) => Math.max(0, prev - 1));
+      setStats((s) => ({ ...s, productsCount: Math.max(0, s.productsCount - 1) }));
       void refresh();
     } catch (err: any) {
       toast.error(err.message || "Failed to delete product");
