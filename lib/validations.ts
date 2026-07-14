@@ -10,7 +10,6 @@ export const registerSchema = z.object({
   confirmPassword: z.string(),
   tier: z.enum(['individual', 'business', 'artisan']),
   businessName: z.string().optional(),
-  businessType: z.string().optional(),
   location: z.string().min(1, 'Location is required'),
 })
   .refine((data) => data.password === data.confirmPassword, {
@@ -24,16 +23,6 @@ export const registerSchema = z.object({
     {
       message: 'Business name is required for business and artisan accounts',
       path: ['businessName'],
-    }
-  )
-  .refine(
-    (data) =>
-      data.tier === 'individual' ||
-      (typeof data.businessType === 'string' &&
-        ['sole_proprietor', 'company', 'partnership'].includes(data.businessType)),
-    {
-      message: 'Business type is required for business and artisan accounts',
-      path: ['businessType'],
     }
   );
 

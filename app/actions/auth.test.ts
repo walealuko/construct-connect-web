@@ -52,7 +52,6 @@ const validForm = {
   confirmPassword: "supersecret",
   tier: "individual" as const,
   businessName: undefined,
-  businessType: undefined,
   location: "Lagos",
 };
 
@@ -116,7 +115,6 @@ describe("registerUserAction", () => {
       ...validForm,
       tier: "business",
       businessName: undefined,
-      businessType: "company",
     });
     expect(result.success).toBe(false);
     expect(mockSignUp).not.toHaveBeenCalled();
@@ -149,7 +147,6 @@ describe("registerUserAction", () => {
       tier: "individual",
       // Individual accounts have null business fields even if the
       // client sends blank strings.
-      business_type: null,
       business_name: null,
     });
   });

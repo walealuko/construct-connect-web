@@ -34,7 +34,6 @@ function RegisterForm() {
     confirmPassword: '',
     tier: defaultTier as 'individual' | 'business' | 'artisan',
     businessName: '',
-    businessType: '',
     location: '',
   });
   const [error, setError] = useState('');
@@ -221,38 +220,6 @@ function RegisterForm() {
                   fieldError?.field === "businessName" ? fieldError.message : undefined
                 }
               />
-              {/*
-                Business type select. Options mirror /profile/edit so
-                the column value is consistent whether it's set at
-                signup or post-signup. `required` triggers the
-                browser's native validation; server-side enforcement
-                is in the Zod refinement below (we make the form
-                HTML `required` so the user gets the cue inline
-                before they hit submit, and Zod as a backstop).
-              */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Business Type</label>
-                <select
-                  name="businessType"
-                  value={formData.businessType}
-                  onChange={handleChange}
-                  required
-                  aria-invalid={fieldError?.field === "businessType" || undefined}
-                  className={`w-full p-2 rounded-lg border text-sm outline-none focus:ring-2 ${
-                    fieldError?.field === "businessType"
-                      ? "border-red-500 focus:ring-red-600"
-                      : "border-gray-300 focus:ring-blue-600"
-                  }`}
-                >
-                  <option value="">Select type</option>
-                  <option value="sole_proprietor">Sole Proprietor</option>
-                  <option value="company">Limited Liability Company</option>
-                  <option value="partnership">Partnership</option>
-                </select>
-                {fieldError?.field === "businessType" && (
-                  <p className="text-xs text-red-500 font-medium">{fieldError.message}</p>
-                )}
-              </div>
             </div>
           )}
 

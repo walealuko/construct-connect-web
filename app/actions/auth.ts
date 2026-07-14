@@ -49,7 +49,7 @@ export async function registerUserAction(
       };
     }
 
-    const { firstName, lastName, email, password, tier, businessName, businessType, location, phone } = validated.data;
+    const { firstName, lastName, email, password, tier, businessName, location, phone } = validated.data;
 
     // 2. Sign up the user. Pass tier + full_name as initial user_metadata
     //    so the proxy/role-gate can route the user correctly on their
@@ -120,7 +120,6 @@ export async function registerUserAction(
         last_name: lastName,
         phone,
         tier,
-        business_type: (tier === 'business' || tier === 'artisan') ? businessType : null,
         business_name: (tier === 'business' || tier === 'artisan') ? businessName : null,
         email,
         location,
