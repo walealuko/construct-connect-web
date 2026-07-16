@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/CartContext";
 import Link from "next/link";
-import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
 import { CartItem, primaryImage } from "@/types/database";
 import MessageSellerButton from "@/components/MessageSellerButton";

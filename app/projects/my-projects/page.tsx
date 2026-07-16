@@ -7,7 +7,7 @@ import { Project } from "@/types/database";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import { Card, CardHeader, CardContent } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { formatNaira } from "@/lib/format";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -22,9 +22,11 @@ export default function MyProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [statusModal, setStatusModal] = useState({ isOpen: false, project: null as Project | null });
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     loadProjects();
   }, [user]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const loadProjects = async () => {
     setLoading(true);
@@ -37,7 +39,7 @@ export default function MyProjectsPage() {
 
       if (error) throw error;
       setProjects(data || []);
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to load projects");
     } finally {
       setLoading(false);

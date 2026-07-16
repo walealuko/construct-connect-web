@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
 import { supabase } from "@/lib/supabase";
 import { useCart } from "@/components/CartContext";
@@ -124,11 +123,13 @@ export default function MarketplaceClient({ initialProducts }: { initialProducts
     }
   };
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (search !== "" || category !== "all" || sort !== "newest") {
       loadProducts();
     }
   }, [search, category, sort]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   return (
     <div className="p-8 max-w-[1100px] mx-auto">

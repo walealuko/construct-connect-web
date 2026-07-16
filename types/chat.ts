@@ -1,5 +1,3 @@
-import { Product } from "@/types/database";
-
 export interface Message {
   id: string;
   conversation_id: string;

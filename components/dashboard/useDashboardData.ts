@@ -99,7 +99,7 @@ export function useDashboardData(): UseDashboardDataResult {
   // query so it doesn't refetch on every product-page change. Re-keyed by
   // productCount, which changes whenever the user creates or deletes a
   // product. Refresh() resets the cache.
-  const [allProductIds, setAllProductIds] = useState<string[]>([]);
+  const [_allProductIds, setAllProductIds] = useState<string[]>([]);
 
   // Order pagination.
   const [orderPage, setOrderPage] = useState(1);

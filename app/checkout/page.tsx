@@ -8,7 +8,6 @@ import { CartItem } from "@/types/database";
 import { placeOrderAction } from "@/app/actions/orders";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { formatNaira } from "@/lib/format";
 
 export default function Checkout() {

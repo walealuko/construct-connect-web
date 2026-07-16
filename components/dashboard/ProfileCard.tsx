@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { User } from "@/types/database";
 import { Profile } from "@/types/database";
@@ -47,7 +46,6 @@ export function ProfileCard({ profile, user, variant }: ProfileCardProps) {
           <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center text-3xl font-black text-white shadow-lg">
             {imgErr || !profile?.avatar_url ? initial : null}
             {!imgErr && profile?.avatar_url && (
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={profile.avatar_url}
                 alt={displayName}

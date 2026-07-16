@@ -369,7 +369,6 @@ export function ProductFormModal({
               <div className="flex flex-wrap gap-2">
                 {existingImages.map((path, i) => (
                   <div key={`existing-${i}-${path}`} className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={resolveImageUrl(path, "product-images")}
                       alt={`Existing ${i + 1}`}
@@ -392,7 +391,6 @@ export function ProductFormModal({
                 ))}
                 {newPreviews.map((url, i) => (
                   <div key={`new-${i}-${url}`} className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={url}
                       alt={`New ${i + 1}`}

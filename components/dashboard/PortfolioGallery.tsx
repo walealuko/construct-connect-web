@@ -74,7 +74,6 @@ export function PortfolioGallery({
                 key={p.id}
                 className="relative aspect-square rounded-xl overflow-hidden group border-2 border-blue-300 shadow-sm"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={p.src}
                   alt="Uploading"

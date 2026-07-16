@@ -18,7 +18,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 //   - from('orders').update().eq()
 const mockGetUser = vi.fn();
 const mockConvSelect = vi.fn();
-const mockConvParticipantIds = vi.fn();
 const mockHideUpsert = vi.fn();
 const mockOrderUpdate = vi.fn();
 

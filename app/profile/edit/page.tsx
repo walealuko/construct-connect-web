@@ -5,7 +5,7 @@ import { UserContext } from '@/components/UserContext';
 import { updateProfile, deleteAccountAction } from '@/app/actions/user';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
+import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
@@ -59,7 +59,7 @@ export default function EditProfilePage() {
             business_type: data.business_type || '',
           });
         }
-      } catch (err: any) {
+      } catch {
         toast.error("Failed to load profile data");
       } finally {
         setLoading(false);
@@ -85,7 +85,7 @@ export default function EditProfilePage() {
       } else {
         toast.error(result.error || "Failed to update profile");
       }
-    } catch (err) {
+    } catch {
       toast.error("An unexpected error occurred");
     } finally {
       setSaving(false);

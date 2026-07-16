@@ -21,10 +21,12 @@ export default function SellerRating({ sellerId }: SellerRatingProps) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [showAll, setShowAll] = useState(false);
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (!sellerId) return;
     loadRatingAndReviews();
   }, [sellerId]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const loadRatingAndReviews = async () => {
     try {

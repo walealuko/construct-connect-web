@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import { UserContext } from "@/components/UserContext";
 import { supabase } from "@/lib/supabase";
-import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
 import { Profile, Product, primaryImage } from "@/types/database";
 import { updateUserRoleAction } from "@/app/actions/admin";
@@ -163,7 +162,7 @@ export default function AdminDashboard() {
       setUsers(users.filter((u) => u.id !== userId));
       setStats((s) => ({ ...s, users: s.users - 1 }));
       setMessage("User profile deleted.");
-    } catch (err) {
+    } catch {
       setMessage("Failed to delete user.");
     }
   };
@@ -180,7 +179,7 @@ export default function AdminDashboard() {
       setProducts(products.filter((p) => p.id !== productId));
       setStats((s) => ({ ...s, products: s.products - 1 }));
       setMessage("Product deleted.");
-    } catch (err) {
+    } catch {
       setMessage("Failed to delete product.");
     }
   };

@@ -36,7 +36,7 @@ const Breadcrumbs = () => {
   return (
     <nav className="flex items-center gap-2 text-xs font-medium text-gray-400 mb-4">
       <Link href="/" className="hover:text-blue-600 transition-colors">Home</Link>
-      {crumbs.map((crumb, i) => (
+      {crumbs.map((crumb) => (
         <React.Fragment key={crumb.href}>
           <span className="text-gray-300">/</span>
           {crumb.isLast ? (

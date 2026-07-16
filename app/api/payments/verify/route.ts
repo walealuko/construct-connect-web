@@ -255,8 +255,8 @@ export async function GET(req: Request) {
         const productIds = (lineItems || [])
           .map((li: { product_id?: string }) => li.product_id)
           .filter(Boolean) as string[];
-        let productNames = new Map<string, string>();
-        let sellerByProduct = new Map<string, string>();
+        const productNames = new Map<string, string>();
+        const sellerByProduct = new Map<string, string>();
         if (productIds.length > 0) {
           const { data: products } = await supabaseAdmin
             .from('products')

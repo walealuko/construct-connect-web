@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { UserContext } from "@/components/UserContext";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { Card, CardHeader, CardContent } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { formatNaira } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
@@ -24,14 +23,14 @@ interface Bid {
 
 export default function ProjectBidsPage() {
   const { id: projectId } = useParams();
-  const userContext = useContext(UserContext);
-  const user = userContext?.user;
   const [bids, setBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     loadBids();
   }, [projectId]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const loadBids = async () => {
     setLoading(true);
@@ -47,14 +46,14 @@ export default function ProjectBidsPage() {
 
       if (error) throw error;
       setBids(data || []);
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to load bids");
     } finally {
       setLoading(false);
     }
   };
 
-  const acceptBid = async (bidId: string, artisanId: string) => {
+  const acceptBid = async (bidId: string) => {
     setLoading(true);
     try {
       // 1. Update project status to in_progress
@@ -72,8 +71,9 @@ export default function ProjectBidsPage() {
       if (bError) throw bError;
 
       toast.success("Bid accepted! The artisan has been notified.");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to accept bid");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to accept bid";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -136,7 +136,7 @@ export default function ProjectBidsPage() {
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => acceptBid(bid.id, bid.user_id)}
+                    onClick={() => acceptBid(bid.id)}
                   >
                     Accept Bid
                   </Button>

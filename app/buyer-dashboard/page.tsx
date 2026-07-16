@@ -41,11 +41,13 @@ export default function BuyerDashboard() {
   // but rendered inline here because we only have one consumer.
   const [confirmOrderDelete, setConfirmOrderDelete] = useState<string | null>(null);
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (user) {
       loadBuyerData();
     }
   }, [user]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const loadBuyerData = async () => {
     setLoading(true);
@@ -203,7 +205,7 @@ export default function BuyerDashboard() {
       } else {
         toast.error(result.error);
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to remove product");
     }
   };

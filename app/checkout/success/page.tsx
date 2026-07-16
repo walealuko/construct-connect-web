@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -12,7 +12,6 @@ type Status = "verifying" | "success" | "error";
 
 function SuccessContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const reference = searchParams.get("reference");
   const [status, setStatus] = useState<Status>("verifying");
   // The order id from a successful verify, so we can deep-link the

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 
 export default function MarketplaceError({
   error,
@@ -9,6 +9,12 @@ export default function MarketplaceError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Log so the error appears in browser dev tools even though the
+  // UI body doesn't surface the message.
+  useEffect(() => {
+    console.error("Marketplace error boundary:", error);
+  }, [error]);
+
   return (
     <div className="p-8 max-w-md mx-auto text-center bg-white rounded-xl shadow-sm my-12">
       <div className="text-4xl mb-4">🛒</div>

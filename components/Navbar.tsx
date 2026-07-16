@@ -2,21 +2,15 @@
 
 import React, { useContext, useState } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
-import { useCart } from "./CartContext";
+import { usePathname } from "next/navigation";
 import { UserContext } from "./UserContext";
-import { CartItem } from "@/types/database";
 
 const Navbar = () => {
-  const { cart } = useCart();
   const userContext = useContext(UserContext);
   const user = userContext?.user;
   const logout = userContext?.logout;
   const [menuOpen, setMenuOpen] = useState(false);
-  const router = useRouter();
   const pathname = usePathname();
-
-  const totalItems = cart.reduce((sum: number, item: CartItem) => sum + (item.quantity || 1), 0);
 
   const handleLogout = () => {
     setMenuOpen(false);
@@ -24,16 +18,6 @@ const Navbar = () => {
       // Context owns the navigation. Don't push here — it would race
       // with the hard nav that logout() performs after signOut resolves.
       logout({ redirectTo: "/" });
-    }
-  };
-
-  const getDashboardLink = () => {
-    if (!user) return "/";
-    switch (user.role) {
-      case "business": return "/seller-dashboard";
-      case "admin": return "/admin-dashboard";
-      case "artisan": return "/artisan-dashboard";
-      default: return "/buyer-dashboard";
     }
   };
 

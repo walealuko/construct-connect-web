@@ -96,7 +96,7 @@ export async function POST(req: Request) {
     let data;
     try {
       data = JSON.parse(text);
-    } catch (e) {
+    } catch {
       console.error("Paystack returned non-JSON response:", text);
       return NextResponse.json({ error: 'Payment gateway returned an invalid response' }, { status: 502 });
     }

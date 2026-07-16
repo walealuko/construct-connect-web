@@ -47,7 +47,7 @@ const MOCK_ACTIVITIES = [
   },
 ];
 
-export const getUserActivities = async (userId: string) => {
+export const getUserActivities = async (_userId: string) => {
   await new Promise((resolve) => setTimeout(resolve, 600));
   return MOCK_ACTIVITIES.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 };

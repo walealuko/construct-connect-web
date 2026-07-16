@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase';
 import { UserContext } from '@/components/UserContext';
 import { getRedirectPath } from '@/lib/roles';
 import { toast } from 'sonner';
-import { registerSchema } from '@/lib/validations';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -343,7 +342,6 @@ function RegisterForm() {
 }
 
 export default function RegisterPage() {
-  const router = useRouter();
   // We render the registration form on the very first paint. The
   // session check below will swap in the "Switch Account"
   // interstitial on the next tick if the user is already signed in.

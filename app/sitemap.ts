@@ -36,7 +36,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // change frequently enough that a daily crawl is the right ceiling.
   // Failures here are non-fatal — if the DB is down we still return
   // the static routes.
-  let dynamic: MetadataRoute.Sitemap = [];
+  const dynamic: MetadataRoute.Sitemap = [];
   try {
     const [products, artisans] = await Promise.all([
       supabase.from("products").select("id, updated_at").limit(1000),

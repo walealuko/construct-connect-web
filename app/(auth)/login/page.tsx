@@ -81,7 +81,6 @@ function LoginPageInner() {
     checkSession();
     return () => { cancelled = true; };
     // Re-run if the user opens the page with a different ?redirect=.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, target]);
 
   // Auto-focus the email field only when arriving via

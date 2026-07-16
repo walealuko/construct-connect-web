@@ -70,7 +70,7 @@ export async function loadConversations(): Promise<Conversation[]> {
   const readByConv: Record<string, ConversationRead> = {};
   for (const r of reads || []) readByConv[r.conversation_id] = r as ConversationRead;
 
-  let profileById: Record<string, Profile> = {};
+  const profileById: Record<string, Profile> = {};
   if (ids.length > 0) {
     const { data: profiles, error: pError } = await supabase
       .from("profiles")

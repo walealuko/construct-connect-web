@@ -1,6 +1,5 @@
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import SafeImage from "@/components/ui/SafeImage";
 import Link from "next/link";
 import SellerRating from "@/components/SellerRating";

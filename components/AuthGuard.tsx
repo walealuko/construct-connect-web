@@ -99,7 +99,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         lastReverifyAtRef.current = Date.now();
         lastVerifiedRef.current = pathname;
         setReady(true);
-      } catch (e) {
+      } catch {
         if (cancelled) return;
         // Treat unexpected errors as a sign-out — fail closed.
         const target = new URL("/login", window.location.origin);

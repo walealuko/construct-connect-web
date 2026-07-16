@@ -51,7 +51,7 @@ export default function ProjectsPage() {
 
       if (error) throw error;
       setProjects(data || []);
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to load projects");
     } finally {
       setLoading(false);
