@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { log } from '@/lib/logger';
 import { sendEmail } from '@/lib/email';
 import { orderPlacedEmail, orderReceivedBySellerEmail } from '@/lib/email-templates';
+import { take } from '@/lib/rateLimit';
 
 /**
  * Type of a line item row as it comes back from PostgREST. Each
@@ -42,6 +43,16 @@ export function expectedKoboFromTotal(totalAmount: number | null | undefined): n
 }
 
 export async function GET(req: Request) {
+  // Rate limit by client IP. Verify is a public GET (no auth) and
+  // a bot that hammers /verify?reference=X with bad references
+  // can keep the server busy doing Paystack round-trips. 10/min
+  // per IP is well above Paystack's own redirect-retry cadence
+  // and well below a brute-force ceiling.
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  if (!take(`verify:${ip}`, 10, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
   const { searchParams } = new URL(req.url);
   const reference = searchParams.get('reference');
 
@@ -358,12 +369,13 @@ export async function GET(req: Request) {
     })();
 
     return NextResponse.json({ success: true, orderId });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
     log.error('payment_verify_failed', {
       reference,
       orderId,
-      message: error?.message,
+      message,
     });
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

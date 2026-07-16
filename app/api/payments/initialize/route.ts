@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { log } from '@/lib/logger';
+import { take } from '@/lib/rateLimit';
 
 export async function POST(req: Request) {
   // Hoist orderId out of the try so the catch block can include it
@@ -26,6 +27,16 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit per-user. 10/min is well above the legitimate
+    // "I clicked pay and it failed" retry rate and well below the
+    // rate at which a malicious signed-in client could spam Paystack.
+    if (!take(`init:${user.id}`, 10, 60_000)) {
+      return NextResponse.json(
+        { error: 'Too many payment attempts. Please try again in a minute.' },
+        { status: 429 }
+      );
     }
 
     const { data: order, error: orderError } = await supabase
@@ -109,10 +120,11 @@ export async function POST(req: Request) {
     } else {
       return NextResponse.json({ error: data.message || 'Payment initialization failed' }, { status: 400 });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
     log.error('payment_init_failed', {
       orderId,
-      message: error?.message,
+      message,
     });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

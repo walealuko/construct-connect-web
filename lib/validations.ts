@@ -26,8 +26,32 @@ export const registerSchema = z.object({
     }
   );
 
+// Create-project schema used by app/api/projects/route.ts::POST.
+// Length caps prevent the route from accepting megabyte-sized
+// strings (or XSS payloads) into the projects table. The `state`
+// field is free-text but capped — the form's location select sends
+// one of 36 Nigerian state names plus FCT, well under 100 chars.
+//
+// `budget` accepts either a number or numeric string; the client
+// posts the form's <input type="number"> value as a string so we
+// coerce. `deadline` is an ISO 8601 string that must be in the
+// future at validation time.
+export const createProjectSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(200, 'Title is too long'),
+  description: z.string().min(1, 'Description is required').max(5000, 'Description is too long'),
+  budget: z.coerce.number().nonnegative().max(1e12).optional(),
+  category: z.string().max(50).optional(),
+  deadline: z
+    .string()
+    .datetime({ message: 'Invalid deadline format' })
+    .refine((d) => new Date(d) > new Date(), { message: 'Deadline must be in the future' })
+    .optional(),
+  state: z.string().max(100).optional(),
+});
+
 // Product creation/edit validation lives in `app/actions/products.ts`
 // (Zod `ProductSchema`). It owns the `images: string[]` shape since the
 // action layer is the source of truth for what's persisted.
 
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type CreateProjectInput = z.infer<typeof createProjectSchema>;

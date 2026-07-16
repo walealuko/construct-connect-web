@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { take } from "@/lib/rateLimit";
+import { createProjectSchema } from "@/lib/validations";
 
 export const dynamic = "force-dynamic";
 
@@ -24,10 +26,11 @@ export async function GET(req: NextRequest) {
     if (error) throw error;
 
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to fetch projects";
     console.error("Fetch projects error: - route.ts:28", error);
     return NextResponse.json(
-      { message: error.message || "Failed to fetch projects" },
+      { message },
       { status: 500 }
     );
   }
@@ -47,31 +50,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Rate limit per-user. A malicious signed-in client could otherwise
+    // spam inserts. 5/min is well above the legitimate "I'm iterating on
+    // a draft" ceiling and well below the rate at which a bot would
+    // notice it's not being throttled.
+    if (!take(`create-project:${user.id}`, 5, 60_000)) {
+      return NextResponse.json(
+        { message: "Too many project submissions. Please try again in a minute." },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
 
-    const {
-      title,
-      description,
-      budget,
-      category,
-      deadline,
-      state,
-    } = body;
-
-    // Validation
-    if (!title?.trim()) {
+    // Zod-validate the body. The schema caps title/description/state
+    // length and requires a future deadline. Returning the first
+    // issue's message keeps the error contract simple for the
+    // post-project form.
+    const parsed = createProjectSchema.safeParse(body);
+    if (!parsed.success) {
+      const first = parsed.error.issues[0];
       return NextResponse.json(
-        { message: "Title is required" },
+        { message: first?.message ?? "Invalid project payload" },
         { status: 400 }
       );
     }
 
-    if (!description?.trim()) {
-      return NextResponse.json(
-        { message: "Description is required" },
-        { status: 400 }
-      );
-    }
+    const { title, description, budget, category, deadline, state } = parsed.data;
 
     // Fetch user state from profile if not provided in body
     let userState = state;
@@ -89,9 +94,9 @@ export async function POST(req: NextRequest) {
       .insert({
         title: title.trim(),
         description: description.trim(),
-        budget: budget || 0,
+        budget: budget ?? 0,
         category: category || "",
-        deadline: deadline || null,
+        deadline: deadline ? new Date(deadline).toISOString() : null,
         user_id: user.id,
         state: userState,
         status: "open",
@@ -118,13 +123,14 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to create project";
     console.error("Create project error: - route.ts:122", error);
 
     return NextResponse.json(
       {
         success: false,
-        message: error.message || "Failed to create project",
+        message,
       },
       { status: 500 }
     );
