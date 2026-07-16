@@ -60,6 +60,10 @@ const Navbar = () => {
           <div className="relative ml-2">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-controls="user-menu"
+              aria-label="User menu"
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <span className="text-gray-500">Hi, {user?.email?.split('@')[0] || 'User'}</span>
@@ -67,7 +71,11 @@ const Navbar = () => {
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl py-2 z-[1001] overflow-hidden">
+              <div
+                id="user-menu"
+                role="menu"
+                className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl py-2 z-[1001] overflow-hidden"
+              >
                 <Link
                   href="/dashboard"
                   onClick={() => setMenuOpen(false)}

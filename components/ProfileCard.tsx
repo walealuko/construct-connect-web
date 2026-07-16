@@ -20,7 +20,7 @@ export default function ProfileCard({ item }: ProfileCardProps) {
   // for orders and show it for products.
   const price = isOrder ? null : (item as Product).price;
   const description = isOrder ? `Status: ${(item as Order).status}` : (item as Product).description;
-  const imageUrl = (item as any).imageUrl || "https://via.placeholder.com/150?text=Item";
+  const imageUrl = (item as any).imageUrl || "/no-image.svg";
 
   return (
     <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm max-w-[300px] transition-transform cursor-pointer hover:-translate-y-1">

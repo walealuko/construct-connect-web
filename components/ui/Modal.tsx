@@ -42,6 +42,7 @@ export const Modal = ({ isOpen, onClose, title, children, className }: ModalProp
             <h3 className="text-lg font-bold text-slate-900">{title}</h3>
             <button
               onClick={onClose}
+              aria-label="Close"
               className="p-1 rounded-full hover:bg-gray-100 text-gray-400 transition-colors"
             >
               ✕

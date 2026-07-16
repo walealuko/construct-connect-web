@@ -9,7 +9,7 @@ interface SafeImageProps extends ImageProps {
 
 export default function SafeImage({
   src,
-  fallbackSrc = "https://placehold.co/400x400?text=No+Image",
+  fallbackSrc = "/no-image.svg",
   alt,
   ...props
 }: SafeImageProps) {

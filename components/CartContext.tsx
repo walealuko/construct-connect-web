@@ -191,6 +191,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   // Always keep localStorage in sync with local state, regardless of
   // auth state. The same key is used for both modes; the value
   // happens to be the local view of whatever the canonical source is.
+  //
+  // Two writes per cart mutation are intentional: the first (in the
+  // `persistToServer` useEffect above) is the optimistic snapshot
+  // that survives a hard refresh mid-roundtrip; this one is the
+  // server-canonical cap landing on disk. Debouncing is intentionally
+  // not used — the data-correctness guarantee outweighs the two
+  // extra `setItem` calls.
   useEffect(() => {
     if (typeof window === "undefined") return;
     // While a sign-in merge is in flight, the local state is the

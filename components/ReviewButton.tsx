@@ -79,11 +79,18 @@ export default function ReviewButton({ sellerId, sellerName }: ReviewButtonProps
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Rating</label>
-                <div className="flex gap-1">
+                <div
+                  className="flex gap-1"
+                  role="radiogroup"
+                  aria-label="Your rating"
+                >
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       type="button"
+                      role="radio"
+                      aria-checked={rating === star}
+                      aria-label={`Rate ${star} of 5 stars`}
                       onClick={() => setRating(star)}
                       className={`text-3xl leading-none cursor-pointer transition-colors ${
                         star <= rating ? "text-amber-500" : "text-gray-300"

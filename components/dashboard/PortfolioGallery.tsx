@@ -109,6 +109,7 @@ export function PortfolioGallery({
                 <button
                   type="button"
                   onClick={() => onRemove(url)}
+                  aria-label="Remove image"
                   className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 text-red-600 text-xs font-bold shadow opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Remove"
                 >

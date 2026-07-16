@@ -72,11 +72,21 @@ export default function PostProject() {
                 placeholder="e.g. Build a 3-bedroom bungalow"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                name="title"
+                autoComplete="off"
                 required
               />
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description *</label>
+                <label
+                  htmlFor="project-description"
+                  className="text-xs font-bold text-gray-400 uppercase tracking-wider"
+                >
+                  Description *
+                </label>
                 <textarea
+                  id="project-description"
+                  name="description"
+                  autoComplete="off"
                   placeholder="Describe the project requirements, materials needed, and timeline..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -88,9 +98,12 @@ export default function PostProject() {
               <Input
                 label="Budget (Optional)"
                 type="number"
+                inputMode="decimal"
                 placeholder="Estimated budget in ₦"
                 value={formData.budget}
                 onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                name="budget"
+                autoComplete="off"
               />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
@@ -98,12 +111,16 @@ export default function PostProject() {
                   placeholder="e.g. Roofing, Plumbing"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  name="category"
+                  autoComplete="off"
                 />
                 <Input
                   label="Deadline (Optional)"
                   type="date"
                   value={formData.deadline}
                   onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                  name="deadline"
+                  autoComplete="off"
                 />
               </div>
               <Input
@@ -111,6 +128,8 @@ export default function PostProject() {
                 placeholder="e.g. Lagos"
                 value={formData.state}
                 onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                name="state"
+                autoComplete="address-level1"
               />
               <Button
                 type="submit"
