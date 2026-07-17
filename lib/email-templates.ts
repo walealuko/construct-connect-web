@@ -176,6 +176,63 @@ export function messageReceivedEmail(
 }
 
 // ----------------------------------------------------------------
+// Saved search match
+// ----------------------------------------------------------------
+
+export interface SavedSearchMatchData {
+  recipientName: string;
+  searchName: string;
+  // The full project row that matched. The Edge Function fetches it
+  // by id from the `projects` table after the trigger fires, so
+  // description, deadline, etc. are all available here.
+  project: {
+    id: string;
+    title: string;
+    description: string;
+    budget: number | null;
+    state: string | null;
+    category: string | null;
+    created_at: string;
+  };
+}
+
+/**
+ * Email the user when a project on /projects matches one of their
+ * saved searches. Sent from the Edge Function
+ * `notify-saved-searches` (one per matching saved search, so a
+ * user with three saved searches that all match a new project gets
+ * three emails).
+ */
+export function savedSearchMatchEmail(
+  data: SavedSearchMatchData,
+): { subject: string; html: string } {
+  const p = data.project;
+  const body = `
+    <p style="margin: 0 0 16px 0;">Hi ${escape(data.recipientName)},</p>
+    <p style="margin: 0 0 16px 0;">A new project just landed that matches your saved search <strong>${escape(data.searchName)}</strong>:</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #f8fafc; border-radius: 8px; padding: 16px; margin: 16px 0;">
+      <tr>
+        <td style="padding: 12px 0;">
+          <h2 style="margin: 0 0 8px 0; font-size: 16px; color: #0f172a;">${escape(p.title)}</h2>
+          <p style="margin: 0 0 8px 0; color: #475569; font-size: 14px; line-height: 1.5;">${escape(p.description.slice(0, 280))}${p.description.length > 280 ? "…" : ""}</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 4px 0; color: #64748b; font-size: 12px;">Budget</td>
+        <td style="padding: 4px 0; text-align: right; font-weight: 600;">${p.budget != null ? formatNaira(p.budget) : "Negotiable"}</td>
+      </tr>
+      ${p.state ? `<tr><td style="padding: 4px 0; color: #64748b; font-size: 12px;">Location</td><td style="padding: 4px 0; text-align: right; font-weight: 600;">${escape(p.state)}</td></tr>` : ""}
+      ${p.category ? `<tr><td style="padding: 4px 0; color: #64748b; font-size: 12px;">Category</td><td style="padding: 4px 0; text-align: right; font-weight: 600;">${escape(p.category)}</td></tr>` : ""}
+    </table>
+    <p style="margin: 16px 0 0 0;"><a href="/projects/${escape(p.id)}" style="background: #1e40af; color: #ffffff; padding: 10px 16px; border-radius: 6px; text-decoration: none; font-weight: 600;">View project</a></p>
+  `;
+  return {
+    subject: `New project matching "${data.searchName}"`,
+    html: wrapper("New project match", body),
+  };
+}
+
+// ----------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------
 
@@ -204,4 +261,5 @@ export const templates = {
   orderReceivedBySellerEmail,
   orderStatusChangedEmail,
   messageReceivedEmail,
+  savedSearchMatchEmail,
 };
