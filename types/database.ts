@@ -6,6 +6,15 @@ export interface Profile {
   full_name?: string;
   email?: string;
   business_name?: string;
+  // The seller-side "what do you sell?" field. Set at registration
+  // (required for business/artisan tiers, see Zod registerSchema
+  // and app/actions/auth.ts), written to profiles.category. Read
+  // by lib/services/artisanService to filter the public /artisans
+  // directory and pre-fill ProductFormModal on the dashboards. DB
+  // CHECK constraint from migration 0018 pins the value to the
+  // PRODUCT_CATEGORIES vocabulary; "General" is the explicit
+  // free-pass for sellers who span categories.
+  category?: string;
   avatar_url?: string;
   tier: 'admin' | 'business' | 'individual' | 'artisan';
   bio?: string;
