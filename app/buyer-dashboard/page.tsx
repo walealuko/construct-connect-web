@@ -1,15 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useContext } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import Link from "next/link";
 import { UserContext } from "@/components/UserContext";
-import { supabase } from "@/lib/supabase";
-import { Profile, Order, Product, primaryImage } from "@/types/database";
+import { useBuyerData } from "@/components/dashboard/useBuyerData";
+import { primaryImage } from "@/types/database";
 import SafeImage from "@/components/ui/SafeImage";
-import { removeProductViewAction } from "@/app/actions/products";
-import { deleteOrderAction } from "@/app/actions/orders";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -17,23 +14,23 @@ import { formatNaira } from "@/lib/format";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { resolveImageUrl } from "@/lib/storage";
 import { useRouter } from "next/navigation";
-import type { Conversation, Profile as ChatProfile } from "@/types/chat";
 
 export default function BuyerDashboard() {
   const userContext = useContext(UserContext);
   const user = userContext?.user;
   const router = useRouter();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [orders, setOrders] = useState<(Order & { total_price?: number })[]>([]);
-  const [viewedProducts, setViewedProducts] = useState<Product[]>([]);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    profile,
+    orders,
+    viewedProducts,
+    conversations,
+    loading,
+    removeViewedProduct,
+    deleteOrder,
+  } = useBuyerData();
   // Tracks the order id currently being soft-deleted so the row's
   // ✕ button shows a spinner and the confirm button disables while
-  // the round-trip is in flight. The realtime UPDATE on orders
-  // (the buyer-side RLS now hides the row, so the channel won't
-  // deliver it to us anyway) doesn't need to be mirrored — we
-  // splice the row out optimistically below.
+  // the round-trip is in flight.
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   // Soft-delete confirmation. We hold the candidate order id in
   // state and show a modal — same pattern as
@@ -41,202 +38,14 @@ export default function BuyerDashboard() {
   // but rendered inline here because we only have one consumer.
   const [confirmOrderDelete, setConfirmOrderDelete] = useState<string | null>(null);
 
-  /* eslint-disable react-hooks/exhaustive-deps */
-  useEffect(() => {
-    if (user) {
-      loadBuyerData();
-    }
-  }, [user]);
-  /* eslint-enable react-hooks/exhaustive-deps */
-
-  const loadBuyerData = async () => {
-    setLoading(true);
-    try {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .maybeSingle();
-      setProfile(profileData ?? null);
-
-      // The orders schema has a separate `order_items` table. The
-      // canonical total lives on the orders row itself in
-      // `total_amount` (set at checkout from the cart total), so we
-      // don't need to re-sum line items here — just read the
-      // snapshot. This is also what the API verify route compares
-      // against the Paystack amount, so the two stay in lockstep.
-      const { data: ordersData } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('buyer_id', user?.id)
-        .order('created_at', { ascending: false });
-      const ordersList = ordersData || [];
-      setOrders(ordersList.map((o) => ({ ...o, total_price: Number((o as any).total_amount ?? 0) })));
-
-      const { data: viewedData } = await supabase
-        .from('viewed_products')
-        .select('product_id')
-        .eq('user_id', user?.id)
-        .order('viewed_at', { ascending: false })
-        .limit(10);
-
-      if (viewedData) {
-        const productIds = viewedData.map(v => v.product_id);
-        const { data: products } = await supabase
-          .from('products')
-          .select('*')
-          .in('id', productIds);
-        setViewedProducts(products || []);
-      }
-
-      // Recent conversations the buyer is part of. The conversations
-      // table has a uuid[] `participant_ids` column that PostgREST
-      // can't auto-embed, so we use the array-overlap operator and
-      // then fetch participant profiles in a second query.
-      //
-      // We also filter out conversations the user has hidden from
-      // their inbox (per-user hide rows in `conversation_hides`,
-      // RLS-gated to user_id = auth.uid()). Otherwise the "Messages"
-      // widget on this dashboard would re-show conversations the
-      // user already hid from /messages.
-      const { data: hides } = await supabase
-        .from("conversation_hides")
-        .select("conversation_id");
-      const hiddenIds = new Set<string>(
-        (hides || []).map((h) => h.conversation_id),
-      );
-
-      const { data: convs } = await supabase
-        .from('conversations')
-        .select('*')
-        .overlaps('participant_ids', user ? [user.id] : [])
-        .order('last_message_at', { ascending: false })
-        .limit(5);
-
-      const visibleConvs = (convs || []).filter((c) => !hiddenIds.has(c.id));
-
-      if (visibleConvs.length > 0) {
-        const idSet = new Set<string>();
-        for (const c of visibleConvs) {
-          for (const pid of c.participant_ids || []) idSet.add(pid);
-        }
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, avatar_url')
-          .in('id', Array.from(idSet));
-        const byId: Record<string, ChatProfile> = {};
-        for (const p of profiles || []) byId[p.id] = p as ChatProfile;
-        const enriched = visibleConvs.map((c) => ({
-          ...c,
-          profiles: (c.participant_ids || [])
-            .map((pid: string) => byId[pid])
-            .filter(Boolean),
-        }));
-        setConversations(enriched as Conversation[]);
-      } else {
-        setConversations([]);
-      }
-    } catch (err) {
-      console.error("Error loading buyer data:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Realtime: a seller can mark one of the buyer's orders as
-  // "shipped" / "delivered" / "completed" from their own
-  // dashboard. The buyer-dashboard's local `orders` state is the
-  // single source of truth for the Order History table, so we
-  // mirror the seller's UPDATE into it so the badge flips in
-  // real time without a refresh. RLS scopes the channel to the
-  // buyer's own rows; we still filter on the client as a
-  // belt-and-braces measure in case RLS changes.
-  useEffect(() => {
-    if (!user?.id) return;
-    const channel = supabase
-      .channel(`buyer-orders-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "orders",
-          filter: `buyer_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const updated = payload.new as Order & { total_amount?: number };
-          if (!updated?.id) return;
-          setOrders((prev) => {
-            const idx = prev.findIndex((o) => o.id === updated.id);
-            if (idx < 0) return prev;
-            const next = prev.slice();
-            // Preserve the computed `total_price` mirror (loaded
-            // from `total_amount` at fetch time). The realtime
-            // payload doesn't carry that projection, so re-apply
-            // it from the existing row.
-            const previous = prev[idx];
-            next[idx] = {
-              ...previous,
-              ...updated,
-              total_price: previous.total_price,
-            };
-            // Toast the status change so the user notices even if
-            // they're scrolled past the table.
-            if (previous.status !== updated.status) {
-              toast.info(`Order ${updated.id.slice(0, 8)}: now ${updated.status}`);
-            }
-            return next;
-          });
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id]);
-
-  const handleRemoveView = async (productId: string) => {
-    try {
-      const result = await removeProductViewAction(productId);
-      if (result.success) {
-        toast.success("Removed from history");
-        loadBuyerData();
-      } else {
-        toast.error(result.error);
-      }
-    } catch {
-      toast.error("Failed to remove product");
-    }
-  };
-
-  // Soft-delete: flip deleted_at on the orders row, then splice
-  // it out of local state. The buyer-side RLS (from migration
-  // 0015) filters `deleted_at IS NULL` so the row disappears
-  // from any future read. The seller-side RLS is unchanged, so the
-  // seller's view of the order is unaffected.
+  // Wraps the hook's deleteOrder so we can set/clear the
+  // "currently deleting" state and reset the confirm dialog. The
+  // hook owns the optimistic splice + rollback + server action.
   const handleDeleteOrder = async (orderId: string) => {
     setConfirmOrderDelete(null);
     setDeletingOrderId(orderId);
-    // Optimistic remove — the row is gone from the buyer's view
-    // in the next render regardless. The realtime channel
-    // would also deliver the UPDATE, but with `deleted_at IS NULL`
-    // gating the buyer-side RLS, the channel payload wouldn't
-    // reach this client (PostgREST skips rows RLS hides). So we
-    // do the splice ourselves.
-    const previous = orders;
-    setOrders((prev) => prev.filter((o) => o.id !== orderId));
     try {
-      const result = await deleteOrderAction(orderId);
-      if (!result.success) {
-        setOrders(previous);
-        toast.error(result.error || "Failed to remove order");
-        return;
-      }
-      toast.success("Order removed from your history");
-    } catch (err: any) {
-      setOrders(previous);
-      toast.error(err.message || "Failed to remove order");
+      await deleteOrder(orderId);
     } finally {
       setDeletingOrderId(null);
     }
@@ -478,7 +287,7 @@ export default function BuyerDashboard() {
                         variant="ghost"
                         size="icon"
                         className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 bg-white/90 backdrop-blur-sm text-red-500 w-8 h-8 rounded-full hover:bg-red-50 transition-all shadow"
-                        onClick={() => handleRemoveView(product.id)}
+                        onClick={() => removeViewedProduct(product.id)}
                         title="Remove from history"
                         aria-label="Remove from history"
                       >
