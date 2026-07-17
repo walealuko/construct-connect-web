@@ -1,0 +1,4 @@
+project_id = "construct-connect"
+
+[functions.notify-saved-searches]
+verify_jwt = false
