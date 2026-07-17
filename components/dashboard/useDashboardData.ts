@@ -95,10 +95,15 @@ export function useDashboardData(): UseDashboardDataResult {
   const [productPage, setProductPage] = useState(1);
   const [productCount, setProductCount] = useState(0);
 
-  // Cached list of every product id for this user — used for the orders
-  // query so it doesn't refetch on every product-page change. Re-keyed by
-  // productCount, which changes whenever the user creates or deletes a
-  // product. Refresh() resets the cache.
+  // Set-only cache of every product id for this user. The setter
+  // exists to make the React DevTools dependency chain obvious (the
+  // call site at line 138 is part of `load`), but nothing currently
+  // reads the value back — orders use the same `seller_id` filter
+  // instead. The underscore prefix is intentional to keep the lint
+  // rule that flags unused-vars happy. Refreshed on every `load()`
+  // call (which runs on `productPage` change and on explicit
+  // `refresh()`). The cache is NOT keyed on `productCount` — it just
+  // re-fetches `freshIds` whenever load runs.
   const [_allProductIds, setAllProductIds] = useState<string[]>([]);
 
   // Order pagination.
