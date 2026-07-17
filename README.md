@@ -81,6 +81,7 @@ If the Edge Function deploy is infeasible in your environment, the trigger body 
 - All sensitive tables have RLS enabled — see `supabase/migrations/`.
 - The committed `.env` (if any) is untracked in git; rotate any keys that previously appeared there at the provider. **Action required if you cloned a copy that included `.env`**: rotate `OPENROUTER_API_KEY` and `ANTHROPIC_AUTH_TOKEN`.
 - CSP and other security headers are set in `next.config.js`.
+- Registration requires a 9–15 character password with at least one special character. See `lib/validations.ts::passwordSchema`. The 15-char ceiling is a deliberate project-owner choice over the NIST 800-63B (2020) passphrase guidance.
 - To report a vulnerability, see `SECURITY.md`.
 
 ## Project layout

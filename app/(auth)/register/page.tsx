@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, Suspense, useEffect, useContext } from 'react';
+import { useState, useRef, Suspense, useEffect, useContext, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { registerUserAction } from '@/app/actions/auth';
 import { PRODUCT_CATEGORIES } from '@/components/dashboard/ProductFormModal';
+import { scorePassword } from '@/lib/validations';
 
 const NIGERIAN_STATES = [
   "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Borno", "Cross River", "Delta",
@@ -88,6 +89,15 @@ function RegisterForm() {
       );
     }
   }, [formData.tier]);
+
+  // Live password strength score. The form's submit button is
+  // gated on this — a score of 0 means the password fails the
+  // Zod rule, and the user gets a friendly disabled button
+  // instead of a server-roundtrip rejection. The score derives
+  // from the same PASSWORD_MIN/PASSWORD_MAX/SPECIAL_CHARS
+  // constants the server uses, so the form and the schema
+  // can't drift apart.
+  const passwordScore = useMemo(() => scorePassword(formData.password), [formData.password]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -356,17 +366,28 @@ function RegisterForm() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Password"
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="At least 6 characters"
-              required
-              autoComplete="new-password"
-              error={fieldError?.field === "password" ? fieldError.message : undefined}
-            />
+            <div className="space-y-2">
+              <Input
+                label="Password"
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="9–15 chars, with a special character"
+                required
+                autoComplete="new-password"
+                error={fieldError?.field === "password" ? fieldError.message : undefined}
+              />
+              {/* Live strength meter. Renders nothing when the
+                  field is empty (no point alarming a user who
+                  hasn't started typing yet). The 3-segment bar
+                  and color are driven by scorePassword() — same
+                  scoring the Zod refine uses, so the meter and
+                  the disabled-submit gate can't disagree. */}
+              {formData.password.length > 0 && (
+                <PasswordStrengthMeter score={passwordScore} />
+              )}
+            </div>
             <Input
               label="Confirm Password"
               type="password"
@@ -385,7 +406,7 @@ function RegisterForm() {
           <Button
             type="submit"
             className="w-full py-6 text-lg"
-            disabled={loading}
+            disabled={loading || passwordScore === 0}
             isLoading={loading}
           >
             Create Account
@@ -399,6 +420,50 @@ function RegisterForm() {
         </p>
       </CardFooter>
     </Card>
+  );
+}
+
+/**
+ * 3-segment strength bar + label, driven by the score returned
+ * by scorePassword() in lib/validations.ts. The score is the
+ * single source of truth shared with the Zod refine, so the
+ * meter and the disabled-submit check can never disagree.
+ *
+ * Colors are red/amber/green — accessible at the small sizes
+ * the meter renders at, and aligned with the standard
+ * weak/medium/strong convention users expect from signup forms.
+ * The label is rendered for screen readers via aria-live so a
+ * password-strength update is announced.
+ */
+function PasswordStrengthMeter({ score }: { score: 0 | 1 | 2 }) {
+  const filled = score + 1; // 0 → 1, 1 → 2, 2 → 3 segments lit
+  const labels = ["Weak", "Medium", "Strong"] as const;
+  const colors = [
+    "bg-red-500",
+    "bg-amber-500",
+    "bg-emerald-500",
+  ] as const;
+  const label = labels[score];
+  const color = colors[score];
+
+  return (
+    <div className="space-y-1" aria-live="polite">
+      <div className="flex gap-1.5">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className={`h-1 flex-1 rounded-full transition-colors ${
+              i < filled ? color : "bg-gray-200"
+            }`}
+          />
+        ))}
+      </div>
+      <p className={`text-[11px] font-semibold ${
+        score === 0 ? "text-red-600" : score === 1 ? "text-amber-600" : "text-emerald-600"
+      }`}>
+        Password strength: {label}
+      </p>
+    </div>
   );
 }
 

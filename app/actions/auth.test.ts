@@ -48,8 +48,12 @@ const validForm = {
   lastName: "Okafor",
   email: "ada@example.com",
   phone: "08012345678",
-  password: "supersecret",
-  confirmPassword: "supersecret",
+  // Must satisfy the registration password policy (9–15 chars
+  // with ≥1 special). Update in lockstep with any test that
+  // asserts the password value is forwarded to signInWithPassword
+  // — see the mockSignIn assertion below.
+  password: "Sup3rSecret!",
+  confirmPassword: "Sup3rSecret!",
   tier: "individual" as const,
   businessName: undefined,
   location: "Lagos",
@@ -183,7 +187,7 @@ describe("registerUserAction", () => {
     expect(mockSignIn).toHaveBeenCalledTimes(1);
     expect(mockSignIn).toHaveBeenCalledWith({
       email: "ada@example.com",
-      password: "supersecret",
+      password: "Sup3rSecret!",
     });
     const ok = result as Extract<typeof result, { success: true }>;
     expect(ok.success).toBe(true);

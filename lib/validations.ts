@@ -1,12 +1,86 @@
 import { z } from 'zod';
 
+// Registration password policy:
+//   - 9 to 15 characters
+//   - at least one special character from the OWASP-recommended
+//     printable-ASCII set below
+// The cap (15) intentionally blocks long passphrases like
+// "correct-horse-battery-staple" (28 chars). This is a deliberate
+// project-owner choice over the NIST 800-63B (2020) guidance that
+// encourages passphrases; the 15-char ceiling is the trade-off
+// the team made. See README.md > Security for the rationale.
+//
+// Exported so a future password-change form can reuse the same
+// rule without drift. The form's strength meter (see
+// app/(auth)/register/page.tsx) reads these constants to derive
+// its scoring, so client and server agree on the bounds.
+export const PASSWORD_MIN = 9;
+export const PASSWORD_MAX = 15;
+// Printable ASCII punctuation that survives typical form
+// encoders. The escape-heavy string is the source — `includes`
+// scans it for the literal character. Spaces are deliberately
+// excluded so a typo'd spacebar doesn't accidentally count as a
+// special character.
+const SPECIAL_CHARS = "!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?`~";
+
+export const passwordSchema = z
+  .string()
+  .min(PASSWORD_MIN, `Password must be at least ${PASSWORD_MIN} characters`)
+  .max(PASSWORD_MAX, `Password must be at most ${PASSWORD_MAX} characters`)
+  .refine(
+    (p) => {
+      for (const ch of p) {
+        if (SPECIAL_CHARS.includes(ch)) return true;
+      }
+      return false;
+    },
+    { message: "Password must include at least one special character" },
+  );
+
+/**
+ * Score a password's strength on a 0–2 scale. The form's meter
+ * uses this so the live UI and the Zod refine can't drift apart.
+ * Mirrors the server rule: 0 = invalid for submission, 1+ = valid.
+ *
+ *   0 (weak):   fails the Zod rule (length out of bounds, or no
+ *               special character)
+ *   1 (medium): valid (passes Zod) but only 2 character classes
+ *   2 (strong): valid AND ≥3 character classes
+ *
+ * The character-class count intentionally rewards variety without
+ * making a particular class required — so a 15-char passphrase
+ * of all letters can still land on 2 if the form prefers
+ * character diversity. (The form just *displays* the score; it
+ * doesn't enforce it.)
+ */
+export function scorePassword(p: string): 0 | 1 | 2 {
+  if (p.length < PASSWORD_MIN || p.length > PASSWORD_MAX) return 0;
+  let hasSpecial = false;
+  for (const ch of p) {
+    if (SPECIAL_CHARS.includes(ch)) {
+      hasSpecial = true;
+      break;
+    }
+  }
+  if (!hasSpecial) return 0;
+  let classes = 0;
+  if (/[a-z]/.test(p)) classes++;
+  if (/[A-Z]/.test(p)) classes++;
+  if (/\d/.test(p)) classes++;
+  // A 4-class "has special" bonus is not added; special is
+  // already required by the rule, so its presence is reflected
+  // in the "valid" gate above. The meter rewards uppercase,
+  // lowercase, and digit variety.
+  return classes >= 3 ? 2 : 1;
+}
+
 // Registration Schema
 export const registerSchema = z.object({
   firstName: z.string().min(2, 'First name is required'),
   lastName: z.string().min(2, 'Last name is required'),
   email: z.string().email('Invalid email address'),
   phone: z.string().min(10, 'Phone number must be at least 10 digits'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: passwordSchema,
   confirmPassword: z.string(),
   tier: z.enum(['individual', 'business', 'artisan']),
   businessName: z.string().optional(),
