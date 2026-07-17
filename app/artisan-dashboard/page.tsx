@@ -406,7 +406,15 @@ export default function ArtisanDashboard() {
         <ProductFormModal
           isOpen={isAddOpen}
           mode="add"
-          fixedCategory="artisan-service"
+          // Drive the default from the artisan's profile. The
+          // legacy hard-coded "artisan-service" is dropped: it
+          // would have short-circuited the seller's chosen
+          // category and tagged every new listing with a string
+          // the artisan directory's filter never matches. For
+          // artisans without a profile-level category (legacy
+          // rows), fall back to "General" — the same value the
+          // artisan service already uses as a default.
+          defaultCategory={profile?.category ?? "General"}
           defaultLocation={profile?.location}
           onClose={() => setIsAddOpen(false)}
           onSubmit={handleCreate}
@@ -416,7 +424,7 @@ export default function ArtisanDashboard() {
           isOpen={!!editingProduct}
           mode="edit"
           product={editingProduct}
-          fixedCategory="artisan-service"
+          defaultCategory={profile?.category ?? "General"}
           defaultLocation={profile?.location}
           onClose={() => setEditingProduct(null)}
           onSubmit={handleUpdate}

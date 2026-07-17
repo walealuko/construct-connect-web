@@ -11,6 +11,7 @@ import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { registerUserAction } from '@/app/actions/auth';
+import { PRODUCT_CATEGORIES } from '@/components/dashboard/ProductFormModal';
 
 const NIGERIAN_STATES = [
   "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Borno", "Cross River", "Delta",
@@ -33,6 +34,7 @@ function RegisterForm() {
     confirmPassword: '',
     tier: defaultTier as 'individual' | 'business' | 'artisan',
     businessName: '',
+    businessCategory: '',
     location: '',
   });
   const [error, setError] = useState('');
@@ -69,6 +71,23 @@ function RegisterForm() {
     });
     return () => cancelAnimationFrame(id);
   }, [focusEmailOnMount]);
+
+  // When the user flips from a business/artisan tier to
+  // individual, clear the business-only fields. The fields are
+  // unmounted (the blue box is conditional on tier) so the
+  // state would otherwise survive a round-trip back to a
+  // business tier and surprise the user with a stale category.
+  // We use a functional setState so a synchronous tier-button
+  // click in the same render doesn't drop the clear.
+  useEffect(() => {
+    if (formData.tier === 'individual') {
+      setFormData((prev) =>
+        prev.businessName === '' && prev.businessCategory === ''
+          ? prev
+          : { ...prev, businessName: '', businessCategory: '' },
+      );
+    }
+  }, [formData.tier]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,6 +238,48 @@ function RegisterForm() {
                   fieldError?.field === "businessName" ? fieldError.message : undefined
                 }
               />
+              {/* "What do you sell?" — the seller-side equivalent
+                  of business_name. Drives the artisan directory
+                  filter on /artisans and pre-fills the product
+                  modal on the seller-dashboard. Reuses
+                  PRODUCT_CATEGORIES so the per-seller and
+                  per-product vocabularies stay in sync.
+
+                  "General" is the free pass for sellers who span
+                  categories. We don't add a separate "Other" /
+                  free-text option because the DB CHECK
+                  (migration 0018) is a closed whitelist and a
+                  free-text category would always silently
+                  fail-closed at the database. */}
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="register-business-category"
+                  className="text-xs font-bold text-gray-400 uppercase tracking-wider"
+                >
+                  What do you sell?
+                </label>
+                <select
+                  id="register-business-category"
+                  name="businessCategory"
+                  value={formData.businessCategory}
+                  onChange={handleChange}
+                  required
+                  aria-invalid={fieldError?.field === "businessCategory" || undefined}
+                  className={`w-full p-2 rounded-lg border text-sm outline-none focus:ring-2 ${
+                    fieldError?.field === "businessCategory"
+                      ? "border-red-500 focus:ring-red-600"
+                      : "border-gray-300 focus:ring-blue-600"
+                  }`}
+                >
+                  <option value="">Select a category</option>
+                  {PRODUCT_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                {fieldError?.field === "businessCategory" && (
+                  <p className="text-xs text-red-500 font-medium">{fieldError.message}</p>
+                )}
+              </div>
             </div>
           )}
 

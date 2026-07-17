@@ -196,7 +196,7 @@ export default function SellerDashboard() {
   return (
     <DashboardLayout userRole="business">
       <div className="space-y-8">
-        <ProfileIncompleteBanner profile={profile} requireFields={["business_name", "location"]} />
+        <ProfileIncompleteBanner profile={profile} requireFields={["business_name", "location", "category"]} />
 
         <div className="flex justify-between items-center">
           <div className="space-y-1">
@@ -314,6 +314,11 @@ export default function SellerDashboard() {
         <ProductFormModal
           isOpen={isAddOpen}
           mode="add"
+          // Pre-fill with the category the seller chose at
+          // registration (from profiles.category). Falls back to
+          // "General" for legacy rows that pre-date the field —
+          // a safe default the DB CHECK (migration 0018) accepts.
+          defaultCategory={profile?.category ?? "General"}
           defaultLocation={profile?.location}
           onClose={() => setIsAddOpen(false)}
           onSubmit={handleCreate}
@@ -323,6 +328,7 @@ export default function SellerDashboard() {
           isOpen={!!editingProduct}
           mode="edit"
           product={editingProduct}
+          defaultCategory={profile?.category ?? "General"}
           defaultLocation={profile?.location}
           onClose={() => setEditingProduct(null)}
           onSubmit={handleUpdate}

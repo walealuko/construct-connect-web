@@ -10,6 +10,13 @@ export const registerSchema = z.object({
   confirmPassword: z.string(),
   tier: z.enum(['individual', 'business', 'artisan']),
   businessName: z.string().optional(),
+  // Sellers and artisans pick what they sell at registration. The
+  // string is one of PRODUCT_CATEGORIES (shared with the product
+  // form) so the per-seller and per-product vocabularies stay in
+  // sync. The form layer pre-fills the product modal with this
+  // value, and the artisan directory's filter reads it back.
+  // Required for business/artisan — see the refine below.
+  businessCategory: z.string().optional(),
   location: z.string().min(1, 'Location is required'),
 })
   .refine((data) => data.password === data.confirmPassword, {
@@ -23,6 +30,22 @@ export const registerSchema = z.object({
     {
       message: 'Business name is required for business and artisan accounts',
       path: ['businessName'],
+    }
+  )
+  .refine(
+    (data) =>
+      data.tier === 'individual' ||
+      (typeof data.businessCategory === 'string' && data.businessCategory.trim().length > 0),
+    {
+      // "What do you sell?" is the seller-side equivalent of
+      // business_name — a one-line identity that drives the
+      // artisan directory filter and pre-fills the product modal.
+      // 'General' is the explicit free-pass for sellers who span
+      // categories; we don't enforce a specific value here, just
+      // non-emptiness. The DB CHECK (migration 0018) is the
+      // authoritative whitelist.
+      message: 'Please tell us what you sell',
+      path: ['businessCategory'],
     }
   );
 

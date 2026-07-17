@@ -49,7 +49,7 @@ export async function registerUserAction(
       };
     }
 
-    const { firstName, lastName, email, password, tier, businessName, location, phone } = validated.data;
+    const { firstName, lastName, email, password, tier, businessName, businessCategory, location, phone } = validated.data;
 
     // 2. Sign up the user. Pass tier + full_name as initial user_metadata
     //    so the proxy/role-gate can route the user correctly on their
@@ -121,6 +121,13 @@ export async function registerUserAction(
         phone,
         tier,
         business_name: (tier === 'business' || tier === 'artisan') ? businessName : null,
+        // What the seller offers, in the same vocabulary the
+        // product modal uses (PRODUCT_CATEGORIES). The artisan
+        // directory filters on this column; the seller-dashboard's
+        // product modal pre-fills with it. Individuals don't get a
+        // category — they aren't a vendor. The schema is
+        // `text`, the DB CHECK (migration 0018) is the whitelist.
+        category: (tier === 'business' || tier === 'artisan') ? (businessCategory ?? null) : null,
         email,
         location,
         full_name: `${firstName} ${lastName}`,

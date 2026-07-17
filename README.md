@@ -30,7 +30,7 @@ npm run dev
 
 ### Manual RLS migrations
 
-Migrations live in `supabase/migrations/` and are applied by hand in the Supabase SQL editor in numeric order. There is no `supabase db push` automation. See the auto-memory note in `~/.claude/projects/.../memory/supabase-rls-policies.md` for which migrations are currently applied and what's pending.
+Migrations live in `supabase/migrations/` and are applied by hand in the Supabase SQL editor in numeric order. There is no `supabase db push` automation. The most recent migration is `0018_profiles_category_check.sql` (CHECK constraint pinning `profiles.category` to the product-categories vocabulary so the artisan directory's filter never returns rows the form layer wouldn't have produced). See the auto-memory note in `~/.claude/projects/.../memory/supabase-rls-policies.md` for which migrations are currently applied and what's pending.
 
 ### Manual Edge Function deploys
 
@@ -105,3 +105,4 @@ supabase/migrations/     # RLS + schema migrations (apply manually)
 
 - `buyer-dashboard`'s local data loader is a candidate to share the `useDashboardData` hook (currently duplicated). Deferred to a follow-up.
 - `LineItem` type lift — pure tidying. Deferred.
+- The `/artisans` directory's filter pills (`Electricians`, `Plumbers`, `Carpenters`, … in `app/artisans/page.tsx`) use a different vocabulary from the seller-side `PRODUCT_CATEGORIES` list. After sellers started picking from the product vocabulary at registration, a seller who chose `HVAC` or `Building Materials` at signup won't surface when a buyer clicks a specific pill — the pill filter is `category: "Plumbers"` strict equality. Aligning the two lists (or generalizing the pill filter to a mapping) is a follow-up.

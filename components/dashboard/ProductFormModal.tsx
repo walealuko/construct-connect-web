@@ -32,6 +32,15 @@ interface ProductFormModalProps {
   // For artisans, the category is forced to 'artisan-service' and there's
   // no category picker.
   fixedCategory?: string;
+  // Pre-fills the Category select. Wins over `fixedCategory` when
+  // the profile has a category set (the seller-dashboard wires
+  // this to `profile.category` so the modal opens with the value
+  // the seller chose at registration). For the artisan path we
+  // pass `profile?.category ?? "General"` and drop fixedCategory
+  // entirely so the modal's default tracks the artisan's chosen
+  // category instead of the legacy "artisan-service" literal.
+  // Ignored if `fixedCategory` is explicitly set.
+  defaultCategory?: string | null;
   // Pre-fills the Location field. The user can override it per listing
   // (e.g. stock that's actually at a different warehouse). Sellers and
   // artisans must list a city on every product so buyers can sort by
@@ -68,6 +77,7 @@ export function ProductFormModal({
   mode,
   product,
   fixedCategory,
+  defaultCategory,
   defaultLocation,
   onSubmit,
   onClose,
@@ -79,7 +89,11 @@ export function ProductFormModal({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
-  const [category, setCategory] = useState(fixedCategory || PRODUCT_CATEGORIES[0]);
+  // Initial value priority: fixedCategory (artisan legacy path) >
+  // defaultCategory (the seller's profile-level choice) > first
+  // product category. The dashboard wires `defaultCategory` to
+  // `profile.category` so the modal opens with the right pick.
+  const [category, setCategory] = useState(fixedCategory || defaultCategory || PRODUCT_CATEGORIES[0]);
   const [stock, setStock] = useState("");
   // Listing city. Required — buyers search/sort by this, and an empty
   // value hides the product from proximity results.
@@ -111,7 +125,7 @@ export function ProductFormModal({
       setName(product.name);
       setDescription(product.description);
       setPrice(product.price.toString());
-      setCategory(product.category || fixedCategory || PRODUCT_CATEGORIES[0]);
+      setCategory(product.category || fixedCategory || defaultCategory || PRODUCT_CATEGORIES[0]);
       setStock(product.stock.toString());
       setLocation(product.location || defaultLocation || "");
       setExistingImages(product.images ?? []);
@@ -122,7 +136,7 @@ export function ProductFormModal({
       setName("");
       setDescription("");
       setPrice("");
-      setCategory(fixedCategory || PRODUCT_CATEGORIES[0]);
+      setCategory(fixedCategory || defaultCategory || PRODUCT_CATEGORIES[0]);
       setStock("");
       // Pre-fill from the seller's profile so they don't have to type
       // it on every listing. They can override.
@@ -132,7 +146,7 @@ export function ProductFormModal({
       setNewPreviews([]);
       setUploadProgress(null);
     }
-  }, [isOpen, isEdit, product, fixedCategory, defaultLocation]);
+  }, [isOpen, isEdit, product, fixedCategory, defaultCategory, defaultLocation]);
 
   // New previews are produced as data: URLs (not blob: URLs) so they
   // pass the app's strict CSP — img-src allows data: but not blob:.
