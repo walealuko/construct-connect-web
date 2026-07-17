@@ -29,7 +29,7 @@ export type EmailSink = (msg: EmailMessage) => Promise<void>;
 /** Resend HTTP API sink. Sends via fetch; logs and swallows errors. */
 const resendSink: EmailSink = async (msg) => {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM ?? "Construct Hub <noreply@construct-hub.example.com>";
+  const from = process.env.EMAIL_FROM ?? "Construct Centre <noreply@construct-centre.com>";
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",

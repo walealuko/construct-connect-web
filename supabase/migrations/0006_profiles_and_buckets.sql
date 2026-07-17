@@ -1,4 +1,4 @@
--- Construct Hub: align the public.profiles table with the columns the
+-- Construct Centre: align the public.profiles table with the columns the
 -- application reads and writes. The profiles table was originally
 -- created outside the migration set, so its live schema diverged
 -- from the app's expectations — every profile edit (or new user

@@ -34,7 +34,7 @@ function LandingPage() {
       {/* Features Section */}
       <section className="bg-gray-50 px-6 py-16">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-2xl font-bold mb-12">Why Choose Construct Hub?</h2>
+          <h2 className="text-2xl font-bold mb-12">Why Choose Construct Centre?</h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="bg-white p-6 rounded-xl shadow-sm">
               <div className="text-3xl mb-4">🏗️</div>
@@ -57,7 +57,7 @@ function LandingPage() {
 
       {/* Footer */}
       <footer className="px-6 py-8 border-t text-center text-gray-500 text-sm">
-        <p>© 2024 Construct Hub. Building the future together.</p>
+        <p>© 2024 Construct Centre. Building the future together.</p>
       </footer>
     </div>
   );

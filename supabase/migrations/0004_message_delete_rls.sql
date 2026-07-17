@@ -1,4 +1,4 @@
--- Construct Hub: let any conversation participant delete any message in it.
+-- Construct Centre: let any conversation participant delete any message in it.
 --
 -- Apply manually in the Supabase SQL editor. Idempotent — every policy
 -- is preceded by `drop policy if exists` so re-running this migration

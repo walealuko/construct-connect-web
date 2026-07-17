@@ -12,7 +12,7 @@ for advisories.
 Please **do not** file a public GitHub issue for suspected
 vulnerabilities. Instead, open a private security advisory on GitHub
 (Security → Advisories → New draft security advisory) or email
-security@construct-hub.example.com with:
+security@construct-centre.com with:
 
 - A clear description of the vulnerability and its impact.
 - Steps to reproduce, ideally with a minimal proof of concept.

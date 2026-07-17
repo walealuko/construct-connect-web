@@ -1,4 +1,4 @@
--- Construct Hub: per-participant "last read" marker on conversations.
+-- Construct Centre: per-participant "last read" marker on conversations.
 --
 -- The inbox UI wants to show a small dot / badge on conversations
 -- that have a new message the user hasn't seen yet. The natural

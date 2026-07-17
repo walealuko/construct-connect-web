@@ -6,7 +6,7 @@ import { Product } from "@/types/database";
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: "Marketplace - Construction Materials | Construct Hub",
+  title: "Marketplace - Construction Materials | Construct Centre",
   description:
     "Browse construction materials from verified sellers. Cement, steel, blocks, roofing, plumbing, electrical — buy by location, weight, and grade.",
 };

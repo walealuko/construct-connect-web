@@ -5,7 +5,7 @@ import { Toaster } from 'sonner';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Construct Hub - Premium Construction Materials & Expert Artisans',
+  title: 'Construct Centre - Premium Construction Materials & Expert Artisans',
   description: 'Find quality building materials and skilled professionals for your construction projects in Nigeria.',
 };
 

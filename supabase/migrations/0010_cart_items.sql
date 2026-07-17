@@ -1,4 +1,4 @@
--- Construct Hub: persistent cart storage.
+-- Construct Centre: persistent cart storage.
 --
 -- Until now, the cart lived in localStorage only. A guest who filled
 -- a cart and then signed in lost it; the same person on phone and

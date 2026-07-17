@@ -1,4 +1,4 @@
--- Construct Hub: add `portfolio` column to profiles for artisan gallery.
+-- Construct Centre: add `portfolio` column to profiles for artisan gallery.
 --
 -- Apply in Supabase SQL editor (Database → SQL Editor → New query).
 -- Safe to re-run: uses IF NOT EXISTS via the ADD COLUMN check below.

@@ -1,4 +1,4 @@
--- Construct Hub: switch products.image_url (single) to products.images (array).
+-- Construct Centre: switch products.image_url (single) to products.images (array).
 --
 -- Apply manually in the Supabase SQL editor (Database → SQL Editor → New query).
 -- The migration is one transaction; if any step fails, the whole thing rolls

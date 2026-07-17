@@ -30,7 +30,7 @@
 //   SUPABASE_SERVICE_ROLE_KEY — the service role key (not anon)
 //   RESEND_API_KEY            — the Resend API key
 //   EMAIL_FROM                — the From: address (defaults to a
-//                               Construct Hub noreply)
+//                               Construct Centre noreply)
 //
 // How matching works:
 //   1. payload contains the new project's id, title, category,
@@ -98,7 +98,7 @@ const wrapper = (title: string, body: string): string => `
             </tr>
             <tr>
               <td style="padding: 16px 24px; background: #f1f5f9; text-align: center; font-size: 12px; color: #64748b;">
-                Construct Hub — Nigeria's construction marketplace.
+                Construct Centre — Nigeria's construction marketplace.
               </td>
             </tr>
           </table>
@@ -211,7 +211,7 @@ serve(async (req: Request): Promise<Response> => {
   const url = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const resendKey = Deno.env.get("RESEND_API_KEY") ?? "";
-  const from = Deno.env.get("EMAIL_FROM") ?? "Construct Hub <noreply@construct-hub.example.com>";
+  const from = Deno.env.get("EMAIL_FROM") ?? "Construct Centre <noreply@construct-centre.com>";
 
   if (!url || !serviceKey) {
     console.error("missing_supabase_env");

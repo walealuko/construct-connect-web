@@ -25,7 +25,7 @@ const Navbar = () => {
     <nav className="flex justify-between items-center px-6 md:px-10 h-[70px] bg-white shadow-sm sticky top-0 z-[1000]">
       {/* Logo */}
       <Link href="/" className="flex items-center gap-3">
-        <img src="/logo.png" alt="Construct Hub" className="h-12" />
+        <img src="/logo.png" alt="Construct Centre" className="h-12" />
       </Link>
 
       {/* Navigation Links */}

@@ -1,4 +1,4 @@
--- Construct Hub: one-shot fix for the orders RLS errors.
+-- Construct Centre: one-shot fix for the orders RLS errors.
 --
 -- HOW TO USE
 -- ----------

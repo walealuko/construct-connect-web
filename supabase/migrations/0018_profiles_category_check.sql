@@ -1,4 +1,4 @@
--- Construct Hub: pin profiles.category to the product-categories
+-- Construct Centre: pin profiles.category to the product-categories
 -- vocabulary.
 --
 -- profiles.category is the seller-side "what do you sell?" field

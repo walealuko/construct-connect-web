@@ -1,4 +1,4 @@
--- Construct Hub: let conversation participants reset the conversation
+-- Construct Centre: let conversation participants reset the conversation
 -- snapshot (last_message, last_message_at) when they clear or send.
 --
 -- Apply manually in the Supabase SQL editor. Idempotent — every policy

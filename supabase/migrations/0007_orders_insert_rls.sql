@@ -1,4 +1,4 @@
--- Construct Hub: let buyers insert their own orders.
+-- Construct Centre: let buyers insert their own orders.
 --
 -- Apply manually in the Supabase SQL editor. Idempotent — every policy
 -- is preceded by `drop policy if exists` so re-running this migration

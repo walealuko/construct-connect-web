@@ -1,4 +1,4 @@
--- Construct Hub: add profiles.last_seen for "user is online" detection.
+-- Construct Centre: add profiles.last_seen for "user is online" detection.
 --
 -- The chat message-received email throttles on "did the recipient
 -- have the app open in the last 5 minutes?" Without a last_seen

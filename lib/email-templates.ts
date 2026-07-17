@@ -31,7 +31,7 @@ const wrapper = (title: string, body: string): string => `
             </tr>
             <tr>
               <td style="padding: 16px 24px; background: #f1f5f9; text-align: center; font-size: 12px; color: #64748b;">
-                Construct Hub — Nigeria's construction marketplace.
+                Construct Centre — Nigeria's construction marketplace.
               </td>
             </tr>
           </table>

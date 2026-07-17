@@ -1,4 +1,4 @@
--- Construct Hub: order disputes.
+-- Construct Centre: order disputes.
 --
 -- Adds an audit-trail table for "open a dispute on this order"
 -- and a buyer-side UPDATE policy that lets a buyer flip an order's

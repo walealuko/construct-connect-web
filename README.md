@@ -1,4 +1,4 @@
-# Construct Hub
+# Construct Centre
 
 A B2B construction marketplace built with Next.js 16 and Supabase. Buyers (individuals, businesses) post project briefs; artisans, suppliers, and service providers list products and services; orders, payments, and messaging flow through Supabase RLS-protected tables.
 
@@ -49,7 +49,7 @@ supabase secrets set \
   RESEND_API_KEY=... \
   SUPABASE_URL=... \
   SUPABASE_SERVICE_ROLE_KEY=... \
-  EMAIL_FROM="Construct Hub <noreply@construct-hub.example.com>"
+  EMAIL_FROM="Construct Centre <noreply@construct-centre.com>"
 
 # Deploy.
 supabase functions deploy notify-saved-searches --no-verify-jwt

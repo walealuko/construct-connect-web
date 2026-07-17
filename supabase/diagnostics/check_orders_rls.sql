@@ -1,4 +1,4 @@
--- Construct Hub: diagnostic query — what's currently on the orders / order_items tables?
+-- Construct Centre: diagnostic query — what's currently on the orders / order_items tables?
 --
 -- This is a SELECT-only query. Run it in the Supabase SQL editor; it
 -- will not change anything. The result tells you which RLS policies

@@ -1,4 +1,4 @@
--- Comprehensive Seed Data for Construct Hub
+-- Comprehensive Seed Data for Construct Centre
 -- This script populates both profiles (Sellers/Buyers) and the products marketplace.
 
 -- 1. Clear existing data to avoid duplicates (Optional, use with caution)

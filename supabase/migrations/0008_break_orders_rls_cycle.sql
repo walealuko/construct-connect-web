@@ -1,4 +1,4 @@
--- Construct Hub: break the orders ↔ order_items RLS recursion cycle.
+-- Construct Centre: break the orders ↔ order_items RLS recursion cycle.
 --
 -- Apply manually in the Supabase SQL editor. Idempotent — every
 -- function is created with `create or replace`, and every policy

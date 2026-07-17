@@ -1,4 +1,4 @@
--- Construct Hub: per-user "hide from my inbox" + per-user "soft-delete
+-- Construct Centre: per-user "hide from my inbox" + per-user "soft-delete
 -- my order" affordances.
 --
 -- Two separate features, one migration so the user only needs to

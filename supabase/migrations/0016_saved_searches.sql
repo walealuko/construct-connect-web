@@ -1,4 +1,4 @@
--- Construct Hub: saved project searches + the trigger that fans
+-- Construct Centre: saved project searches + the trigger that fans
 -- them out to a Postgres NOTIFY channel for the realtime listener.
 --
 -- Two pieces in this migration:

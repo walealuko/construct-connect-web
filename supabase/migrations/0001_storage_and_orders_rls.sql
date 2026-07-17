@@ -1,4 +1,4 @@
--- Construct Hub: RLS policies for storage uploads and order updates.
+-- Construct Centre: RLS policies for storage uploads and order updates.
 --
 -- Apply this in the Supabase SQL editor (Database → SQL Editor → New query).
 -- Run as a single batch; this file is idempotent (every policy is preceded

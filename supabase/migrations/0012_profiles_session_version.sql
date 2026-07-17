@@ -1,4 +1,4 @@
--- Construct Hub: add profiles.session_version for forced sign-out.
+-- Construct Centre: add profiles.session_version for forced sign-out.
 --
 -- The admin action `clearAllUserSessionsAction(userId)` rotates this
 -- column. The proxy reads the JWT's embedded `session_version` and

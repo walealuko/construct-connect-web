@@ -527,7 +527,7 @@ export default function RegisterPage() {
             href={existingSession ? getRedirectPath(existingSession.role) : "/"}
             className="text-3xl font-black text-blue-800 tracking-tight"
           >
-            Construct Hub
+            Construct Centre
           </Link>
           <div className="h-1 w-12 bg-blue-600 mx-auto mt-2 rounded-full" />
         </div>
