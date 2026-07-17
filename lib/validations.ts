@@ -55,3 +55,21 @@ export const createProjectSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
+
+// Saved-search schema used by app/actions/saved-searches.ts.
+// Mirrors the saved_searches migration's columns. We keep
+// `min_budget` and `max_budget` as optional numbers so a user can
+// save a filter with just a category, just a state, just a budget,
+// or any combination. The action layer upserts by id when present
+// (so an edit reuses the same row) or lets the database generate
+// a fresh id on a true insert.
+export const savedSearchSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().min(1, "Name is required").max(100, "Name is too long"),
+  query: z.string().max(200).optional(),
+  category: z.string().max(50).optional(),
+  state: z.string().max(100).optional(),
+  min_budget: z.number().int().nonnegative().optional(),
+  max_budget: z.number().int().nonnegative().optional(),
+});
+export type SavedSearchInput = z.infer<typeof savedSearchSchema>;
