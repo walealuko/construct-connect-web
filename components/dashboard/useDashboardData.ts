@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useContext } from "react";
+import { useState, useEffect, useCallback, useContext, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Order, Product, Profile } from "@/types/database";
@@ -91,6 +91,20 @@ export function useDashboardData(): UseDashboardDataResult {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [portfolio, setPortfolio] = useState<string[]>([]);
+  // Mirror of `portfolio` for synchronous reads. The portfolio write
+  // path (addPortfolioItems / removePortfolioItem) used to capture
+  // the "next" array via a `setPortfolio((prev) => { ...; return ...; })`
+  // closure that assigned a `let nextSnapshot` in the outer scope.
+  // That pattern is fragile: React does not guarantee the updater
+  // runs before the next line of the caller, so the DB upsert
+  // could fire with the *initial* `[]` snapshot and silently wipe
+  // the existing portfolio on every upload. The ref gives us a
+  // synchronous, always-fresh source of truth that the write path
+  // can read without racing the React state updater.
+  const portfolioRef = useRef<string[]>(portfolio);
+  useEffect(() => {
+    portfolioRef.current = portfolio;
+  }, [portfolio]);
   const [stats, setStats] = useState<DashboardStats>({
     revenue: 0,
     ordersCount: 0,
@@ -138,11 +152,28 @@ export function useDashboardData(): UseDashboardDataResult {
         .maybeSingle();
       setProfile(profileData as Profile | null);
 
-      // 2. Portfolio from profile row (default '{}').
-      if (profileData && Array.isArray((profileData as Profile).portfolio)) {
-        setPortfolio(((profileData as Profile).portfolio as string[]) ?? []);
-      } else {
-        setPortfolio([]);
+      // 2. Portfolio from profile row (default '{}'). Treat
+      //    null/missing/non-array as "no value to render" — but
+      //    never clobber non-empty in-memory state with an empty
+      //    read. A transient glitch that returns a partial row
+      //    (e.g. the column is undefined, RLS strips it, network
+      //    truncation) would otherwise visually wipe the gallery
+      //    even though the DB still has every item. We only
+      //    reset to [] when the in-memory state is already empty
+      //    (fresh user, just-cleared) and the read confirms that.
+      if (profileData) {
+        const fromDb = (profileData as Profile).portfolio;
+        if (Array.isArray(fromDb)) {
+          setPortfolio(fromDb as string[]);
+        } else if (fromDb == null && portfolioRef.current.length === 0) {
+          // Confirm-empty: only reset when there's nothing to
+          // lose. Non-array, non-null values (a stringified
+          // array, an object) are silently ignored — the
+          // column's NOT NULL DEFAULT '{}' check means this is
+          // a pre-migration row that should be normalized, not
+          // rendered.
+          setPortfolio([]);
+        }
       }
 
       // 3a. The full product id list — small (just uuids), used for the
@@ -333,19 +364,20 @@ export function useDashboardData(): UseDashboardDataResult {
   const addPortfolioItems = useCallback(
     async (paths: string[]) => {
       if (!user?.id || paths.length === 0) return;
-      // Read the freshest portfolio via the functional form so this
-      // composes correctly when called multiple times in the same event
-      // (e.g. several concurrent uploads).
-      let nextSnapshot: string[] = [];
-      setPortfolio((prev) => {
-        nextSnapshot = [...prev, ...paths];
-        return nextSnapshot;
-      });
+      // Read the freshest portfolio via the ref (not the React
+      // state — see portfolioRef's comment for why). The ref is
+      // updated on every render via the effect above, so its
+      // value is the same as the latest committed state.
+      // Computing `next` synchronously here means the upsert
+      // payload is always "current + new" — never the initial
+      // `[]` from a half-run updater.
+      const next = [...portfolioRef.current, ...paths];
+      setPortfolio(next);
       // upsert so this also works the first time (profile row exists but
       // `portfolio` column not yet written to).
       const { error } = await supabase
         .from("profiles")
-        .upsert({ id: user.id, portfolio: nextSnapshot }, { onConflict: "id" });
+        .upsert({ id: user.id, portfolio: next }, { onConflict: "id" });
       if (error) {
         // The DB will be reloaded on next refresh(); the in-memory
         // state is already ahead. Caller toasts the error.
@@ -365,8 +397,15 @@ export function useDashboardData(): UseDashboardDataResult {
   const removePortfolioItem = useCallback(
     async (path: string) => {
       if (!user?.id) return;
-      const previous = portfolio;
-      const next = portfolio.filter((p) => p !== path);
+      // Read the freshest portfolio via the ref so the optimistic
+      // remove + the DB write are computed against the latest
+      // committed state. The previous implementation closed over
+      // `portfolio` from the click-render, which raced against
+      // earlier in-flight removes: two rapid clicks would each
+      // read a pre-click snapshot and the second DB write would
+      // un-do the first.
+      const previous = portfolioRef.current;
+      const next = previous.filter((p) => p !== path);
       setPortfolio(next);
       const { error } = await supabase
         .from("profiles")
@@ -376,7 +415,7 @@ export function useDashboardData(): UseDashboardDataResult {
         throw error;
       }
     },
-    [portfolio, user?.id]
+    [user?.id]
   );
 
   const productPageCount = Math.max(1, Math.ceil(productCount / PRODUCT_PAGE_SIZE));

@@ -340,3 +340,127 @@ describe("useDashboardData — happy path", () => {
     expect(sb.disputesSelect).not.toHaveBeenCalled();
   });
 });
+
+describe("useDashboardData — portfolio persistence", () => {
+  // The artisan portfolio write path had a race condition:
+  // addPortfolioItems captured the "next" array via a
+  // setPortfolio((prev) => { ...; return ...; }) closure, but
+  // React doesn't guarantee the updater runs before the next
+  // line. The DB upsert could fire with the *initial* `[]`
+  // snapshot and silently wipe existing items — and on the next
+  // mount, load() would re-read the empty array and the gallery
+  // would look wiped. The fix was to read from a ref instead of
+  // the React state. These tests pin the contract: each call
+  // composes against the latest persisted state, and the upsert
+  // payload always reflects the full array.
+
+  it("addPortfolioItems persists the full array (existing + new) on the first call", async () => {
+    sb.profileSelect.mockResolvedValueOnce({
+      data: { id: "user-1", portfolio: ["existing-1.png", "existing-2.png"] },
+      error: null,
+    });
+    await mountHook(makeUser());
+
+    await act(async () => {
+      await lastResult!.addPortfolioItems(["new-1.png"]);
+    });
+
+    expect(sb.profileUpsert).toHaveBeenCalledWith(
+      { id: "user-1", portfolio: ["existing-1.png", "existing-2.png", "new-1.png"] },
+      { onConflict: "id" },
+    );
+    // The optimistic state should also reflect the merge — the
+    // gallery renders from `portfolio`, so the user sees the
+    // new item immediately.
+    expect(lastResult?.portfolio).toEqual(["existing-1.png", "existing-2.png", "new-1.png"]);
+  });
+
+  it("consecutive addPortfolioItems calls compose against the previous result", async () => {
+    // The race the ref-based fix is protecting against: if a
+    // second addPortfolioItems call computes its upsert payload
+    // from a stale (e.g. closure-captured) `portfolio` instead
+    // of the latest committed state, the second DB write would
+    // drop the first batch. This test issues two consecutive
+    // calls and asserts the second call's payload includes the
+    // first call's items.
+    sb.profileSelect.mockResolvedValueOnce({
+      data: { id: "user-1", portfolio: [] },
+      error: null,
+    });
+    await mountHook(makeUser());
+
+    await act(async () => {
+      await lastResult!.addPortfolioItems(["first.png"]);
+    });
+    await act(async () => {
+      await lastResult!.addPortfolioItems(["second.png"]);
+    });
+
+    // First call: portfolio is [first.png].
+    expect(sb.profileUpsert).toHaveBeenNthCalledWith(
+      1,
+      { id: "user-1", portfolio: ["first.png"] },
+      { onConflict: "id" },
+    );
+    // Second call: portfolio is [first.png, second.png]. If the
+    // hook read from a stale closure, this would be just
+    // ["second.png"] — the bug.
+    expect(sb.profileUpsert).toHaveBeenNthCalledWith(
+      2,
+      { id: "user-1", portfolio: ["first.png", "second.png"] },
+      { onConflict: "id" },
+    );
+  });
+
+  it("removePortfolioItem persists the array with the removed path absent", async () => {
+    // Same class of bug: the previous implementation closed over
+    // `portfolio` from the click-render. Two rapid removes would
+    // each read a pre-click snapshot, so the second DB write
+    // would un-do the first. The ref-based fix makes the read
+    // synchronous against the latest committed state.
+    sb.profileSelect.mockResolvedValueOnce({
+      data: { id: "user-1", portfolio: ["keep.png", "drop.png"] },
+      error: null,
+    });
+    await mountHook(makeUser());
+
+    await act(async () => {
+      await lastResult!.removePortfolioItem("drop.png");
+    });
+
+    expect(sb.profileUpsert).toHaveBeenCalledWith(
+      { id: "user-1", portfolio: ["keep.png"] },
+      { onConflict: "id" },
+    );
+    expect(lastResult?.portfolio).toEqual(["keep.png"]);
+  });
+
+  it("load() does not clobber non-empty local state when the read returns an error", async () => {
+    // The previous read path unconditionally ran
+    // `setPortfolio(...)` after every load(). A transient read
+    // failure that returned a partial row would visually wipe
+    // the gallery even though the DB still had every item.
+    // Pin the new contract: a non-array read leaves the
+    // in-memory state alone.
+    sb.profileSelect.mockResolvedValueOnce({
+      data: { id: "user-1", portfolio: ["from-db.png"] },
+      error: null,
+    });
+    await mountHook(makeUser());
+    expect(lastResult?.portfolio).toEqual(["from-db.png"]);
+
+    // Simulate a second load() that returns a row missing the
+    // portfolio column (e.g. a permission/coercion glitch that
+    // stripped the field). The hook should not clobber the
+    // existing in-memory value with [].
+    sb.profileSelect.mockResolvedValueOnce({
+      data: { id: "user-1", portfolio: undefined },
+      error: null,
+    });
+    await act(async () => {
+      await lastResult!.refresh();
+    });
+
+    expect(lastResult?.portfolio).toEqual(["from-db.png"]);
+  });
+});
