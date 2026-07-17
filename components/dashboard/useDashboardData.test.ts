@@ -25,6 +25,7 @@ type SupabaseMock = {
   orderCountSelect: Mock<() => Promise<{ count: number; error: unknown }>>;
   orderItemsSelect: Mock<() => Promise<{ data: unknown; error: unknown }>>;
   profileUpsert: Mock<(...args: unknown[]) => Promise<{ error: unknown }>>;
+  disputesSelect: Mock<() => Promise<{ data: unknown; error: unknown }>>;
 };
 
 const sb: SupabaseMock = {
@@ -34,6 +35,7 @@ const sb: SupabaseMock = {
   orderCountSelect: vi.fn(),
   orderItemsSelect: vi.fn(),
   profileUpsert: vi.fn(),
+  disputesSelect: vi.fn(),
 };
 
 // `useDashboardData` reads from @/lib/supabase, which exports a
@@ -94,6 +96,20 @@ vi.mock("@/lib/supabase", () => ({
           },
         };
       }
+      if (table === "disputes") {
+        // useDashboardData fetches open disputes for the loaded
+        // orders. The chain shape is:
+        //   .select("order_id, status")
+        //   .eq("status", "open")
+        //   .in("order_id", orderIds)
+        return {
+          select: () => ({
+            eq: () => ({
+              in: () => sb.disputesSelect(),
+            }),
+          }),
+        };
+      }
       throw new Error(`unexpected table: ${table}`);
     },
   },
@@ -146,7 +162,13 @@ async function mountHook(user: User | null) {
     );
     // Drain the microtask queue so the useEffect-driven load()
     // has a chance to settle before the test reads lastResult.
-    await Promise.resolve();
+    // The hook now does 6 queries (profile, products id list,
+    // products page, order count, order items, disputes), so a
+    // single Promise.resolve() doesn't always reach the final
+    // setState. Three rounds is enough to cover the chain.
+    for (let i = 0; i < 3; i++) {
+      await Promise.resolve();
+    }
   });
 }
 
@@ -174,6 +196,7 @@ beforeEach(() => {
   sb.orderCountSelect.mockResolvedValue({ count: 0, error: null });
   sb.orderItemsSelect.mockResolvedValue({ data: [], error: null });
   sb.profileUpsert.mockResolvedValue({ error: null });
+  sb.disputesSelect.mockResolvedValue({ data: [], error: null });
 });
 
 describe("useDashboardData — happy path", () => {
@@ -246,5 +269,74 @@ describe("useDashboardData — happy path", () => {
     expect(lastResult?.products[0].id).toBe("p-new");
     expect(lastResult?.productCount).toBe(1);
     expect(lastResult?.stats.productsCount).toBe(1);
+  });
+
+  it("exposes disputeOrderIds: the set of loaded order ids with an open dispute", async () => {
+    // The hook fetches disputes after the orders list lands. The
+    // mock's order_items chain returns one distinct order, and
+    // the disputes chain returns that same order with status
+    // 'open'. The hook should expose the order id in
+    // `disputeOrderIds` so the seller-dashboard table can tint
+    // the row + show a "Disputed" pill.
+    //
+    // Without this test, a refactor that drops the dispute query
+    // or never reads its result would pass silently — the orders
+    // table is the only consumer of `disputeOrderIds`.
+    sb.productsIdSelect.mockResolvedValueOnce({ data: [], error: null });
+    sb.productsPageSelect.mockResolvedValueOnce({
+      data: [],
+      count: 0,
+      error: null,
+    });
+    sb.orderCountSelect.mockResolvedValueOnce({ count: 1, error: null });
+    sb.orderItemsSelect.mockResolvedValueOnce({
+      data: [
+        {
+          orders: {
+            id: "11111111-1111-4111-8111-111111111111",
+            buyer_id: "user-2",
+            status: "completed",
+            created_at: "2026-07-01",
+          },
+        },
+      ],
+      error: null,
+    });
+    sb.disputesSelect.mockResolvedValueOnce({
+      data: [
+        { order_id: "11111111-1111-4111-8111-111111111111", status: "open" },
+      ],
+      error: null,
+    });
+
+    await mountHook(makeUser());
+
+    expect(lastResult?.disputeOrderIds).toBeInstanceOf(Set);
+    expect(lastResult?.disputeOrderIds.has("11111111-1111-4111-8111-111111111111")).toBe(true);
+    // Exactly one id in the set, so the test catches a bug that
+    // accidentally appends every order (not just disputed ones).
+    expect(lastResult?.disputeOrderIds.size).toBe(1);
+  });
+
+  it("disputeOrderIds is empty when the orders list is empty", async () => {
+    // Edge case: the seller has no orders. The hook short-circuits
+    // the dispute fetch to avoid a meaningless round-trip. The
+    // set should still be a Set instance (not undefined) so the
+    // dashboard doesn't crash on `.has(...)`.
+    sb.productsIdSelect.mockResolvedValueOnce({ data: [], error: null });
+    sb.productsPageSelect.mockResolvedValueOnce({
+      data: [],
+      count: 0,
+      error: null,
+    });
+    sb.orderCountSelect.mockResolvedValueOnce({ count: 0, error: null });
+    sb.orderItemsSelect.mockResolvedValueOnce({ data: [], error: null });
+
+    await mountHook(makeUser());
+
+    expect(lastResult?.disputeOrderIds).toBeInstanceOf(Set);
+    expect(lastResult?.disputeOrderIds.size).toBe(0);
+    // The disputes query should not have been issued.
+    expect(sb.disputesSelect).not.toHaveBeenCalled();
   });
 });

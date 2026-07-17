@@ -32,6 +32,39 @@ npm run dev
 
 Migrations live in `supabase/migrations/` and are applied by hand in the Supabase SQL editor in numeric order. There is no `supabase db push` automation. See the auto-memory note in `~/.claude/projects/.../memory/supabase-rls-policies.md` for which migrations are currently applied and what's pending.
 
+### Manual Edge Function deploys
+
+The project ships a `notify-saved-searches` Supabase Edge Function (`supabase/functions/notify-saved-searches/index.ts`) that listens for new-project events on the `new_project` pg_notify channel (the trigger is in migration `0016`) and dispatches one `savedSearchMatchEmail` per matching saved search via Resend. The trigger is durable — it fires on every insert, including direct-DB ones — but the function itself needs to be deployed once per environment.
+
+```bash
+# One-time per project: install the Supabase CLI and link the project.
+npm install -g supabase
+supabase login
+supabase link --project-ref <your-project-ref>
+
+# Set the function's secrets. The RESEND_API_KEY is the
+# outbound mailer; SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are
+# the database connection. EMAIL_FROM is the From: header.
+supabase secrets set \
+  RESEND_API_KEY=... \
+  SUPABASE_URL=... \
+  SUPABASE_SERVICE_ROLE_KEY=... \
+  EMAIL_FROM="Construct Hub <noreply@construct-hub.example.com>"
+
+# Deploy.
+supabase functions deploy notify-saved-searches --no-verify-jwt
+```
+
+`--no-verify-jwt` is intentional: the function is invoked by the database trigger, not by an end user. The pg_notify payload is the only input. To test locally:
+
+```bash
+supabase functions serve notify-saved-searches --no-verify-jwt
+# In another shell, simulate a notification:
+psql "$DATABASE_URL" -c "select pg_notify('new_project', json_build_object('id', gen_random_uuid(), 'title', 'Test', 'category', '', 'state', '', 'budget', 0, 'created_at', now())::text);"
+```
+
+If the Edge Function deploy is infeasible in your environment, the trigger body in migration `0016` can be swapped to call `pg_net.http_post` to a Next.js API route — see the comment at the top of that migration.
+
 ## Commands
 
 | Command | Purpose |

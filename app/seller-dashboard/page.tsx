@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useContext, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { UserContext } from "@/components/UserContext";
 import { Product } from "@/types/database";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/Button";
+import { Card, CardContent } from "@/components/ui/Card";
 import { Pagination } from "@/components/ui/Pagination";
 import { ProductInventory } from "@/components/dashboard/ProductInventory";
 import { toast } from "sonner";
@@ -14,6 +15,7 @@ import {
   deleteProductAction,
   updateProductAction,
 } from "@/app/actions/products";
+import { listMyOpenDisputesAction } from "@/app/actions/disputes";
 
 import { useDashboardData } from "@/components/dashboard/useDashboardData";
 import { ProfileCard } from "@/components/dashboard/ProfileCard";
@@ -48,7 +50,33 @@ export default function SellerDashboard() {
     setProducts,
     setProductCount,
     setStats,
+    disputeOrderIds,
   } = useDashboardData();
+
+  // The "needs human" count. Drives the disputes widget above
+  // the orders table. We fetch on mount and on user change, not
+  // on every refresh() — the count is a snapshot, and a buyer
+  // opening a dispute from another tab is a small enough event
+  // that a re-render on next dashboard visit is fine.
+  const [openDisputesCount, setOpenDisputesCount] = useState<number>(0);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const result = await listMyOpenDisputesAction();
+      if (cancelled) return;
+      if (result.success) {
+        setOpenDisputesCount(result.count);
+      } else {
+        // Don't toast — the count is decorative and a backend
+        // hiccup on the disputes table shouldn't bug the user
+        // mid-dashboard. Just log to the console for now.
+        console.error("Failed to load open disputes count:", result.error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   // Client-side slice of the orders list for the current page.
   const pagedOrders = useMemo(() => {
@@ -221,11 +249,54 @@ export default function SellerDashboard() {
             </section>
 
             <section>
+              <div className="flex justify-between items-end mb-4">
+                <h3 className="text-xl font-bold text-slate-800">Needs review</h3>
+                <span className="text-xs text-gray-400">Disputes awaiting your team</span>
+              </div>
+              <Card>
+                <CardContent className="p-5 flex flex-wrap items-center gap-4">
+                  {/* Big number — the "needs human right now" signal. The
+                      red tint only shows when there's at least one
+                      open dispute; otherwise the count is grey so the
+                      widget doesn't feel alarmist on a quiet day. */}
+                  <div
+                    className={`text-4xl font-black ${
+                      openDisputesCount > 0 ? "text-red-600" : "text-gray-400"
+                    }`}
+                    data-testid="open-disputes-count"
+                  >
+                    {openDisputesCount}
+                  </div>
+                  <div className="flex-1 min-w-[200px]">
+                    <p className="text-sm font-semibold text-slate-800">
+                      {openDisputesCount === 0
+                        ? "No open disputes — your queue is clear."
+                        : openDisputesCount === 1
+                        ? "1 order is currently in dispute."
+                        : `${openDisputesCount} orders are currently in dispute.`}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Disputed rows are tinted in the orders table below; the
+                      status select is disabled until the dispute is resolved.
+                    </p>
+                  </div>
+                  <Button asChild variant="secondary" className="px-4 py-2 text-sm font-bold">
+                    {/* The per-seller listing is a follow-up. The
+                        404 lands on a "Coming soon" page that
+                        re-renders the same count. */}
+                    <Link href="/seller-dashboard/disputes">View disputes →</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </section>
+
+            <section>
               <h3 className="text-xl font-bold text-slate-800 mb-4">Recent Orders</h3>
               <OrdersTable
                 orders={pagedOrders}
                 loading={loading && orders.length === 0}
                 onStatusChange={updateOrderStatus}
+                disputeOrderIds={disputeOrderIds}
               />
               <div className="mt-2">
                 <Pagination

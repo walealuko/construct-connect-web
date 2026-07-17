@@ -12,6 +12,12 @@ interface OrdersTableProps {
   loading: boolean;
   onStatusChange: (orderId: string, newStatus: string) => void;
   emptyMessage?: string;
+  // Order ids with an open dispute. The table tints the row a
+  // light red and shows a "Disputed" pill next to the status so
+  // the seller can spot rows that need human attention. Default
+  // is an empty Set so existing call sites don't have to thread
+  // it through.
+  disputeOrderIds?: Set<string>;
 }
 
 const STATUS_OPTIONS = [
@@ -41,7 +47,7 @@ function buyerName(order: Order): string {
   return "Unknown Buyer";
 }
 
-export function OrdersTable({ orders, loading, onStatusChange, emptyMessage = "No orders found yet." }: OrdersTableProps) {
+export function OrdersTable({ orders, loading, onStatusChange, emptyMessage = "No orders found yet.", disputeOrderIds }: OrdersTableProps) {
   const router = useRouter();
   return (
     <Card className="overflow-hidden">
@@ -66,7 +72,9 @@ export function OrdersTable({ orders, loading, onStatusChange, emptyMessage = "N
           ) : orders.length === 0 ? (
             <div className="p-8 text-center text-gray-500 text-base">{emptyMessage}</div>
           ) : (
-            orders.map((order) => (
+            orders.map((order) => {
+              const disputed = disputeOrderIds?.has(order.id) ?? false;
+              return (
               <div
                 key={order.id}
                 onClick={() => router.push(`/orders/${order.id}`)}
@@ -83,8 +91,17 @@ export function OrdersTable({ orders, loading, onStatusChange, emptyMessage = "N
                    feel cramped and the dates too small to read at
                    a glance. The bigger padding also gives the
                    status select enough room to render at a usable
-                   size. */
-                className="grid grid-cols-4 hover:bg-slate-50 transition-colors text-base items-center cursor-pointer"
+                   size.
+
+                   Disputed rows get a light red tint so they
+                   stand out at a glance — the seller needs to
+                   follow up on them outside the normal status
+                   flow. The pill in the Status column carries
+                   the same signal for the accessibility tree
+                   (color alone is not enough). */
+                className={`grid grid-cols-4 hover:bg-slate-50 transition-colors text-base items-center cursor-pointer ${
+                  disputed ? "bg-red-50/60 hover:bg-red-50" : ""
+                }`}
               >
                 <div className="px-6 py-5 text-slate-900 font-semibold">
                   <Link
@@ -98,10 +115,15 @@ export function OrdersTable({ orders, loading, onStatusChange, emptyMessage = "N
                 <div className="px-6 py-5 text-slate-600 text-sm">
                   {new Date(order.created_at).toLocaleDateString()}
                 </div>
-                <div className="px-6 py-5">
+                <div className="px-6 py-5 flex items-center gap-2 flex-wrap">
                   <Badge variant={statusVariant(order.status)} className="text-sm px-3 py-1">
                     {order.status}
                   </Badge>
+                  {disputed && (
+                    <Badge variant="danger" className="text-sm px-3 py-1">
+                      Disputed
+                    </Badge>
+                  )}
                 </div>
                 <div className="px-6 py-5 text-right">
                   <select
@@ -112,6 +134,13 @@ export function OrdersTable({ orders, loading, onStatusChange, emptyMessage = "N
                       onStatusChange(order.id, e.target.value);
                     }}
                     className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white font-medium outline-none focus:ring-2 focus:ring-blue-500"
+                    // Disputed orders should not be flipped through
+                    // the normal status select — the dispute
+                    // resolution flow is the only path forward.
+                    // The select is disabled until the dispute is
+                    // closed (the dashboard's refresh will pick up
+                    // the change once a human resolves it).
+                    disabled={disputed}
                   >
                     {STATUS_OPTIONS.map((s) => (
                       <option key={s.value} value={s.value}>
@@ -121,7 +150,8 @@ export function OrdersTable({ orders, loading, onStatusChange, emptyMessage = "N
                   </select>
                 </div>
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

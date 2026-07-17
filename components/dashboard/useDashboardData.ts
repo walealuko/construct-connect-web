@@ -22,6 +22,14 @@ interface UseDashboardDataResult {
   stats: DashboardStats;
   loading: boolean;
   initialLoadDone: boolean;
+  // Order ids with an open dispute. Surfaced in the seller
+  // dashboard so the orders table can tint a row + show a
+  // "Disputed" pill. The set is rebuilt on every load() (orders
+  // can move in/out of dispute) and is a snapshot — the realtime
+  // UPDATE on orders doesn't currently mirror a dispute flip, so
+  // the page is expected to call refresh() if it opens one in
+  // another tab.
+  disputeOrderIds: Set<string>;
 
   // Product pagination (server-side)
   productPage: number;
@@ -88,6 +96,10 @@ export function useDashboardData(): UseDashboardDataResult {
     ordersCount: 0,
     productsCount: 0,
   });
+  // Set of order ids that have an open dispute. Rebuilt on every
+  // load(); see the comment on the result interface for the
+  // refresh story.
+  const [disputeOrderIds, setDisputeOrderIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
@@ -229,6 +241,34 @@ export function useDashboardData(): UseDashboardDataResult {
         ordersCount: ordersData.length,
         productsCount: productTotal ?? 0,
       });
+
+      // 5. Disputes. Pull the open disputes whose order_id is in
+      //    the set of orders we just loaded. RLS scopes this to
+      //    either party on the order (the seller qualifies via
+      //    the line-item path). We use a single .in() rather than
+      //    a per-order lookup so a 500-order dashboard doesn't
+      //    fan out into 500 round-trips.
+      //
+      //    An order id that flips into "disputed" between
+      //    load() calls is a deliberate gap — the seller opens
+      //    the dispute from the order-detail page, which can
+      //    call refresh() if the dashboard is the open surface.
+      if (ordersData.length > 0) {
+        const orderIds = ordersData.map((o) => o.id);
+        const { data: disputeRows, error: dError } = await supabase
+          .from("disputes")
+          .select("order_id, status")
+          .eq("status", "open")
+          .in("order_id", orderIds);
+        if (dError) {
+          console.error("Error fetching disputes:", dError);
+        }
+        setDisputeOrderIds(
+          new Set((disputeRows || []).map((r) => r.order_id).filter(Boolean) as string[]),
+        );
+      } else {
+        setDisputeOrderIds(new Set());
+      }
     } catch (err) {
       console.error("Dashboard load error:", err);
       toast.error("Failed to load dashboard data");
@@ -348,6 +388,7 @@ export function useDashboardData(): UseDashboardDataResult {
     orders,
     portfolio,
     stats,
+    disputeOrderIds,
     loading,
     initialLoadDone,
     productPage,
