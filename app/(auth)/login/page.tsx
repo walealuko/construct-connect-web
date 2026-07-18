@@ -251,7 +251,7 @@ function LoginPageInner() {
                   className="w-full py-6 text-base"
                   onClick={continueAsCurrent}
                 >
-                  Continue to my dashboard
+                  Keep my current account & go to dashboard
                 </Button>
                 <Button
                   type="button"
